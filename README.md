@@ -1,10 +1,10 @@
-# Lumen Geoguesser
+# 🗺️ Lumen Geoguesser
 
 <p align="center">
 	<img src="readme-pics/geoguesser-logo.png"></img>
 </p>
 
-## Brainstorming 🧠
+## 🧠 Brainstorming
 
 - Create a grid. Instead of regression, try classificaion where each class is a square on the grid. Classification should have a probabilistic interpretation. Multiply probabilities (the certainty of each block) to get the final coordinate. Size of the square is a hyperparameter.
 
