@@ -1,0 +1,17 @@
+# data wrangling
+numpy
+sklearn
+pandas
+matplotlib
+
+# torch related
+torch
+torchvision
+scikit-image
+Pillow
+efficientnet_pytorch
+
+# helpful utils 
+black
+tqdm
+tabulate
