@@ -10,6 +10,7 @@
 
 - Distance from each coordinate point is not linear. Use the transformation caculates the real world distance between cooridantes. The earth is round!
 
+- How do we exploit the fact that the real input is 4 images? We can naively classify all 4 images and then average classifications to get a single coordinate. Is there a better way? Maybe we can concatenate 4 images into a single image (360 view) ? If we can't concatenate images, which model arhitecture should be taken into account?
 
 ## ⬇️ Setup
 
