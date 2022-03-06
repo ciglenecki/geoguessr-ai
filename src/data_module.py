@@ -17,19 +17,18 @@ class InvalidRatios(Exception):
     pass
 
 
-"""
-https://pytorch-lightning.readthedocs.io/en/stable/extensions/datamodules.html#what-is-a-datamodule
-
-Datamodule's jobs
-1. Download / tokenize / process.
-2. Clean and (maybe) save to disk.
-3. Load inside Dataset.
-4. Apply transforms (rotate, tokenize, etc…).
-5. Wrap inside a DataLoader.
-"""
-
-
 class GeoguesserDataModule(pl.LightningDataModule):
+    """
+    https://pytorch-lightning.readthedocs.io/en/stable/extensions/datamodules.html#what-is-a-datamodule
+
+    Datamodule's jobs
+    1. Download / tokenize / process.
+    2. Clean and (maybe) save to disk.
+    3. Load inside Dataset.
+    4. Apply transforms (rotate, tokenize, etc…).
+    5. Wrap inside a DataLoader.
+    """
+
     def __init__(
         self,
         data_dir: Path = PATH_DATA_RAW,
