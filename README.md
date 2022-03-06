@@ -50,7 +50,7 @@ There are a few ways to pass multiple Datasets to Lightning:
 
 <table>
   <tr>
-    <td align="center"><a href="URL_HERE"><img src="URL_HERE" width="100px;" alt=""/><br /><sub><b>Borna Katović</b></sub></a><br /></td>
+    <td align="center"><a href="https://github.com/bkatovic"><img src="https://avatars.githubusercontent.com/u/56589395?v=4" width="100px;" alt=""/><br /><sub><b>Borna Katović</b></sub></a><br /></td>
     <td align="center"><a href="https://github.com/matejciglenecki"><img src="https://avatars.githubusercontent.com/u/12819849?v=4" width="100px;" alt=""/><br /><sub><b>Matej Ciglenečki</b></sub></a><br /></td>
     <td align="center"><a href="https://github.com/filipwolf"><img src="https://avatars.githubusercontent.com/u/50752058?v=4" width="100px;" alt=""/><br /><sub><b>Filip Wolf</b></sub></a><br /></td>
 </table>
