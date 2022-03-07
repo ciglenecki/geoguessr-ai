@@ -48,7 +48,7 @@ class Model(pl.LightningModule):
         return loss
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=DEFAULT_LR)
+        return torch.optim.Adam(self.model.parameters(), lr=DEFAULT_LR)
 
 
 image_transform = transforms.Compose(
