@@ -28,6 +28,15 @@ class Model(pl.LightningModule):
         super().__init__()
         self.model = torchvision.models.resnet34(pretrained=True, progress=True)
 
+    def predict_step(self, batch, batch_idx, dataloader_idx=0):
+        """
+        TODO: work in progress
+        https://pytorch-lightning.readthedocs.io/en/latest/common/lightning_module.html#prediction-loop
+        """
+        x, y = batch
+        y_hat = self.model(x)
+        return y_hat
+
     def training_step(self, batch, batch_idx):
         """
         TODO: work in progress
