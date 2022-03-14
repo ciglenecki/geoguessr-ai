@@ -32,7 +32,7 @@ class GeoguesserDatasetRaw(Dataset):
         self.path_images = Path(root_dir, "data")
         self.path_csv = Path(root_dir, "data.csv")
         self.df_csv = pd.read_csv(self.path_csv, index_col="uuid")
-        self.degrees = ["0", "90", "180", "270"]
+        self.degrees = ["0"]
         """
         os.walk is a generator and calling next will get the first result in the form of a 3-tuple (dirpath, dirnames, filenames). The [1] index returns only the dirnames from that tuple.
         """
@@ -65,7 +65,7 @@ class GeoguesserDatasetRaw(Dataset):
             transform = self.coordinate_transform
             latitude, longitude = self.coordinate_transform(latitude, longitude)
 
-        return images, latitude, longitude
+        return images[0], latitude, longitude
 
 
 if __name__ == "__main__":

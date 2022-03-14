@@ -57,7 +57,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
     def prepare_data(self):
         pass
 
-    def setup(self):
+    def setup(self, stage):
         self.dataset = GeoguesserDatasetRaw(root_dir=self.data_dir, image_transform=self.image_transform)
         self.dataset_length = int(len(self.dataset) * self.dataset_frac)
         self.dataset_indices = np.arange(self.dataset_length)

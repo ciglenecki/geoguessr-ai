@@ -1,14 +1,22 @@
-import os
-
 import pytorch_lightning as pl
-import torch
-import torch.nn.functional as F
+import torchmetrics as tm
 import torchvision
+import pandas as pd
+#import cv2
+import os
+from torch import nn
+from torch.utils.data import Dataset, DataLoader
+import numpy as np
+import torch
+from sklearn.model_selection import train_test_split
 from torchvision import transforms
 
-from data_module import GeoguesserDataModule
-from utils_env import DEFAULT_IMAGE_SIZE, DEFAULT_LR
-from utils_paths import PATH_DATA_RAW
+from src.data_module import GeoguesserDataModule
+from src.utils_env import DEFAULT_IMAGE_SIZE
+from src.utils_paths import PATH_DATA_RAW
+
+PATH = "../input/cassava-leaf-disease-classification/train_images/"
+CLASSES = 24
 
 
 class Model(pl.LightningModule):
@@ -25,39 +33,56 @@ class Model(pl.LightningModule):
     """
 
     def __init__(self):
+        # image_size = 64
         super().__init__()
-        self.model = torchvision.models.resnet34(pretrained=True, progress=True)
+        self.dic = {4615: 0, 4616: 1, 4617: 2, 4513: 4, 4514: 5, 4515: 6, 4516: 7, 4517: 8, 4518: 9, 4519: 10, 4413: 11, 4414: 12, 4415: 13, 4416: 14, 4418: 15, 4419: 16, 4315: 17, 4316: 18, 4317: 19, 4215: 20, 4216: 21, 4217: 22, 4218: 23}
+        self.cnv = nn.Conv2d(3, 128, kernel_size=5, stride=1)
+        self.rel = nn.ReLU()
+        self.bn = nn.BatchNorm2d(128)
+        self.mxpool = nn.MaxPool2d(4)
+        self.flat = nn.Flatten()
+        self.fc1 = nn.Linear(768, 64)
+        self.fc2 = nn.Linear(64, 64)
+        self.fc3 = nn.Linear(64, CLASSES)
+        self.softmax = nn.Softmax()
+        self.accuracy = tm.Accuracy()
 
-    def predict_step(self, batch, batch_idx, dataloader_idx=0):
-        """
-        TODO: work in progress
-        https://pytorch-lightning.readthedocs.io/en/latest/common/lightning_module.html#prediction-loop
-        """
-        x, y = batch
-        y_hat = self.model(x)
-        return y_hat
+    def forward(self, x):
+        out = self.bn(self.rel(self.cnv(x)))
+        out = self.flat(self.mxpool(x))
+        out = self.rel(self.fc1(out))
+        out = self.rel(self.fc2(out))
+        out = self.fc3(out)
+        return out
+
+    def loss_fn(self, out, target):
+        return nn.CrossEntropyLoss()(out.view(-1, CLASSES), target)
+
+    def configure_optimizers(self):
+        LR = 1e-3
+        optimizer = torch.optim.AdamW(self.parameters(), lr=LR)
+        return optimizer
 
     def training_step(self, batch, batch_idx):
-        """
-        TODO: work in progress
-        https://pytorch-lightning.readthedocs.io/en/latest/common/lightning_module.html#training-loop
-        """
-        x, y = batch
-        y_hat = self.model(x)
-        loss = F.cross_entropy(y_hat, y)
+        image, latitude, longitude = batch
+        label = torch.LongTensor([self.dic[int(str(int(lat)) + str(int(long)))] for lat, long in zip(latitude, longitude)])
+        out = self(image)
+        loss = self.loss_fn(out, label)
+        self.log('train_loss', loss)
         return loss
 
     def validation_step(self, batch, batch_idx):
-        """
-        TODO: work in progress
-        """
-        batch_images, batch_latitude, batch_longitude = batch
-        y_hat = self.model(batch_images[0])
-        loss = F.cross_entropy(y_hat, y)
-        return loss
-
-    def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=DEFAULT_LR)
+        image, latitude, longitude = batch
+        images, latitude, longitude = batch
+        label = torch.LongTensor([self.dic[int(str(int(lat)) + str(int(long)))] for lat, long in zip(latitude, longitude)])
+        out = self(image)
+        loss = self.loss_fn(out, label)
+        out = nn.Softmax(-1)(out)
+        logits = torch.argmax(out, dim=1)
+        accu = self.accuracy(logits, label)
+        self.log('valid_loss', loss)
+        self.log('train_acc_step', accu)
+        return loss, accu
 
 
 image_transform = transforms.Compose(
@@ -70,6 +95,6 @@ image_transform = transforms.Compose(
 )
 geoguesser_datamodule = GeoguesserDataModule(data_dir=PATH_DATA_RAW, image_transform=image_transform)
 
-model = Model()
-trainer = pl.Trainer()
-trainer.fit(model, geoguesser_datamodule)
+mod = Model()
+trainer = pl.Trainer(max_epochs=6)
+trainer.fit(model=mod, datamodule=geoguesser_datamodule)
