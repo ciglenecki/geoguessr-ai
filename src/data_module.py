@@ -10,6 +10,7 @@ from torchvision import transforms, utils
 
 from dataset import GeoguesserDatasetRaw
 from utils_env import DEAFULT_DROP_LAST, DEAFULT_NUM_WORKERS, DEFAULT_BATCH_SIZE, DEFAULT_DATASET_FRAC, DEFAULT_TEST_SIZE, DEFAULT_TRAIN_SIZE, DEFAULT_VAL_SIZE
+from utils_functions import split_by_ratio
 from utils_paths import PATH_DATA_RAW
 
 
@@ -40,6 +41,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
         image_transform: transforms.Compose | None = transforms.Compose([transforms.ToTensor()]),
         num_workers=DEAFULT_NUM_WORKERS,
         drop_last=DEAFULT_DROP_LAST,
+        shuffle=True,
     ):
         super().__init__()
         self.data_dir = data_dir
@@ -54,6 +56,8 @@ class GeoguesserDataModule(pl.LightningDataModule):
         self.num_workers = num_workers
         self.drop_last = drop_last
 
+        self.shuffle = shuffle
+
     def prepare_data(self):
         pass
 
@@ -61,9 +65,10 @@ class GeoguesserDataModule(pl.LightningDataModule):
         self.dataset = GeoguesserDatasetRaw(root_dir=self.data_dir, image_transform=self.image_transform)
         self.dataset_length = int(len(self.dataset) * self.dataset_frac)
         self.dataset_indices = np.arange(self.dataset_length)
-        np.random.shuffle(self.dataset_indices)
+        if self.shuffle:
+            np.random.shuffle(self.dataset_indices)
 
-        train_indices, val_indicies, test_indices = self.split_by_ratio(self.dataset_indices, self.train_size, self.val_size, self.test_size)
+        train_indices, val_indicies, test_indices = split_by_ratio(self.dataset_indices, self.train_size, self.val_size, self.test_size)
 
         self.train_len = len(train_indices)
         self.val_len = len(val_indicies)
@@ -84,12 +89,6 @@ class GeoguesserDataModule(pl.LightningDataModule):
     def test_dataloader(self):
         sampler = self.test_sampler
         return DataLoader(self.dataset, batch_size=self.batch_size, num_workers=self.num_workers, sampler=sampler, drop_last=self.drop_last)
-
-    def split_by_ratio(self, arr: np.ndarray, *ratios):
-        if sum(ratios) != 1:
-            raise InvalidRatios("Sum of ratios must be equal to 1", ratios)
-        ind = np.add.accumulate(np.array(ratios) * len(arr)).astype(int)
-        return [x.tolist() for x in np.split(arr, ind)][: len(ratios)]
 
 
 if __name__ == "__main__":
