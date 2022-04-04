@@ -22,42 +22,11 @@ from sklearn.metrics.pairwise import haversine_distances
 from utils_paths import PATH_DATA_RAW
 from math import radians
 
-# TODO: DOESNT MATTER FOR CLASSFICATION BECAUSE CLASSIFICATION CAN ONLY MAP TO EXISINTG CLASSES.if prediction is outside of croatia find the closes point on the croatia shape and map it to that point
-# TODO: explicitly add classes which are defined as points on the border. distribution densitiy will be higher than uniform on the coastal part but thats okay
-# TODO: intersect coastal squards with overlapping squares.
-# TODO: every polygoin in dataframe can also have additional column that is called center. It doesnt have to be center of the polygon, it can be the edge of the country if the polygon goes outside of the boudns.
+# TODO: implement polygons on the border; these are addional classes which are expliclty defined. These classes might clash with already exising classes (polygons). How? There might be a polygon which is close to the border and overlaps the explicitly defined polygon. Solution is to remove the intersection so that polygons don't overlap. Polygon on the border (the one that is explicitly defined) should have prioirty over getting more surface area.
 
+# TODO: outside of Croatia bound classification; prediction gives softmax of values; weighted sum ends up in Bosna, what do we do? Solution: find the closest point on the border
 
-def test():
-    return
-
-    # pnt1 = Point(45.8150, 15.9819)
-    # pnt2 = Point(42.6507, 18.0944)
-    # a = [radians(_) for _ in [45.8150, 15.9819]]
-    # b = [radians(_) for _ in [42.6507, 18.0944]]
-    # print(haversine_distances([a], [b]) * 6371000)
-
-    best_crs = "EPSG:4326"
-    croatia_crs = "EPSG:3765"  # https://epsg.io/3765
-    percentage_of_land_considered_a_block = 0.3
-
-    country_shape = get_country_shape("HR")
-    x_min, y_min, x_max, y_max = country_shape.total_bounds
-    polygons = get_grid(x_min, y_min, x_max, y_max, spacing=0.1)
-    grid = gpd.GeoDataFrame({"geometry": polygons}, crs=best_crs)
-
-    intersecting_polygons = []
-    for polygon in grid.geometry:
-        for country_polygon in country_shape.geometry:  # country_polygon could be an island, whole land...
-            if polygon.intersects(country_polygon):
-                if (polygon.intersection(country_polygon).area / polygon.area) >= percentage_of_land_considered_a_block:
-                    intersecting_polygons.append(polygon)
-
-    print(len(intersecting_polygons))
-    intersecting_polygons_df = gpd.GeoDataFrame({"geometry": intersecting_polygons})
-    base = country_shape.plot(color="green")
-    intersecting_polygons_df.plot(ax=base, alpha=0.3, linewidth=0.2, edgecolor="black")
-    plt.show()
+# TODO: every polygoin in dataframe can also have additional column that is called center. It doesnt have to be center of the polygon, it can be the edge of the country if the polygon's center goes outside of country's bounds
 
 
 class GeoguesserDataset(Dataset):
@@ -107,10 +76,10 @@ class GeoguesserDataset(Dataset):
 
         for i, polygon in enumerate(intersecting_polygons):
             self.df_csv.loc[df_geo_csv.within(polygon), "label"] = i
-            # TODO: somehow save polygons too
+            # TODO: save polygons too; during the training process we will have to compare great-circle distance of the true polygon to the prediction; saving centroid of the polygon might be sufficient?
 
-        print("NA poly", self.df_csv["label"].isnull().sum())
-        # TODO: handle this better, more warnings etc.
+        # TODO: here df_csv is filtered. Rows of the dataset (images) whose location is not known are filtered out.
+        # (label = 0 means that there we no polygons assigned to the picture). handle this better, more warnings etc.
         self.df_csv = self.df_csv.loc[~self.df_csv["label"].isnull(), :]
         self.num_classes = len(intersecting_polygons)
         print("num_classes", self.num_classes)
@@ -134,8 +103,7 @@ class GeoguesserDataset(Dataset):
 
     def __getitem__(self, index: int):
         """
-        Gets the uuid
-        Loads images via the uuid
+        Loads images via the index
         Loads latitude and longitude via the csv and uuid
         Applies transforms
         """
@@ -145,7 +113,6 @@ class GeoguesserDataset(Dataset):
         image_filepaths = list(map(lambda degree: Path(image_dir, "{}.jpg".format(degree)), self.degrees))
         images = list(map(lambda x: Image.open(x), image_filepaths))
         label = self.one_hot_encode_label(label)
-        # polygon = row["polygon"]
 
         if self.image_transform is not None:
             transform = self.image_transform
@@ -159,7 +126,6 @@ class GeoguesserDataset(Dataset):
 
 
 if __name__ == "__main__":
-    test()
     print("This file shouldn't be called as a script unless used for debugging.")
     dataset = GeoguesserDataset()
     dataset.prepare_lat_lng()

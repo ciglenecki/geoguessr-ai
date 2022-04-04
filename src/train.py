@@ -55,8 +55,7 @@ if __name__ == "__main__":
     )
     transform_labels = lambda x: np.array(x).astype("float")
 
-    # TODO: add  custom logger so it prints out here
-    # TODO: monitor by f1score
+    # TODO: monitored value (that we EarlyStop on) should be great-circle distance and not val_loss
 
     data_module = GeoguesserDataModule(
         dataset_dir=dataset_dir,

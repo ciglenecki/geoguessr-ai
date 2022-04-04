@@ -23,6 +23,14 @@ from itertools import product
 
 
 def get_grid(x_min, y_min, x_max, y_max, spacing):
+    """
+    Args:
+        x_min, y_min, x_max, y_max: bounds that form a grid
+        spacing: width/height of each polygon
+
+    Return:
+        list of polygons that form a grid
+    """
     polygons: List[Polygon] = []
     for y in np.arange(y_min, y_max + spacing, spacing):
         for x in np.arange(x_min, x_max + spacing, spacing):
@@ -59,7 +67,5 @@ def get_intersecting_polygons(grid: List[Polygon], base_shape: List[Polygon], pe
         is_area_valid = (polygon_grid.intersection(polygon_base).area / polygon_grid.area) > percentage_of_intersection_threshold
         if is_area_valid and polygon_grid not in intersecting_polygons:
             intersecting_polygons.append(polygon_grid)
-    print(len(intersecting_polygons))
-    intersecting_polygons = frozenset(intersecting_polygons)
     print(len(intersecting_polygons))
     return intersecting_polygons
