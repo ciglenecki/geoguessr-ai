@@ -37,6 +37,9 @@ pip install -r requirements.txt
 
 ## Notes
 
+### CSV dataframe:
+uuid, lat, lng, class(polygon_index)
+
 ### Lightning
 [Multiple Datasets
 ](https://pytorch-lightning.readthedocs.io/en/stable/guides/data.html#multiple-datasets)

@@ -1,66 +1,124 @@
-import os
+from __future__ import annotations, division, print_function
 
+from pathlib import Path
+from pprint import pprint
+
+import numpy as np
 import pytorch_lightning as pl
-import torch
-import torch.nn.functional as F
-import torchvision
+from callback_finetuning_last_n_layers import BackboneFinetuningLastLayers
+from pytorch_lightning import loggers as pl_loggers
+from pytorch_lightning.callbacks import BackboneFinetuning
+from pytorch_lightning.callbacks.early_stopping import EarlyStopping
+from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
+from pytorch_lightning.callbacks.progress.tqdm_progress import TQDMProgressBar
 from torchvision import transforms
+from torchvision.transforms.autoaugment import AutoAugmentPolicy
 
-from data_module import GeoguesserDataModule
-from utils_env import DEFAULT_IMAGE_SIZE, DEFAULT_LR
-from utils_paths import PATH_DATA_RAW
+from args_train import parse_args_train
+from data_module_geoguesser import GeoguesserDataModule
+from model import LitModel, OnTrainEpochStartLogCallback
+from utils_env import DEFAULT_EARLY_STOPPING_EPOCH_FREQ
+from utils_functions import get_timestamp, stdout_to_file
+from utils_paths import PATH_REPORT
 
+if __name__ == "__main__":
+    args, pl_args = parse_args_train()
 
-class Model(pl.LightningModule):
-    """
-    A LightningModule organizes your PyTorch code into 6 sections:
-    1. Model and computations (init).
-    2. Train Loop (training_step)
-    3. Validation Loop (validation_step)
-    4. Test Loop (test_step)
-    5. Prediction Loop (predict_step)
-    6. Optimizers and LR Schedulers (configure_optimizers)
+    timestamp = get_timestamp()
+    filename_report = Path(args.output_report, "-".join(["train", *args.models, timestamp]) + ".txt")
+    stdout_to_file(filename_report)
+    print(str(filename_report))
+    pprint([vars(args), vars(pl_args)])
 
-    LightningModule can itself be used as a model object. This is because `forward` function is exposed and can be used. Then, instead of using self.model(x) we can write self(x). See: https://pytorch-lightning.readthedocs.io/en/latest/common/lightning_module.html#starter-example
-    """
+    image_size = args.image_size
+    num_workers = args.wokers_num
+    model_names = args.models
+    unfreeze_blocks_num = args.unfreeze_blocks
+    pretrained = args.pretrained
+    learning_rate = args.lr
+    trainer_checkpoint = args.trainer_checkpoint
+    unfreeze_backbone_at_epoch = args.unfreeze_backbone_at_epoch
+    weight_decay = args.weight_decay
+    shuffle_before_splitting = args.shuffle_before_splitting
+    train_frac, val_frac, test_frac = args.split_ratios
+    dataset_dir = args.dataset_dir
+    batch_size = args.batch_size
 
-    def __init__(self):
-        super().__init__()
-        self.model = torchvision.models.resnet34(pretrained=True, progress=True)
+    image_transform_train = image_transform_val = transforms.Compose(
+        [
+            transforms.Resize(image_size),
+            transforms.RandomHorizontalFlip(),
+            # transforms.AutoAugment(policy=AutoAugmentPolicy.IMAGENET),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+        ]
+    )
+    transform_labels = lambda x: np.array(x).astype("float")
 
-    def training_step(self, batch, batch_idx):
-        """
-        TODO: work in progress
-        https://pytorch-lightning.readthedocs.io/en/latest/common/lightning_module.html#training-loop
-        """
-        x, y = batch
-        y_hat = self.model(x)
-        loss = F.cross_entropy(y_hat, y)
-        return loss
+    # TODO: add  custom logger so it prints out here
+    # TODO: monitor by f1score
 
-    def validation_step(self, batch, batch_idx):
-        """
-        TODO: work in progress
-        """
-        batch_images, batch_latitude, batch_longitude = batch
-        y_hat = self.model(batch_images[0])
-        loss = F.cross_entropy(y_hat, y)
-        return loss
+    data_module = GeoguesserDataModule(
+        dataset_dir=dataset_dir,
+        batch_size=batch_size,
+        train_frac=train_frac,
+        val_frac=val_frac,
+        test_frac=test_frac,
+        image_transform=image_transform_train,
+        num_workers=num_workers,
+        shuffle_before_splitting=shuffle_before_splitting,
+    )
+    data_module.setup()
 
-    def configure_optimizers(self):
-        return torch.optim.Adam(self.model.parameters(), lr=DEFAULT_LR)
+    for model_name in model_names:
+        # The EarlyStopping callback runs at the end of every validation epoch, which, under the default configuration, happen after every training epoch.
+        callback_early_stopping = EarlyStopping(
+            monitor="val_loss",
+            patience=DEFAULT_EARLY_STOPPING_EPOCH_FREQ,
+            verbose=True,
+        )
+        callback_checkpoint = ModelCheckpoint(filename=model_name + "-{val_acc:.2f}-{val_loss:.2f}")
+        bar_refresh_rate = int(len(data_module.train_dataloader()) / pl_args.log_every_n_steps)
 
+        callbacks = [
+            callback_early_stopping,
+            TQDMProgressBar(refresh_rate=bar_refresh_rate),
+            callback_checkpoint,
+            OnTrainEpochStartLogCallback(),
+        ]
 
-image_transform = transforms.Compose(
-    [
-        transforms.Resize(DEFAULT_IMAGE_SIZE),
-        transforms.AutoAugment(policy=torchvision.transforms.autoaugment.AutoAugmentPolicy.IMAGENET),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
-    ]
-)
-geoguesser_datamodule = GeoguesserDataModule(data_dir=PATH_DATA_RAW, image_transform=image_transform)
+        if unfreeze_backbone_at_epoch:
+            multiplicative = lambda epoch: 1.5
+            callbacks.append(
+                BackboneFinetuningLastLayers(
+                    unfreeze_blocks_num=unfreeze_blocks_num,
+                    unfreeze_backbone_at_epoch=unfreeze_backbone_at_epoch,
+                    lambda_func=multiplicative,
+                )
+            )
 
-model = Model()
-trainer = pl.Trainer()
-trainer.fit(model, geoguesser_datamodule)
+        model = LitModel(
+            num_classes=data_module.dataset.num_classes,
+            model_name=model_names[0],
+            pretrained=pretrained,
+            learning_rate=learning_rate,
+            leave_last_n=unfreeze_blocks_num,
+            weight_decay=weight_decay,
+            context_dict={**vars(args), **vars(pl_args)},
+        )
+
+        tb_logger = pl_loggers.TensorBoardLogger(
+            save_dir=str(PATH_REPORT),
+            name="{}-{}".format(timestamp, model_name),
+            default_hp_metric=False,
+        )
+
+        trainer: pl.Trainer = pl.Trainer.from_argparse_args(
+            pl_args,
+            logger=[tb_logger],
+            default_root_dir=PATH_REPORT,
+            callbacks=callbacks,
+        )
+
+        trainer.fit(model, data_module, ckpt_path=trainer_checkpoint)
+        trainer.test(model, data_module)

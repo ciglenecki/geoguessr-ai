@@ -33,6 +33,8 @@ if __name__ == "__main__":
 
         return polygons, points
 
+    percentage_of_land_considered_a_block = 0.3
+
     world_shape = gpd.read_file(str(PATH_WORLD_BORDERS))
     country_shape = world_shape[world_shape["ISO2"] == "HR"]
     x_min, y_min, x_max, y_max = country_shape.total_bounds
@@ -47,7 +49,7 @@ if __name__ == "__main__":
     for polygon in grid.geometry:
         for country_s in country_shape.geometry.any():
             if polygon.intersects(country_s):
-                if (polygon.intersection(country_s).area / polygon.area) >= 0.3:
+                if (polygon.intersection(country_s).area / polygon.area) >= percentage_of_land_considered_a_block:
                     intersecting_polygons.append(polygon)
 
     for point in grid_points_df.geometry:

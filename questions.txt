@@ -1,0 +1,24 @@
+Kako implementirati shared weights sa 4 modela iste arhitekture?
+- 1 model koji stvara 4 heada (strane svijeta)
+- 3-4 
+- DDP () - zna iskomunicirati graijenete okolo
+- shared weights, 
+
+Ensable
+- begging umjesto ensable bootstraping
+
+Što mora sadržavati projektna dokumentacija i koja je njezina standardna struktura?
+- definiicja endpointa
+
+Što mora sadržavati tehnička projektna dokumentacija i koja je njezina standardna struktura?
+- nema upper limit
+
+Koji je najbolji način za deployati gotov model?
+- API ne mora biti deployan, mora biti lokalnu podignut
+
+
+Test dataset dobivamo zadnji tjedan
+- moramo generirati predikcije
+- potencijalno csv
+- vjerojatno je da oni imaju server koji vraca rezultat
+- saljemo csv na server
