@@ -12,7 +12,7 @@ from torchvision import transforms
 from pathlib import Path
 import matplotlib.pyplot as plt
 from utils_functions import one_hot_encode
-from utils_geo import get_country_shape, get_grid
+from utils_geo import get_country_shape, get_grid, get_intersecting_polygons
 from utils_paths import PATH_DATA_RAW, PATH_WORLD_BORDERS
 import pandas as pd
 import geopandas as gpd
@@ -89,20 +89,13 @@ class GeoguesserDataset(Dataset):
         self.prepare_lat_lng()
 
     def prepare_lat_lng(self):
-        percentage_of_land_considered_a_block = 1
+        percentage_of_land_considered_a_block = 0
 
         country_shape = get_country_shape("HR")
         x_min, y_min, x_max, y_max = country_shape.total_bounds
-        grid_polygons = get_grid(x_min, y_min, x_max, y_max, spacing=0.5)
+        grid_polygons = get_grid(x_min, y_min, x_max, y_max, spacing=0.2)
 
-        intersecting_polygons = []
-        for polygon in grid_polygons:
-            for country_polygon in country_shape.geometry:  # country_polygon could be an island, whole land...
-                if polygon.intersects(country_polygon):
-                    if (polygon.intersection(country_polygon).area / polygon.area) >= percentage_of_land_considered_a_block:
-                        intersecting_polygons.append(polygon)
-
-        self.num_classes = len(intersecting_polygons)
+        intersecting_polygons = get_intersecting_polygons(grid_polygons, country_shape.geometry, percentage_of_intersection_threshold=0)
 
         df_geo_csv = gpd.GeoDataFrame(
             self.df_csv,
@@ -114,23 +107,27 @@ class GeoguesserDataset(Dataset):
 
         for i, polygon in enumerate(intersecting_polygons):
             self.df_csv.loc[df_geo_csv.within(polygon), "label"] = i
-            # TODO: save polygons somehow
-            # self.df_csv.loc[df_geo_csv.within(polygon), "polygon"] = polygon
+            # TODO: somehow save polygons too
 
         print("NA poly", self.df_csv["label"].isnull().sum())
         # TODO: handle this better, more warnings etc.
         self.df_csv = self.df_csv.loc[~self.df_csv["label"].isnull(), :]
+        self.num_classes = len(intersecting_polygons)
+        print("num_classes", self.num_classes)
 
-        # intersecting_polygons_df = gpd.GeoDataFrame({"geometry": intersecting_polygons})
-        # base = country_shape.plot(color="green")
-        # intersecting_polygons_df.plot(ax=base, alpha=0.3, linewidth=0.2, edgecolor="black")
-        # plt.show()
+        intersecting_polygons_df = gpd.GeoDataFrame({"geometry": intersecting_polygons})
+        base = country_shape.plot(color="green")
+        intersecting_polygons_df.plot(ax=base, alpha=0.5, linewidth=0.2, edgecolor="red")
+        plt.show()
 
     def name_without_extension(self, filename: Path | str):
         return Path(filename).stem
 
     def one_hot_encode_label(self, label: int):
         return one_hot_encode(label, self.num_classes)
+
+    def get_row_attributes(self, row: pd.Series):
+        return str(row["uuid"]), float(row["latitude"]), float(row["longitude"]), int(row["label"])
 
     def __len__(self):
         return len(self.df_csv)
@@ -143,14 +140,12 @@ class GeoguesserDataset(Dataset):
         Applies transforms
         """
         row = self.df_csv.iloc[index, :]
-        uuid = row["uuid"]
+        uuid, latitude, longitude, label = self.get_row_attributes(row)
         image_dir = Path(self.path_images, uuid)
         image_filepaths = list(map(lambda degree: Path(image_dir, "{}.jpg".format(degree)), self.degrees))
         images = list(map(lambda x: Image.open(x), image_filepaths))
-        label = self.one_hot_encode_label(int(row["label"]))
+        label = self.one_hot_encode_label(label)
         # polygon = row["polygon"]
-
-        latitude, longitude = float(row["latitude"]), float(row["longitude"])
 
         if self.image_transform is not None:
             transform = self.image_transform

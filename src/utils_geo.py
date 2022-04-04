@@ -19,6 +19,7 @@ import numpy as np
 from sklearn.metrics.pairwise import haversine_distances
 from utils_paths import PATH_DATA_RAW
 from math import radians
+from itertools import product
 
 
 def get_grid(x_min, y_min, x_max, y_max, spacing):
@@ -40,3 +41,25 @@ def get_country_shape(iso2: str):
     country_shape = world_shape[world_shape["ISO2"] == iso2]
     country_shape = country_shape.explode()
     return country_shape
+
+
+def get_intersecting_polygons(grid: List[Polygon], base_shape: List[Polygon], percentage_of_intersection_threshold=0):
+    """
+    Args:
+        grid - list of polygons that will be checked against base_shape. polygons in grid which intersect with base_shape will be returned
+
+        percentage_of_intersection_threshold:
+            0 - find all intersections no matter how small
+            0.3 - find all intersections where intersection area is atleast 30% compated to grid's polygon
+            1 - find intersections where grid's polygon is fully inside of any base's polygons
+    """
+
+    intersecting_polygons = []
+    for polygon_grid, polygon_base in product(grid, base_shape):
+        is_area_valid = (polygon_grid.intersection(polygon_base).area / polygon_grid.area) > percentage_of_intersection_threshold
+        if is_area_valid and polygon_grid not in intersecting_polygons:
+            intersecting_polygons.append(polygon_grid)
+    print(len(intersecting_polygons))
+    intersecting_polygons = frozenset(intersecting_polygons)
+    print(len(intersecting_polygons))
+    return intersecting_polygons
