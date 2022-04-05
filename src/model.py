@@ -8,13 +8,11 @@ import torch.nn.functional as F
 from pytorch_lightning.loggers import LoggerCollection
 from torch import nn
 from torchvision.models.efficientnet import EfficientNet
-from torchvision.models.resnet import ResNet
 from torchvision.models.efficientnet import model_urls as efficientnet_model_urls
+from torchvision.models.resnet import ResNet
 from torchvision.models.resnet import model_urls as resnet_model_urls
 
 from utils_env import DEFAULT_EARLY_STOPPING_EPOCH_FREQ
-from utils_functions import dict_append_hp
-from utils_model import freeze_but_last_n_blocks
 from utils_train import multi_acc
 
 allowed_models = list(resnet_model_urls.keys()) + list(efficientnet_model_urls.keys())

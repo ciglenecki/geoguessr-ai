@@ -1,21 +1,19 @@
 from __future__ import annotations, division
 
 from pathlib import Path
+from typing import Optional
 
 import numpy as np
 import pytorch_lightning as pl
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler, Sampler
 from torchvision import transforms
+
 from dataset import GeoguesserDataset
 from utils_env import DEAFULT_DROP_LAST, DEAFULT_NUM_WORKERS, DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING, \
-    DEFAULT_BATCH_SIZE, DEFAULT_DATASET_SIZE, DEFAULT_TEST_FRAC, DEFAULT_TRAIN_FRAC, DEFAULT_VAL_FRAC
+    DEFAULT_BATCH_SIZE, DEFAULT_TEST_FRAC, DEFAULT_TRAIN_FRAC, DEFAULT_VAL_FRAC
 from utils_functions import split_by_ratio
 from utils_paths import PATH_DATA_RAW
-from pathlib import Path
-from typing import Optional
-
-from utils_functions import split_by_ratio
 
 
 class InvalidSizes(Exception):

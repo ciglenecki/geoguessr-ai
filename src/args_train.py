@@ -1,7 +1,7 @@
 from __future__ import annotations, division, print_function
 
 import argparse
-from typing import Dict, List, Tuple
+from typing import Dict, Tuple
 
 import pytorch_lightning as pl
 
