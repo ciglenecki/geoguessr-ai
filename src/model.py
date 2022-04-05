@@ -85,7 +85,11 @@ class LitModel(pl.LightningModule):
 
     def on_train_start(self) -> None:
         if self.logger:
-            logger = self.logger[0]
+            logger = None
+            if type(self.logger) is list:
+                logger = self.logger[0]
+            else:
+                logger = self.logger
             zeros_dict = {metric: 0 for metric in hyperparameter_metrics}
             logger.log_hyperparams(self.hparams, zeros_dict)
 

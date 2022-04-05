@@ -14,7 +14,6 @@ parents attribute contains all the parent directories of a given path
 """
 
 WORK_DIR = Path(os.path.realpath(__file__)).parents[1]
-
 PATH_DATA = Path(WORK_DIR, "data")
 PATH_DATA_EXTERNAL = Path(PATH_DATA, "external.ignoreme")
 PATH_DATA_RAW = Path(PATH_DATA, "raw.ignoreme")

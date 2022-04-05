@@ -12,8 +12,9 @@ Pillow
 efficientnet_pytorch
 pytorch-lightning
 
-# helpful utils 
+# helpful utils
 black
 tqdm
 tabulate
-pyshp #shapefiles, country 
+pyshp #shapefiles, country
+geopandas
