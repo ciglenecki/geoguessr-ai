@@ -20,10 +20,10 @@ def get_last_layer(model: nn.Module) -> nn.Module | None:
     """
     returns last layer (classifier/fc)
     """
-    if type(model) is EfficientNet:
-        return model.classifier  # model.children())[-3]
     if type(model) is ResNet:
         return model.fc  # model.children())[-3]
+    if type(model) is EfficientNet:
+        return model.classifier  # model.children())[-3]
 
 
 def freeze_but_last_n_blocks(model, leave_last_n):
