@@ -56,7 +56,7 @@ class LitModel(pl.LightningModule):
 
         self.learning_rate = learning_rate
         self.weight_decay = weight_decay
-        self.backbone = torch.hub.load("pytorch/vision:v0.12.0", model_name, pretrained=pretrained, groups=4)
+        self.backbone = torch.hub.load("pytorch/vision:v0.12.0", model_name, pretrained=pretrained)
         self.batch_size = batch_size
         self.image_size = image_size
 
@@ -78,7 +78,7 @@ class LitModel(pl.LightningModule):
                 *last_layer_without_linear,
                 nn.Linear(last_linear.in_features, num_classes),
             )
-        # self.fc = nn.Linear(self.get_last_fc_in_channels(), num_classes)
+        self.fc = nn.Linear(self.get_last_fc_in_channels(), num_classes)
 
         self.save_hyperparameters()
 
