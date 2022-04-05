@@ -56,7 +56,7 @@ class LitModel(pl.LightningModule):
 
         self.learning_rate = learning_rate
         self.weight_decay = weight_decay
-        self.backbone = torch.hub.load("pytorch/vision:v0.12.0", model_name, pretrained=pretrained)
+        self.backbone = torch.hub.load("pytorch/vision:v0.12.0", model_name, pretrained=pretrained, groups=4)
         self.batch_size = batch_size
         self.image_size = image_size
 
@@ -78,7 +78,7 @@ class LitModel(pl.LightningModule):
                 *last_layer_without_linear,
                 nn.Linear(last_linear.in_features, num_classes),
             )
-        self.fc = nn.Linear(self.get_last_fc_in_channels(), num_classes)
+        # self.fc = nn.Linear(self.get_last_fc_in_channels(), num_classes)
 
         self.save_hyperparameters()
 
@@ -88,6 +88,20 @@ class LitModel(pl.LightningModule):
                 **{"model_name": self.backbone.__class__.__name__},
             }
         )
+
+    def _backbone_forward_4_images(self, input):
+        """
+        Args:
+            input - tensor of shape (batch_size, num_of_images (4), channels (3), image_size, image_size)
+        """
+        fake_images_tensor_list = [torch.rand(self.batch_size, 3, self.image_size, self.image_size)] * 4
+        print("fake_images_tensor_list", fake_images_tensor_list[0].shape)
+        backbone_output_list = [self.backbone(image) for image in fake_images_tensor_list]
+        print("backbone_output_list", backbone_output_list[0].shape)
+        backbone_output_tensor = torch.stack(backbone_output_list, dim=1)
+        print("backbone_output_tensor", backbone_output_tensor.shape)
+        flattened_output = torch.flatten(backbone_output_tensor, 1)
+        print("get_last_fc_in_channels shape", flattened_output.shape)
 
     def get_last_fc_in_channels(self, *args, **kwargs) -> Any:
         """
@@ -109,6 +123,16 @@ class LitModel(pl.LightningModule):
         """
         Forward is called whenever we type self(image) or similar
         """
+        # todo: cat tensors so that there are "32" batches instead of 8
+        # use that input to compute self.backbone(input)
+
+        # todo: check that stacked veresion of 32 batches is the same as performing forward 4 times
+        input_four = torch.cat(images, dim=0)
+        print("input_four", input_four.shape)
+        input_four_output = self.backbone(input_four)
+        print("input_four_output", input_four_output.shape)
+        input_four_re = input_four_output.reshape(self.batch_size, 4, *(input_four_output.shape[1:]))
+        print("input_four_re", input_four_re.shape)
 
         image_list_of_tensors = images
         output0 = self.backbone(image_list_of_tensors[0])
