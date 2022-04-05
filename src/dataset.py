@@ -48,7 +48,6 @@ class GeoguesserDataset(Dataset):
         self.path_csv = Path(dataset_dir, "data.csv")
         self.df_csv = pd.read_csv(self.path_csv, index_col=False)
         self.df_csv = self.df_csv.loc[self.df_csv["uuid"].isin(self.uuids_with_image), :]
-        print(self.df_csv)
         self.df_csv["label"] = np.nan
         self.degrees = ["0", "90", "180", "270"]
         self.num_classes = 0
@@ -86,9 +85,9 @@ class GeoguesserDataset(Dataset):
         print("num_classes", self.num_classes)
 
         intersecting_polygons_df = gpd.GeoDataFrame({"geometry": intersecting_polygons})
-        base = country_shape.plot(color="green")
-        intersecting_polygons_df.plot(ax=base, alpha=0.5, linewidth=0.2, edgecolor="red")
-        plt.show()
+        # base = country_shape.plot(color="green")
+        # intersecting_polygons_df.plot(ax=base, alpha=0.5, linewidth=0.2, edgecolor="red")
+        # plt.show()
 
     def name_without_extension(self, filename: Path | str):
         return Path(filename).stem
@@ -123,7 +122,7 @@ class GeoguesserDataset(Dataset):
             latitude, longitude = self.coordinate_transform(latitude, longitude)
 
         # TODO: implement multiimage support
-        return images[0], label
+        return images, label
 
 
 if __name__ == "__main__":

@@ -40,5 +40,12 @@ def freeze_but_last_n_blocks(model, leave_last_n):
     return model
 
 
+class Identity(nn.Module):
+    def __init__(self):
+        super(Identity, self).__init__()
+
+    def forward(self, x):
+        return x
+
 if __name__ == "__main__":
     pass

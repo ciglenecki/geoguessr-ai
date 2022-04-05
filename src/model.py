@@ -12,6 +12,7 @@ from torchvision.models.efficientnet import model_urls as efficientnet_model_url
 from torchvision.models.resnet import ResNet
 from torchvision.models.resnet import model_urls as resnet_model_urls
 
+from utils_model import Identity
 from utils_env import DEFAULT_EARLY_STOPPING_EPOCH_FREQ
 from utils_train import multi_acc
 
@@ -50,17 +51,25 @@ class LitModel(pl.LightningModule):
 
     logger: LoggerCollection
 
-    def __init__(self, num_classes: int, model_name, pretrained, learning_rate, leave_last_n, weight_decay, context_dict={}, **kwargs: Any):
+    def __init__(self, num_classes: int, model_name, pretrained, learning_rate, leave_last_n, weight_decay, batch_size, image_size, context_dict={}, **kwargs: Any):
         super().__init__()
 
         self.learning_rate = learning_rate
         self.weight_decay = weight_decay
         self.backbone = torch.hub.load("pytorch/vision:v0.12.0", model_name, pretrained=pretrained)
-        if type(self.backbone) is ResNet:
-            original_in_features = self.backbone.fc.in_features
-            self.backbone.fc = nn.Linear(original_in_features, num_classes)
-        if type(self.backbone) is EfficientNet:
+        self.batch_size = batch_size
+        self.image_size = image_size
 
+        self.fc = nn.Linear(self.get_pre_fc_in_channels(), num_classes)
+
+        if type(self.backbone) is ResNet:
+            self.backbone.fc = Identity()
+            print(self.backbone.fc)
+            # self.backbone.modules = self.backbone.modules[:-1]
+            # original_in_features = self.backbone.fc.in_features
+            # self.backbone.fc = nn.Linear(original_in_features, num_classes)
+
+        if type(self.backbone) is EfficientNet:
             # self.last_layer = list(self.backbone.children())
             # self.last_linear = self.last_layer[-1]
             last_layer = list(self.backbone.classifier)
@@ -80,6 +89,34 @@ class LitModel(pl.LightningModule):
             }
         )
 
+    def get_pre_fc_in_channels(self, *args, **kwargs) -> Any:
+        """
+        Forward is called whenever we type self(image) or similar
+        """
+        # ([8, 3, 28, 28])
+        images = [torch.rand(self.batch_size, 3,  self.image_size, self.image_size)] * 4
+        image_list_of_tensors = images
+        output0 = self.backbone(image_list_of_tensors[0])
+        output1 = self.backbone(image_list_of_tensors[1])
+        output2 = self.backbone(image_list_of_tensors[2])
+        output3 = self.backbone(image_list_of_tensors[3])
+        concatenated_output = torch.cat([output0, output1, output2, output3])
+        flattened_output = torch.flatten(concatenated_output)
+        return flattened_output.shape[0]
+
+    def forward(self, images, *args, **kwargs) -> Any:
+        """
+        Forward is called whenever we type self(image) or similar
+        """
+        image_list_of_tensors = images
+        output0 = self.backbone(image_list_of_tensors[0])
+        output1 = self.backbone(image_list_of_tensors[1])
+        output2 = self.backbone(image_list_of_tensors[2])
+        output3 = self.backbone(image_list_of_tensors[3])
+        concatenated_output = torch.cat([output0, output1, output2, output3])
+        flattened_output = torch.flatten(concatenated_output)
+        self.fc(flattened_output)
+
     def get_num_of_trainable_params(self):
         return sum(p.numel() for p in self.backbone.parameters() if p.requires_grad)
 
@@ -87,11 +124,11 @@ class LitModel(pl.LightningModule):
         if self.logger:
             for logger in self.loggers:
                 zeros_dict = {metric: 0 for metric in hyperparameter_metrics}
-                logger.log_hyperparams(self.hparams, zeros_dict) # TODO: make sure to
+                logger.log_hyperparams(self.hparams, zeros_dict)  # TODO: make sure to
 
     def training_step(self, batch, batch_idx):
-        image, y =  batch
-        y_pred = self.backbone(image)
+        images, y = batch
+        y_pred = self(images)
         loss = F.cross_entropy(y_pred, y)
         acc = multi_acc(y_pred, y)
         data_dict = {
@@ -115,8 +152,8 @@ class LitModel(pl.LightningModule):
         pass
 
     def validation_step(self, batch, batch_idx):
-        image, y =  batch
-        y_pred = self.backbone(image)
+        images, y = batch
+        y_pred = self(images)
         loss = F.cross_entropy(y_pred, y)
         acc = multi_acc(y_pred, y)
         data_dict = {
@@ -135,8 +172,8 @@ class LitModel(pl.LightningModule):
         pass
 
     def test_step(self, batch, batch_idx):
-        image, y =  batch
-        y_pred = self.backbone(image)
+        images, y = batch
+        y_pred = self(images)
         loss = F.cross_entropy(y_pred, y)
         acc = multi_acc(y_pred, y)
         data_dict = {
@@ -165,7 +202,8 @@ class LitModel(pl.LightningModule):
                 weight_decay=self.weight_decay,
                 momentum=0.2,
             )
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, "min", patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ / 2) - 1)
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, "min",
+                                                               patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ / 2) - 1)
         return {
             "optimizer": optimizer,
             "lr_scheduler": {

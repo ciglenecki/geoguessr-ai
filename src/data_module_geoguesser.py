@@ -67,11 +67,6 @@ class GeoguesserDataModule(pl.LightningDataModule):
 
     def setup(self, stage: Optional[str] = None):
 
-        """
-        dataset_indices = [0,1,2,3,4,5,6,7,8,9]
-        TODO: should dataset_indices be shuffled?
-        """
-
         dataset_indices = np.arange(len(self.dataset))
 
         if self.shuffle_before_splitting:
