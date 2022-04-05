@@ -45,11 +45,15 @@ class GeoguesserDataset(Dataset):
         image_transform: None | transforms.Compose = transforms.Compose([transforms.ToTensor()]),
         coordinate_transform: None | Callable = lambda x, y: np.array([x, y]).astype("float"),
     ) -> None:
+        super().__init__()
         self.image_transform = image_transform
         self.coordinate_transform = coordinate_transform
         self.path_images = Path(dataset_dir, "data")
+        self.uuids_with_image = sorted(os.listdir(self.path_images))
         self.path_csv = Path(dataset_dir, "data.csv")
         self.df_csv = pd.read_csv(self.path_csv, index_col=False)
+        self.df_csv = self.df_csv.loc[self.df_csv["uuid"].isin(self.uuids_with_image), :]
+        print(self.df_csv)
         self.df_csv["label"] = np.nan
         self.degrees = ["0", "90", "180", "270"]
         self.num_classes = 0

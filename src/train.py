@@ -114,7 +114,7 @@ if __name__ == "__main__":
 
         trainer: pl.Trainer = pl.Trainer.from_argparse_args(
             pl_args,
-            logger=[tb_logger],
+            logger=[tb_logger,tb_logger],
             default_root_dir=PATH_REPORT,
             callbacks=callbacks,
         )
