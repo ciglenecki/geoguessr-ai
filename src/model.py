@@ -60,8 +60,6 @@ class LitModel(pl.LightningModule):
         self.batch_size = batch_size
         self.image_size = image_size
 
-        self.fc = nn.Linear(self.get_pre_fc_in_channels(), num_classes)
-
         if type(self.backbone) is ResNet:
             self.backbone.fc = Identity()
             print(self.backbone.fc)
@@ -80,6 +78,8 @@ class LitModel(pl.LightningModule):
                 *last_layer_without_linear,
                 nn.Linear(last_linear.in_features, num_classes),
             )
+        self.fc = nn.Linear(self.get_last_fc_in_channels(), num_classes)
+
         self.save_hyperparameters()
 
         self.save_hyperparameters(
@@ -89,33 +89,38 @@ class LitModel(pl.LightningModule):
             }
         )
 
-    def get_pre_fc_in_channels(self, *args, **kwargs) -> Any:
+    def get_last_fc_in_channels(self, *args, **kwargs) -> Any:
         """
         Forward is called whenever we type self(image) or similar
         """
-        # ([8, 3, 28, 28])
-        images = [torch.rand(self.batch_size, 3,  self.image_size, self.image_size)] * 4
-        image_list_of_tensors = images
-        output0 = self.backbone(image_list_of_tensors[0])
-        output1 = self.backbone(image_list_of_tensors[1])
-        output2 = self.backbone(image_list_of_tensors[2])
-        output3 = self.backbone(image_list_of_tensors[3])
-        concatenated_output = torch.cat([output0, output1, output2, output3])
-        flattened_output = torch.flatten(concatenated_output)
-        return flattened_output.shape[0]
+        with torch.no_grad():
+            fake_images_tensor_list = [torch.rand(self.batch_size, 3, self.image_size, self.image_size)] * 4
+            print("fake_images_tensor_list", fake_images_tensor_list[0].shape)
+            backbone_output_list = [self.backbone(image) for image in fake_images_tensor_list]
+            print("backbone_output_list", backbone_output_list[0].shape)
+            backbone_output_tensor = torch.stack(backbone_output_list, dim=1)
+            print("backbone_output_tensor", backbone_output_tensor.shape)
+            flattened_output = torch.flatten(backbone_output_tensor, 1)
+            print("get_last_fc_in_channels shape", flattened_output.shape)
+
+        return flattened_output.shape[1]
 
     def forward(self, images, *args, **kwargs) -> Any:
         """
         Forward is called whenever we type self(image) or similar
         """
+
         image_list_of_tensors = images
         output0 = self.backbone(image_list_of_tensors[0])
         output1 = self.backbone(image_list_of_tensors[1])
         output2 = self.backbone(image_list_of_tensors[2])
         output3 = self.backbone(image_list_of_tensors[3])
-        concatenated_output = torch.cat([output0, output1, output2, output3])
-        flattened_output = torch.flatten(concatenated_output)
-        self.fc(flattened_output)
+        concatenated_output = torch.stack([output0, output1, output2, output3], dim=1)
+        print("concatenated_output", concatenated_output.shape)
+        flattened_output = torch.flatten(concatenated_output, 1)
+        print("flattened_output", flattened_output.shape)
+        final_output = self.fc(flattened_output)
+        return final_output
 
     def get_num_of_trainable_params(self):
         return sum(p.numel() for p in self.backbone.parameters() if p.requires_grad)
@@ -202,8 +207,7 @@ class LitModel(pl.LightningModule):
                 weight_decay=self.weight_decay,
                 momentum=0.2,
             )
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, "min",
-                                                               patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ / 2) - 1)
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, "min", patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ / 2) - 1)
         return {
             "optimizer": optimizer,
             "lr_scheduler": {

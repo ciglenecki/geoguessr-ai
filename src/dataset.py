@@ -51,10 +51,6 @@ class GeoguesserDataset(Dataset):
         self.df_csv["label"] = np.nan
         self.degrees = ["0", "90", "180", "270"]
         self.num_classes = 0
-        """
-        os.walk is a generator and calling next will get the first result in the form of a 3-tuple (dirpath, dirnames, filenames). The [1] index returns only the dirnames from that tuple.
-        """
-        # self.uuids = sorted(next(os.walk(self.path_images))[1])
         self.prepare_lat_lng()
 
     def prepare_lat_lng(self):
