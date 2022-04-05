@@ -90,7 +90,7 @@ class LitModel(pl.LightningModule):
                 logger.log_hyperparams(self.hparams, zeros_dict) # TODO: make sure to
 
     def training_step(self, batch, batch_idx):
-        image, y =  batch
+        image, y = batch
         y_pred = self.backbone(image)
         loss = F.cross_entropy(y_pred, y)
         acc = multi_acc(y_pred, y)
@@ -115,7 +115,7 @@ class LitModel(pl.LightningModule):
         pass
 
     def validation_step(self, batch, batch_idx):
-        image, y =  batch
+        image, y = batch
         y_pred = self.backbone(image)
         loss = F.cross_entropy(y_pred, y)
         acc = multi_acc(y_pred, y)
@@ -135,7 +135,7 @@ class LitModel(pl.LightningModule):
         pass
 
     def test_step(self, batch, batch_idx):
-        image, y =  batch
+        image, y = batch
         y_pred = self.backbone(image)
         loss = F.cross_entropy(y_pred, y)
         acc = multi_acc(y_pred, y)
