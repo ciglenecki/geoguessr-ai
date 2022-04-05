@@ -1,7 +1,4 @@
-from typing import List
-
 import torch
-from sklearn.metrics import top_k_accuracy_score
 
 
 def multi_acc(y_pred_log, y_test):

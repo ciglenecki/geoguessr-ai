@@ -5,16 +5,14 @@ from pprint import pprint
 
 import numpy as np
 import pytorch_lightning as pl
-from callback_finetuning_last_n_layers import BackboneFinetuningLastLayers
 from pytorch_lightning import loggers as pl_loggers
-from pytorch_lightning.callbacks import BackboneFinetuning
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from pytorch_lightning.callbacks.progress.tqdm_progress import TQDMProgressBar
 from torchvision import transforms
-from torchvision.transforms.autoaugment import AutoAugmentPolicy
 
 from args_train import parse_args_train
+from callback_finetuning_last_n_layers import BackboneFinetuningLastLayers
 from data_module_geoguesser import GeoguesserDataModule
 from model import LitModel, OnTrainEpochStartLogCallback
 from utils_env import DEFAULT_EARLY_STOPPING_EPOCH_FREQ

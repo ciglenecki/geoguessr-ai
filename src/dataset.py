@@ -4,23 +4,18 @@ import os
 from pathlib import Path
 from typing import Callable
 
+import geopandas as gpd
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
-from pathlib import Path
-import matplotlib.pyplot as plt
+
 from utils_functions import one_hot_encode
 from utils_geo import get_country_shape, get_grid, get_intersecting_polygons
-from utils_paths import PATH_DATA_RAW, PATH_WORLD_BORDERS
-import pandas as pd
-import geopandas as gpd
-from shapely.geometry import MultiPolygon, Polygon, box, MultiPoint, Point
-import numpy as np
-from sklearn.metrics.pairwise import haversine_distances
 from utils_paths import PATH_DATA_RAW
-from math import radians
+
 
 # TODO: implement polygons on the border; these are addional classes which are expliclty defined. These classes might clash with already exising classes (polygons). How? There might be a polygon which is close to the border and overlaps the explicitly defined polygon. Solution is to remove the intersection so that polygons don't overlap. Polygon on the border (the one that is explicitly defined) should have prioirty over getting more surface area.
 

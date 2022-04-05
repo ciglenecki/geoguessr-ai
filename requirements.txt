@@ -18,3 +18,4 @@ tqdm
 tabulate
 pyshp #shapefiles, country
 geopandas
+shapely

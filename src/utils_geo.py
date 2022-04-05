@@ -1,25 +1,13 @@
 from __future__ import annotations, division, print_function
 
-import os
-from pathlib import Path
-from typing import Callable, List
-
-import numpy as np
-import pandas as pd
-from PIL import Image
-from torch.utils.data import Dataset
-from torchvision import transforms
-from pathlib import Path
-import matplotlib.pyplot as plt
-from utils_paths import PATH_DATA_RAW, PATH_WORLD_BORDERS
-import pandas as pd
-import geopandas as gpd
-from shapely.geometry import MultiPolygon, Polygon, box, MultiPoint, Point
-import numpy as np
-from sklearn.metrics.pairwise import haversine_distances
-from utils_paths import PATH_DATA_RAW
-from math import radians
 from itertools import product
+from typing import List
+
+import geopandas as gpd
+import numpy as np
+from shapely.geometry import Polygon, box
+
+from utils_paths import PATH_WORLD_BORDERS
 
 
 def get_grid(x_min, y_min, x_max, y_max, spacing):

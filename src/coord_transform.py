@@ -1,13 +1,7 @@
-import argparse
-from pathlib import Path
-import pdb
 import matplotlib.pyplot as plt
-from utils_paths import PATH_DATA, PATH_DATA_RAW, PATH_WORLD_BORDERS
-import pandas as pd
-import shapefile
-import matplotlib.patheffects as path_effects
+from utils_paths import PATH_WORLD_BORDERS
 import geopandas as gpd
-from shapely.geometry import MultiPolygon, Polygon, box, MultiPoint, Point
+from shapely.geometry import box, Point
 import numpy as np
 
 
