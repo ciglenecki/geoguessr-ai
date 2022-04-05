@@ -5,7 +5,7 @@ from typing import Any
 import pytorch_lightning as pl
 import torch
 import torch.nn.functional as F
-from pytorch_lightning.loggers import TensorBoardLogger
+from pytorch_lightning.loggers import LoggerCollection
 from torch import nn
 from torchvision.models.efficientnet import EfficientNet
 from torchvision.models.resnet import ResNet
@@ -50,6 +50,8 @@ class LitModel(pl.LightningModule):
     LightningModule can itself be used as a model object. This is because `forward` function is exposed and can be used. Then, instead of using self.backbone(x) we can write self(x). See: https://pytorch-lightning.readthedocs.io/en/latest/common/lightning_module.html#starter-example
     """
 
+    logger: LoggerCollection
+
     def __init__(self, num_classes: int, model_name, pretrained, learning_rate, leave_last_n, weight_decay, context_dict={}, **kwargs: Any):
         super().__init__()
 
@@ -71,6 +73,7 @@ class LitModel(pl.LightningModule):
                 *last_layer_without_linear,
                 nn.Linear(last_linear.in_features, num_classes),
             )
+        self.save_hyperparameters()
 
         self.save_hyperparameters(
             {
@@ -78,20 +81,15 @@ class LitModel(pl.LightningModule):
                 **{"model_name": self.backbone.__class__.__name__},
             }
         )
-        self.save_hyperparameters()
 
     def get_num_of_trainable_params(self):
         return sum(p.numel() for p in self.backbone.parameters() if p.requires_grad)
 
     def on_train_start(self) -> None:
         if self.logger:
-            logger = None
-            if type(self.logger) is list:
-                logger = self.logger[0]
-            else:
-                logger = self.logger
-            zeros_dict = {metric: 0 for metric in hyperparameter_metrics}
-            logger.log_hyperparams(self.hparams, zeros_dict)
+            for logger in self.loggers:
+                zeros_dict = {metric: 0 for metric in hyperparameter_metrics}
+                logger.log_hyperparams(self.hparams, zeros_dict) # TODO: make sure to
 
     def training_step(self, batch, batch_idx):
         image, y =  batch
