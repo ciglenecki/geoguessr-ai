@@ -28,6 +28,8 @@ from math import radians
 
 # TODO: every polygoin in dataframe can also have additional column that is called center. It doesnt have to be center of the polygon, it can be the edge of the country if the polygon's center goes outside of country's bounds
 
+# TODO: use haversine_distances in a loss function. haversine_distances acts just like residual. It might be useful to square the haversine_distances to get similar formula to MSE
+
 
 class GeoguesserDataset(Dataset):
     """
