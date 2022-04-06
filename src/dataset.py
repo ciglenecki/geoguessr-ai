@@ -13,7 +13,7 @@ from torchvision import transforms
 
 from utils_functions import one_hot_encode
 from utils_paths import PATH_DATA_RAW
-
+import coords_decorate_csv
 
 # TODO: implement polygons on the border; these are addional classes which are expliclty defined. These classes might clash with already exising classes (polygons). How? There might be a polygon which is close to the border and overlaps the explicitly defined polygon. Solution is to remove the intersection so that polygons don't overlap. Polygon on the border (the one that is explicitly defined) should have prioirty over getting more surface area.
 
@@ -37,25 +37,20 @@ class GeoguesserDataset(Dataset):
         dataset_dir: Path = PATH_DATA_RAW,
         image_transform: None | transforms.Compose = transforms.Compose([transforms.ToTensor()]),
         coordinate_transform: None | Callable = lambda x, y: np.array([x, y]).astype("float"),
+        cached_df=None,
     ) -> None:
         super().__init__()
         self.degrees = ["0", "90", "180", "270"]
         self.image_transform = image_transform
         self.coordinate_transform = coordinate_transform
-
         self.path_images = Path(dataset_dir, "data")
-        self.path_csv = Path(dataset_dir, "data__num_class_259__spacing_0.2.csv")
-        self.df_csv = pd.read_csv(self.path_csv)
+        self.df_csv = pd.read_csv(Path(cached_df)) if cached_df else coords_decorate_csv.main(["--spacing", str(0.2), "--no-out"])
+        self.df_csv.set_index("y")
 
-        self.df_class_coord_map = self.df_csv.loc[:, ["label", "centroid_lat", "centroid_lng", "is_true_centroid"]].drop_duplicates()
-        print("df_class_coord_map", self.df_class_coord_map.shape)
-
-        self.df_class_coord_map = self.df_class_coord_map.set_index("label")
-        print(self.df_class_coord_map)
         """ Filter the dataframe, only include rows for images that exist"""
         self.uuids_with_image = sorted(os.listdir(self.path_images))
         self.df_csv = self.df_csv.loc[self.df_csv["uuid"].isin(self.uuids_with_image), :]
-        self.num_classes = int(self.df_csv["label"].max()) + 1
+        self.num_classes = int(self.df_csv["y"].max()) + 1
         print("num classes", self.num_classes)
 
     def name_without_extension(self, filename: Path | str):
@@ -65,7 +60,7 @@ class GeoguesserDataset(Dataset):
         return one_hot_encode(label, self.num_classes)
 
     def get_row_attributes(self, row: pd.Series) -> Tuple[str, float, float, int, float, float, bool]:
-        return str(row["uuid"]), row["latitude"], row["longitude"], int(row["label"]), row["centroid_lat"], row["centroid_lng"], bool(row["is_true_centroid"])
+        return str(row["uuid"]), row["latitude"], row["longitude"], int(row["y"]), row["centroid_lat"], row["centroid_lng"], bool(row["is_true_centroid"])
 
     def __len__(self):
         return len(self.df_csv)

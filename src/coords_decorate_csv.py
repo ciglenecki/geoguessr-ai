@@ -9,20 +9,12 @@ from utils_paths import PATH_DATA_RAW, PATH_FIGURE
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import numpy as np
+import sys
 
 # TODO: project to CRS (?) then caculate distances, then re-project (?). By not doing this, spacing might be an issue because angles are not linear
 
 
-def append_polygons_without_data(df: pd.DataFrame, df_label_polygon_map: pd.DataFrame):
-    """To the dataframe, append polygons for which the data (images) doesn't exist. Image related properties will be set to null"""
-    df_labels_with_images = df["true_label"].unique()
-    df_polygons_without_images = df_label_polygon_map.drop(df_labels_with_images)
-    df = df.append(df_polygons_without_images)
-
-    return df
-
-
-def parse_args():
+def parse_args(args):
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--csv",
@@ -58,22 +50,34 @@ def parse_args():
         help="Supported file formats for matplotlib savefig",
         default="png",
     )
+    parser.add_argument(
+        "--no-out",
+        action="store_true",
+        help="Disable any dataframe or figure saving. Useful when calling inside other scripts",
+    )
 
-    args = parser.parse_args()
+    args = parser.parse_args(args)
     return args
 
 
-if __name__ == "__main__":
-    args = parse_args()
+def append_polygons_without_data(df: pd.DataFrame, df_label_polygon_map: pd.DataFrame):
+    """To the dataframe, append polygons for which the data (images) doesn't exist. Image related properties will be set to null"""
+    df_labels_with_images = df["true_label"].unique()
+    df_polygons_without_images = df_label_polygon_map.drop(df_labels_with_images)
+    df = df.append(df_polygons_without_images)
+    return df
 
+
+def main(args):
+    args = parse_args(args)
     path_csv = args.csv
     out_dir_csv = args.out if args.out else os.path.dirname(args.csv)
     spacing = args.spacing
     out_dir_fig = args.out_fig
     fig_format = args.fig_format
+    no_out = args.no_out
 
     df = pd.read_csv(path_csv, index_col=False)
-    # df_centroid_label_map
     df_geo_csv = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.loc[:, "longitude"], df.loc[:, "latitude"]))
     df.drop("geometry", axis=1, inplace=True)  # info: GeoDataFrame somehow adds "geometry" column onto df
 
@@ -119,6 +123,10 @@ if __name__ == "__main__":
     print("{}/{} polygons have at least one image assigned to them".format(num_of_polygons - num_polygons_without_images, num_of_polygons))
     num_classes = len(intersecting_polygons)
     print(num_classes, "- number of classes (polygons)")
+
+    if no_out:
+        return df
+
     filepath_csv = Path(out_dir_csv, "data__num_class_{}__spacing_{}.csv".format(num_classes, spacing))
     df.to_csv(filepath_csv, index=False)
     print("Saved file:", filepath_csv)
@@ -143,3 +151,8 @@ if __name__ == "__main__":
 
     plt.savefig(filepath_fig, dpi=1200)
     print("Saved file:", filepath_fig)
+    return df
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])

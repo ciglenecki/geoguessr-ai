@@ -16,6 +16,7 @@ from sklearn.metrics.pairwise import haversine_distances
 from utils_model import Identity, model_remove_fc
 from utils_env import DEFAULT_EARLY_STOPPING_EPOCH_FREQ
 from utils_train import multi_acc
+import numpy as np
 
 allowed_models = list(resnet_model_urls.keys()) + list(efficientnet_model_urls.keys())
 
@@ -55,7 +56,7 @@ class LitModel(pl.LightningModule):
     def __init__(self, data_module: GeoguesserDataModule, num_classes: int, model_name, pretrained, learning_rate, weight_decay, batch_size, image_size, context_dict={}, **kwargs: Any):
         super().__init__()
         self.data_module = data_module
-        self.df_class_coord_map = data_module.dataset.df_class_coord_map
+        self.df_csv = data_module.dataset.df_csv
         self.learning_rate = learning_rate
         self.weight_decay = weight_decay
         self.batch_size = batch_size
@@ -110,12 +111,6 @@ class LitModel(pl.LightningModule):
         loss = F.cross_entropy(y_pred, y)
         acc = multi_acc(y_pred, y)
 
-        y_npy = torch.argmax(y, dim=1).detach().numpy()
-        print(y_npy)
-        row = self.df_class_coord_map.iloc[y_npy, :]
-        print(row)
-        self.data_module.dataset.get_row_attributes(row)
-        haversine_distances()
         data_dict = {
             "train_loss": loss.detach(),
             "train_acc": acc,
@@ -138,16 +133,28 @@ class LitModel(pl.LightningModule):
         pass
 
     def validation_step(self, batch, batch_idx):
-        image_list, y, centroid_lat, centroid_lng = batch
-
+        image_list, y_true, centroid_lat, centroid_lng = batch
         y_pred = self(image_list)  # TODO: how to i extract latlng
 
-        loss = F.cross_entropy(y_pred, y)
-        acc = multi_acc(y_pred, y)
+        y_true_idx = torch.argmax(y_true, dim=1).detach().numpy()
+        y_pred_idx = torch.argmax(y_pred, dim=1).detach().numpy()
+        row_true = self.df_csv.iloc[y_true_idx, :]
+        true_lat, true_lng = row_true["latitude"].to_numpy(), row_true["longitude"].to_numpy()
+
+        row_pred = self.df_csv.iloc[y_pred_idx, :]
+        pred_lat, pred_lng = row_pred["latitude"].to_numpy(), row_pred["longitude"].to_numpy()
+
+        haver_x = np.stack([true_lat, true_lng], axis=1)
+        haver_y = np.stack([pred_lat, pred_lng], axis=1)
+        haver_dist = haversine_distances(haver_x, haver_y)
+
+        loss = F.cross_entropy(y_pred, y_true)
+        acc = multi_acc(y_pred, y_true)
         data_dict = {
             "val_loss": loss.detach(),
             "val_acc": acc,
             "loss": loss,
+            "haver_dist": haver_dist,
         }
         self.log_dict(data_dict, on_step=True, on_epoch=True, logger=True, prog_bar=True)
         return data_dict

@@ -41,6 +41,7 @@ if __name__ == "__main__":
     train_frac, val_frac, test_frac = args.split_ratios
     dataset_dir = args.dataset_dir
     batch_size = args.batch_size
+    cached_df = args.cached_df
 
     # TODO: caculate normalization on the train dataset and use it
     image_transform_train = image_transform_val = transforms.Compose(
@@ -65,6 +66,7 @@ if __name__ == "__main__":
         image_transform=image_transform_train,
         num_workers=num_workers,
         shuffle_before_splitting=shuffle_before_splitting,
+        cached_df=cached_df,
     )
     data_module.setup()
 
