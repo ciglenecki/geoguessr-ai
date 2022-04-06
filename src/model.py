@@ -1,18 +1,19 @@
 from __future__ import annotations, division, print_function
 
-from typing import Any
+from typing import Any, List
 
 import pytorch_lightning as pl
 import torch
 import torch.nn.functional as F
-from pytorch_lightning.loggers import LoggerCollection
+from pytorch_lightning.loggers import LoggerCollection, TensorBoardLogger
 from torch import nn
 from torchvision.models.efficientnet import EfficientNet
 from torchvision.models.efficientnet import model_urls as efficientnet_model_urls
 from torchvision.models.resnet import ResNet
 from torchvision.models.resnet import model_urls as resnet_model_urls
-
-from utils_model import Identity
+from data_module_geoguesser import GeoguesserDataModule
+from sklearn.metrics.pairwise import haversine_distances
+from utils_model import Identity, model_remove_fc
 from utils_env import DEFAULT_EARLY_STOPPING_EPOCH_FREQ
 from utils_train import multi_acc
 
@@ -49,39 +50,22 @@ class LitModel(pl.LightningModule):
     LightningModule can itself be used as a model object. This is because `forward` function is exposed and can be used. Then, instead of using self.backbone(x) we can write self(x). See: https://pytorch-lightning.readthedocs.io/en/latest/common/lightning_module.html#starter-example
     """
 
-    logger: LoggerCollection
+    loggers: List[TensorBoardLogger]
 
-    def __init__(self, num_classes: int, model_name, pretrained, learning_rate, leave_last_n, weight_decay, batch_size, image_size, context_dict={}, **kwargs: Any):
+    def __init__(self, data_module: GeoguesserDataModule, num_classes: int, model_name, pretrained, learning_rate, weight_decay, batch_size, image_size, context_dict={}, **kwargs: Any):
         super().__init__()
-
+        self.data_module = data_module
+        self.df_class_coord_map = data_module.dataset.df_class_coord_map
         self.learning_rate = learning_rate
         self.weight_decay = weight_decay
-        self.backbone = torch.hub.load("pytorch/vision:v0.12.0", model_name, pretrained=pretrained)
         self.batch_size = batch_size
         self.image_size = image_size
 
-        if type(self.backbone) is ResNet:
-            self.backbone.fc = Identity()
-            print(self.backbone.fc)
-            # self.backbone.modules = self.backbone.modules[:-1]
-            # original_in_features = self.backbone.fc.in_features
-            # self.backbone.fc = nn.Linear(original_in_features, num_classes)
-
-        if type(self.backbone) is EfficientNet:
-            # self.last_layer = list(self.backbone.children())
-            # self.last_linear = self.last_layer[-1]
-            last_layer = list(self.backbone.classifier)
-            last_layer_without_linear = last_layer[:-1]  # dropout 0.4
-            last_linear: nn.Linear = last_layer[-1]  # type: ignore
-
-            self.backbone.classifier = nn.Sequential(
-                *last_layer_without_linear,
-                nn.Linear(last_linear.in_features, num_classes),
-            )
-        self.fc = nn.Linear(self.get_last_fc_in_channels(), num_classes)
+        backbone = torch.hub.load("pytorch/vision:v0.12.0", model_name, pretrained=pretrained)
+        self.backbone = model_remove_fc(backbone)
+        self.fc = nn.Linear(self._get_last_fc_in_channels(), num_classes)
 
         self.save_hyperparameters()
-
         self.save_hyperparameters(
             {
                 **context_dict,
@@ -89,64 +73,29 @@ class LitModel(pl.LightningModule):
             }
         )
 
-    def _backbone_forward_4_images(self, image_batch):
+    def _get_last_fc_in_channels(self) -> Any:
         """
-        Args:
-            input - tensor of shape (batch_size, num_of_images (4), channels (3), image_size, image_size)
+        Returns:
+            number of input channels for the last fc layer (number of variables of the second dimension of the flatten layer). Fake image is created, passed through the backbone and flattened (while perseving batches).
         """
-
-        backbone_output_list = [self.backbone(image_batch) for image in image_batch]
-        print("backbone_output_list", backbone_output_list[0].shape)
-        backbone_output_tensor = torch.cat(backbone_output_list, dim=0)
-        print("backbone_output_tensor", backbone_output_tensor.shape)
-        flattened_output = torch.flatten(backbone_output_tensor, 1)
-        print("get_last_fc_in_channels shape", flattened_output.shape)
-
-    def get_last_fc_in_channels(self, *args, **kwargs) -> Any:
-        """
-        Forward is called whenever we type self(image) or similar
-        """
+        num_channels = 3
+        num_image_sides = 4
         with torch.no_grad():
-            fake_images_tensor_list = [torch.rand(self.batch_size, 3, self.image_size, self.image_size)] * 4
-            print("fake_images_tensor_list", fake_images_tensor_list[0].shape)
-            backbone_output_list = [self.backbone(image) for image in fake_images_tensor_list]
-            print("backbone_output_list", backbone_output_list[0].shape)
-            backbone_output_tensor = torch.stack(backbone_output_list, dim=1)
-            print("backbone_output_tensor", backbone_output_tensor.shape)
-            flattened_output = torch.flatten(backbone_output_tensor, 1)
-            print("get_last_fc_in_channels shape", flattened_output.shape)
-
+            image_batch_list = [torch.rand(self.batch_size, num_channels, self.image_size, self.image_size)] * num_image_sides
+            outs_backbone = [self.backbone(image) for image in image_batch_list]
+            out_backbone_cat = torch.cat(outs_backbone, dim=1)
+            flattened_output = torch.flatten(out_backbone_cat, 1)  # shape (batch_size x some_number)
         return flattened_output.shape[1]
 
-    def forward(self, images, *args, **kwargs) -> Any:
-        """
-        Forward is called whenever we type self(image) or similar
-        """
-        # todo: cat tensors so that there are "32" batches instead of 8
-        # use that input to compute self.backbone(input)
-
-        # todo: check that stacked veresion of 32 batches is the same as performing forward 4 times
-        input_four = torch.cat(images, dim=0)
-        print("input_four", input_four.shape)
-        input_four_output = self.backbone(input_four)
-        print("input_four_output", input_four_output.shape)
-        input_four_re = input_four_output.reshape(self.batch_size, 4, *(input_four_output.shape[1:]))
-        print("input_four_re", input_four_re.shape)
-
-        image_list_of_tensors = images
-        output0 = self.backbone(image_list_of_tensors[0])
-        output1 = self.backbone(image_list_of_tensors[1])
-        output2 = self.backbone(image_list_of_tensors[2])
-        output3 = self.backbone(image_list_of_tensors[3])
-        concatenated_output = torch.stack([output0, output1, output2, output3], dim=1)
-        print("concatenated_output", concatenated_output.shape)
-        flattened_output = torch.flatten(concatenated_output, 1)
-        print("flattened_output", flattened_output.shape)
-        final_output = self.fc(flattened_output)
-        return final_output
-
     def get_num_of_trainable_params(self):
-        return sum(p.numel() for p in self.backbone.parameters() if p.requires_grad)
+        return sum(param.numel() for param in self.parameters() if param.requires_grad)
+
+    def forward(self, image_list, *args, **kwargs) -> Any:
+        outs_backbone = [self.backbone(image) for image in image_list]
+        out_backbone_cat = torch.cat(outs_backbone, dim=1)
+        out_flatten = torch.flatten(out_backbone_cat, 1)
+        out = self.fc(out_flatten)
+        return out
 
     def on_train_start(self) -> None:
         if self.logger:
@@ -155,14 +104,23 @@ class LitModel(pl.LightningModule):
                 logger.log_hyperparams(self.hparams, zeros_dict)  # TODO: make sure to
 
     def training_step(self, batch, batch_idx):
-        images, y = batch
-        y_pred = self(images)
+        image_list, y, _, _ = batch
+        y_pred = self(image_list)
+
         loss = F.cross_entropy(y_pred, y)
         acc = multi_acc(y_pred, y)
+
+        y_npy = torch.argmax(y, dim=1).detach().numpy()
+        print(y_npy)
+        row = self.df_class_coord_map.iloc[y_npy, :]
+        print(row)
+        self.data_module.dataset.get_row_attributes(row)
+        haversine_distances()
         data_dict = {
             "train_loss": loss.detach(),
             "train_acc": acc,
             "loss": loss,
+            "h_distance": 0,
         }
         self.log("train_loss", loss.detach(), on_step=True, on_epoch=True, logger=True, prog_bar=True)
         self.log_dict(data_dict, on_step=True, on_epoch=True, logger=True, prog_bar=True)
@@ -180,8 +138,10 @@ class LitModel(pl.LightningModule):
         pass
 
     def validation_step(self, batch, batch_idx):
-        images, y = batch
-        y_pred = self(images)
+        image_list, y, centroid_lat, centroid_lng = batch
+
+        y_pred = self(image_list)  # TODO: how to i extract latlng
+
         loss = F.cross_entropy(y_pred, y)
         acc = multi_acc(y_pred, y)
         data_dict = {
@@ -200,8 +160,8 @@ class LitModel(pl.LightningModule):
         pass
 
     def test_step(self, batch, batch_idx):
-        images, y = batch
-        y_pred = self(images)
+        image_list, y, _, _ = batch
+        y_pred = self(image_list)
         loss = F.cross_entropy(y_pred, y)
         acc = multi_acc(y_pred, y)
         data_dict = {

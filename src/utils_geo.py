@@ -1,7 +1,6 @@
 from __future__ import annotations, division, print_function
 
 from itertools import product
-from types import SimpleNamespace
 from typing import List
 
 import geopandas as gpd
@@ -36,18 +35,16 @@ def get_grid(x_min, y_min, x_max, y_max, spacing):
     return polygons
 
 
-def get_country_shape(iso2: str):
+def get_country_shape(iso2: str) -> gpd.GeoDataFrame:
     """
-    Explode muti-part geometries into multiple single geometries.
-
-    Each row containing a multi-part geometry will be split into multiple rows with single geometries, thereby increasing the vertical size of the GeoDataFrame.
+    Country shape dataframe has multi-part geometry (multi-polygons) as rows. By calling explode, multi-part geometry will be flattened. Dataframe will have more rows.
     """
 
     world_shape: gpd.GeoDataFrame = gpd.read_file(str(PATH_WORLD_BORDERS))
     country_shape = world_shape[world_shape["ISO2"] == iso2]
     country_shape = country_shape.explode()
-    country_shape = country_shape.droplevel(0)  # index on level 0 is index for a country
-    return country_shape
+    country_shape = country_shape.droplevel(0)  # we don't need country index on level 0, we work with a single country
+    return country_shape  # type: ignore [can't recognize type because of modifications]
 
 
 def get_intersecting_polygons(grid: List[Polygon], base_shape: List[Polygon], percentage_of_intersection_threshold=0):
@@ -66,11 +63,10 @@ def get_intersecting_polygons(grid: List[Polygon], base_shape: List[Polygon], pe
         is_area_valid = (polygon_grid.intersection(polygon_base).area / polygon_grid.area) > percentage_of_intersection_threshold
         if is_area_valid and polygon_grid not in intersecting_polygons:
             intersecting_polygons.append(polygon_grid)
-    print(len(intersecting_polygons))
     return intersecting_polygons
 
 
-def get_clipped_centroids(polygons, clipping_shape):
+def get_clipped_centroids(polygons: List[Polygon], clipping_shape: gpd.GeoDataFrame):
     """
     If polygon's centroid in not inside of clipping_shape, the appended value will be the closest point from the true centroid to the clipping_shape
 
@@ -82,6 +78,7 @@ def get_clipped_centroids(polygons, clipping_shape):
         clipping_shape is shape of the Croatia and polygon in a square that contains Island of Krk but it's centroid is somewhere in the sea...
         clipped centroid will be the closest point from the true centroid to the land of the Island of Krk
     """
+
     polygon_clipped_centroids: List[ClippedCentroid] = []
     for polygon in tqdm(polygons, desc="Finding clipped centroids of polygons"):
         clipped_centroid = ClippedCentroid()

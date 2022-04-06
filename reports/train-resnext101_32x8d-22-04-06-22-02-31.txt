@@ -1,0 +1,99 @@
+/home/matej/projects/lumen-geoguesser/reports/train-resnext101_32x8d-22-04-06-22-02-31.txt
+[{'batch_size': 8,
+  'dataset_dir': PosixPath('/home/matej/projects/lumen-geoguesser/data/raw.ignoreme'),
+  'dataset_frac': 1,
+  'image_size': 28,
+  'lr': 0.0001,
+  'models': ['resnext101_32x8d'],
+  'output_report': PosixPath('/home/matej/projects/lumen-geoguesser/reports'),
+  'pretrained': True,
+  'quick': True,
+  'shuffle_before_splitting': False,
+  'split_ratios': [0.6, 0.2, 0.2],
+  'trainer_checkpoint': None,
+  'unfreeze_backbone_at_epoch': 4,
+  'unfreeze_blocks': 'all',
+  'weight_decay': 1e-05,
+  'wokers_num': 4},
+ {'accelerator': None,
+  'accumulate_grad_batches': None,
+  'amp_backend': 'native',
+  'amp_level': None,
+  'auto_lr_find': False,
+  'auto_scale_batch_size': False,
+  'auto_select_gpus': False,
+  'benchmark': None,
+  'check_val_every_n_epoch': 1,
+  'checkpoint_callback': None,
+  'default_root_dir': None,
+  'detect_anomaly': False,
+  'deterministic': False,
+  'devices': None,
+  'enable_checkpointing': True,
+  'enable_model_summary': True,
+  'enable_progress_bar': True,
+  'fast_dev_run': False,
+  'flush_logs_every_n_steps': None,
+  'gpus': None,
+  'gradient_clip_algorithm': None,
+  'gradient_clip_val': None,
+  'ipus': None,
+  'limit_predict_batches': None,
+  'limit_test_batches': 3,
+  'limit_train_batches': 3,
+  'limit_val_batches': 3,
+  'log_every_n_steps': 1,
+  'log_gpu_memory': None,
+  'logger': True,
+  'max_epochs': None,
+  'max_steps': -1,
+  'max_time': None,
+  'min_epochs': None,
+  'min_steps': None,
+  'move_metrics_to_cpu': False,
+  'multiple_trainloader_mode': 'max_size_cycle',
+  'num_nodes': 1,
+  'num_processes': None,
+  'num_sanity_val_steps': 2,
+  'overfit_batches': 0.0,
+  'plugins': None,
+  'precision': 32,
+  'prepare_data_per_node': None,
+  'process_position': 0,
+  'profiler': None,
+  'progress_bar_refresh_rate': None,
+  'reload_dataloaders_every_n_epochs': 0,
+  'replace_sampler_ddp': True,
+  'resume_from_checkpoint': None,
+  'stochastic_weight_avg': False,
+  'strategy': None,
+  'sync_batchnorm': False,
+  'terminate_on_nan': None,
+  'tpu_cores': None,
+  'track_grad_norm': -1,
+  'val_check_interval': None,
+  'weights_save_path': None,
+  'weights_summary': 'top'}]
+/home/matej/projects/lumen-geoguesser/data/raw.ignoreme
+torch.Size([8, 8192]) 8192
+Sanity Checking: 0it [00:00, ?it/s]Sanity Checking DataLoader 0:   0%|          | 0/2 [00:00<?, ?it/s]Sanity Checking DataLoader 0: 100%|##########| 2/2 [00:02<00:00,  1.05s/it]                                                                           Training: 0it [00:00, ?it/s]Epoch 0:   0%|          | 0/6 [00:00<?, ?it/s]Epoch 0:  50%|#####     | 3/6 [00:06<00:06,  2.27s/it]Epoch 0:  50%|#####     | 3/6 [00:06<00:06,  2.27s/it, loss=5.65, v_num=0, train_loss_step=5.670, train_acc_step=0.000, loss_step=5.670]
+Validation: 0it [00:00, ?it/s][A
+Validation DataLoader 0:   0%|          | 0/3 [00:00<?, ?it/s][A
+Validation DataLoader 0: 100%|##########| 3/3 [00:03<00:00,  1.25s/it][AEpoch 0: 100%|##########| 6/6 [00:10<00:00,  1.77s/it, loss=5.65, v_num=0, train_loss_step=5.670, train_acc_step=0.000, loss_step=5.670]Epoch 0: 100%|##########| 6/6 [00:10<00:00,  1.77s/it, loss=5.65, v_num=0, train_loss_step=5.670, train_acc_step=0.000, loss_step=5.490, val_loss_step=5.490, val_acc_step=0.000, val_loss_epoch=5.490, val_acc_epoch=0.000, loss_epoch=5.490]
+                                                                      [AEpoch 0: 100%|##########| 6/6 [00:10<00:00,  1.77s/it, loss=5.65, v_num=0, train_loss_step=5.670, train_acc_step=0.000, loss_step=5.490, val_loss_step=5.490, val_acc_step=0.000, val_loss_epoch=5.490, val_acc_epoch=0.000, loss_epoch=5.650, train_loss_epoch=5.650, train_acc_epoch=0.000]Epoch 1: 100%|##########| 6/6 [00:11<00:00,  1.93s/it, loss=5.65, v_num=0, train_loss_step=5.670, train_acc_step=0.000, loss_step=5.490, val_loss_step=5.490, val_acc_step=0.000, val_loss_epoch=5.490, val_acc_epoch=0.000, loss_epoch=5.650, train_loss_epoch=5.650, train_acc_epoch=0.000]Epoch 1:  50%|#####     | 3/6 [00:20<00:20,  6.67s/it, loss=5.65, v_num=0, train_loss_step=5.670, train_acc_step=0.000, loss_step=5.490, val_loss_step=5.490, val_acc_step=0.000, val_loss_epoch=5.490, val_acc_epoch=0.000, loss_epoch=5.650, train_loss_epoch=5.650, train_acc_epoch=0.000]Epoch 1:  50%|#####     | 3/6 [00:20<00:20,  6.67s/it, loss=5.67, v_num=0, train_loss_step=5.550, train_acc_step=0.000, loss_step=5.550, val_loss_step=5.490, val_acc_step=0.000, val_loss_epoch=5.490, val_acc_epoch=0.000, loss_epoch=5.650, train_loss_epoch=5.650, train_acc_epoch=0.000]
+Validation: 0it [00:00, ?it/s][A
+Validation DataLoader 0:   0%|          | 0/3 [00:00<?, ?it/s][A
+Validation DataLoader 0: 100%|##########| 3/3 [00:05<00:00,  1.67s/it][AEpoch 1: 100%|##########| 6/6 [00:25<00:00,  4.18s/it, loss=5.67, v_num=0, train_loss_step=5.550, train_acc_step=0.000, loss_step=5.550, val_loss_step=5.490, val_acc_step=0.000, val_loss_epoch=5.490, val_acc_epoch=0.000, loss_epoch=5.650, train_loss_epoch=5.650, train_acc_epoch=0.000]Epoch 1: 100%|##########| 6/6 [00:25<00:00,  4.19s/it, loss=5.67, v_num=0, train_loss_step=5.550, train_acc_step=0.000, loss_step=9.590, val_loss_step=9.590, val_acc_step=0.000, val_loss_epoch=8.890, val_acc_epoch=0.000, loss_epoch=8.890, train_loss_epoch=5.650, train_acc_epoch=0.000]
+                                                                      [AEpoch 1: 100%|##########| 6/6 [00:25<00:00,  4.19s/it, loss=5.67, v_num=0, train_loss_step=5.550, train_acc_step=0.000, loss_step=9.590, val_loss_step=9.590, val_acc_step=0.000, val_loss_epoch=8.890, val_acc_epoch=0.000, loss_epoch=5.680, train_loss_epoch=5.680, train_acc_epoch=0.000]Epoch 2: 100%|##########| 6/6 [00:26<00:00,  4.36s/it, loss=5.67, v_num=0, train_loss_step=5.550, train_acc_step=0.000, loss_step=9.590, val_loss_step=9.590, val_acc_step=0.000, val_loss_epoch=8.890, val_acc_epoch=0.000, loss_epoch=5.680, train_loss_epoch=5.680, train_acc_epoch=0.000]Epoch 2:  50%|#####     | 3/6 [00:33<00:33, 11.11s/it, loss=5.67, v_num=0, train_loss_step=5.550, train_acc_step=0.000, loss_step=9.590, val_loss_step=9.590, val_acc_step=0.000, val_loss_epoch=8.890, val_acc_epoch=0.000, loss_epoch=5.680, train_loss_epoch=5.680, train_acc_epoch=0.000]Epoch 2:  50%|#####     | 3/6 [00:33<00:33, 11.11s/it, loss=5.65, v_num=0, train_loss_step=5.450, train_acc_step=0.000, loss_step=5.450, val_loss_step=9.590, val_acc_step=0.000, val_loss_epoch=8.890, val_acc_epoch=0.000, loss_epoch=5.680, train_loss_epoch=5.680, train_acc_epoch=0.000]
+Validation: 0it [00:00, ?it/s][A
+Validation DataLoader 0:   0%|          | 0/3 [00:00<?, ?it/s][A
+Validation DataLoader 0: 100%|##########| 3/3 [00:03<00:00,  1.23s/it][AEpoch 2: 100%|##########| 6/6 [00:37<00:00,  6.18s/it, loss=5.65, v_num=0, train_loss_step=5.450, train_acc_step=0.000, loss_step=5.450, val_loss_step=9.590, val_acc_step=0.000, val_loss_epoch=8.890, val_acc_epoch=0.000, loss_epoch=5.680, train_loss_epoch=5.680, train_acc_epoch=0.000]Epoch 2: 100%|##########| 6/6 [00:37<00:00,  6.18s/it, loss=5.65, v_num=0, train_loss_step=5.450, train_acc_step=0.000, loss_step=5.300, val_loss_step=5.300, val_acc_step=0.000, val_loss_epoch=6.480, val_acc_epoch=0.000, loss_epoch=6.480, train_loss_epoch=5.680, train_acc_epoch=0.000]
+                                                                      [AEpoch 2: 100%|##########| 6/6 [00:37<00:00,  6.18s/it, loss=5.65, v_num=0, train_loss_step=5.450, train_acc_step=0.000, loss_step=5.300, val_loss_step=5.300, val_acc_step=0.000, val_loss_epoch=6.480, val_acc_epoch=0.000, loss_epoch=5.610, train_loss_epoch=5.610, train_acc_epoch=0.000]Epoch 3: 100%|##########| 6/6 [00:37<00:00,  6.31s/it, loss=5.65, v_num=0, train_loss_step=5.450, train_acc_step=0.000, loss_step=5.300, val_loss_step=5.300, val_acc_step=0.000, val_loss_epoch=6.480, val_acc_epoch=0.000, loss_epoch=5.610, train_loss_epoch=5.610, train_acc_epoch=0.000]Testing: 0it [00:00, ?it/s]Testing DataLoader 0:   0%|          | 0/3 [00:00<?, ?it/s]Testing DataLoader 0: 100%|##########| 3/3 [00:04<00:00,  1.43s/it][{'test_loss': tensor(5.7180, dtype=torch.float64), 'test_acc': 0.0, 'loss': tensor(5.7180, dtype=torch.float64)}, {'test_loss': tensor(5.6031, dtype=torch.float64), 'test_acc': 0.0, 'loss': tensor(5.6031, dtype=torch.float64)}, {'test_loss': tensor(5.6035, dtype=torch.float64), 'test_acc': 0.125, 'loss': tensor(5.6035, dtype=torch.float64)}]
+Testing DataLoader 0: 100%|##########| 3/3 [00:04<00:00,  1.43s/it]
+───────────────────────────────────────────────────────────────────────────────────────
+       Test metric             DataLoader 0
+───────────────────────────────────────────────────────────────────────────────────────
+       loss_epoch            5.641543865203857
+     test_acc_epoch         0.0416666679084301
+     test_loss_epoch         5.641543865203857
+───────────────────────────────────────────────────────────────────────────────────────

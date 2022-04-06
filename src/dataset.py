@@ -2,10 +2,8 @@ from __future__ import annotations, division, print_function
 
 import os
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Tuple
 
-import geopandas as gpd
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from PIL import Image
@@ -14,7 +12,6 @@ from torch.utils.data import Dataset
 from torchvision import transforms
 
 from utils_functions import one_hot_encode
-from utils_geo import get_country_shape, get_grid, get_intersecting_polygons
 from utils_paths import PATH_DATA_RAW
 
 
@@ -42,49 +39,24 @@ class GeoguesserDataset(Dataset):
         coordinate_transform: None | Callable = lambda x, y: np.array([x, y]).astype("float"),
     ) -> None:
         super().__init__()
+        self.degrees = ["0", "90", "180", "270"]
         self.image_transform = image_transform
         self.coordinate_transform = coordinate_transform
+
         self.path_images = Path(dataset_dir, "data")
+        self.path_csv = Path(dataset_dir, "data__num_class_259__spacing_0.2.csv")
+        self.df_csv = pd.read_csv(self.path_csv)
+
+        self.df_class_coord_map = self.df_csv.loc[:, ["label", "centroid_lat", "centroid_lng", "is_true_centroid"]].drop_duplicates()
+        print("df_class_coord_map", self.df_class_coord_map.shape)
+
+        self.df_class_coord_map = self.df_class_coord_map.set_index("label")
+        print(self.df_class_coord_map)
+        """ Filter the dataframe, only include rows for images that exist"""
         self.uuids_with_image = sorted(os.listdir(self.path_images))
-        self.path_csv = Path(dataset_dir, "data.csv")
-        self.df_csv = pd.read_csv(self.path_csv, index_col=False)
         self.df_csv = self.df_csv.loc[self.df_csv["uuid"].isin(self.uuids_with_image), :]
-        self.df_csv["label"] = np.nan
-        self.degrees = ["0", "90", "180", "270"]
-        self.num_classes = 0
-        self.prepare_lat_lng()
-
-    def prepare_lat_lng(self):
-        percentage_of_land_considered_a_block = 0
-
-        country_shape = get_country_shape("HR")
-        x_min, y_min, x_max, y_max = country_shape.total_bounds
-        grid_polygons = get_grid(x_min, y_min, x_max, y_max, spacing=0.2)
-
-        intersecting_polygons = get_intersecting_polygons(grid_polygons, country_shape.geometry, percentage_of_intersection_threshold=0)
-
-        df_geo_csv = gpd.GeoDataFrame(
-            self.df_csv,
-            geometry=gpd.points_from_xy(
-                self.df_csv.loc[:, "longitude"],
-                self.df_csv.loc[:, "latitude"],
-            ),
-        )
-
-        for i, polygon in enumerate(intersecting_polygons):
-            self.df_csv.loc[df_geo_csv.within(polygon), "label"] = i
-            # TODO: save polygons too; during the training process we will have to compare great-circle distance of the true polygon to the prediction; saving centroid of the polygon might be sufficient?
-
-        # TODO: here df_csv is filtered. Rows of the dataset (images) whose location is not known are filtered out.
-        # (label = 0 means that there we no polygons assigned to the picture). handle this better, more warnings etc.
-        self.df_csv = self.df_csv.loc[~self.df_csv["label"].isnull(), :]
-        self.num_classes = len(intersecting_polygons)
-        print("num_classes", self.num_classes)
-
-        intersecting_polygons_df = gpd.GeoDataFrame({"geometry": intersecting_polygons})
-        # base = country_shape.plot(color="green")
-        # intersecting_polygons_df.plot(ax=base, alpha=0.5, linewidth=0.2, edgecolor="red")
-        # plt.show()
+        self.num_classes = int(self.df_csv["label"].max()) + 1
+        print("num classes", self.num_classes)
 
     def name_without_extension(self, filename: Path | str):
         return Path(filename).stem
@@ -92,23 +64,18 @@ class GeoguesserDataset(Dataset):
     def one_hot_encode_label(self, label: int):
         return one_hot_encode(label, self.num_classes)
 
-    def get_row_attributes(self, row: pd.Series):
-        return str(row["uuid"]), float(row["latitude"]), float(row["longitude"]), int(row["label"])
+    def get_row_attributes(self, row: pd.Series) -> Tuple[str, float, float, int, float, float, bool]:
+        return str(row["uuid"]), row["latitude"], row["longitude"], int(row["label"]), row["centroid_lat"], row["centroid_lng"], bool(row["is_true_centroid"])
 
     def __len__(self):
         return len(self.df_csv)
 
     def __getitem__(self, index: int):
-        """
-        Loads images via the index
-        Loads latitude and longitude via the csv and uuid
-        Applies transforms
-        """
         row = self.df_csv.iloc[index, :]
-        uuid, latitude, longitude, label = self.get_row_attributes(row)
+        uuid, latitude, longitude, label, centroid_lat, centroid_lng, is_true_centroid = self.get_row_attributes(row)
         image_dir = Path(self.path_images, uuid)
-        image_filepaths = list(map(lambda degree: Path(image_dir, "{}.jpg".format(degree)), self.degrees))
-        images = list(map(lambda x: Image.open(x), image_filepaths))
+        image_filepaths = [Path(image_dir, "{}.jpg".format(degree)) for degree in self.degrees]
+        images = [Image.open(image_path) for image_path in image_filepaths]
         label = self.one_hot_encode_label(label)
 
         if self.image_transform is not None:
@@ -118,13 +85,10 @@ class GeoguesserDataset(Dataset):
             transform = self.coordinate_transform
             latitude, longitude = self.coordinate_transform(latitude, longitude)
 
-        images = torch.cat(images, dim=0)
-        # TODO: implement multiimage support
-        return images, label
+        return images, label, centroid_lat, centroid_lng
 
 
 if __name__ == "__main__":
     print("This file shouldn't be called as a script unless used for debugging.")
     dataset = GeoguesserDataset()
-    dataset.prepare_lat_lng()
-    # print(dataset.__getitem__(2))
+    print(dataset.__getitem__(2))

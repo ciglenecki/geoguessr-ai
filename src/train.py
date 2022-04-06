@@ -96,11 +96,11 @@ if __name__ == "__main__":
             )
 
         model = LitModel(
+            data_module=data_module,
             num_classes=data_module.dataset.num_classes,
             model_name=model_names[0],
             pretrained=pretrained,
             learning_rate=learning_rate,
-            leave_last_n=unfreeze_blocks_num,
             weight_decay=weight_decay,
             batch_size=batch_size,
             image_size=image_size,

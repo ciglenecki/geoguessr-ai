@@ -5,6 +5,15 @@ from torchvision.models.efficientnet import EfficientNet
 from torchvision.models.resnet import ResNet
 
 
+def model_remove_fc(model: ResNet):
+    """Replaces fully connected layer with identity function"""
+    if type(model) is ResNet:
+        model.fc = Identity()
+    if type(model) is EfficientNet:
+        model.classifier = Identity()
+    return model
+
+
 def get_model_blocks(model):
     """
     returns list of model blocks without last layer (classifier/fc)
@@ -46,6 +55,7 @@ class Identity(nn.Module):
 
     def forward(self, x):
         return x
+
 
 if __name__ == "__main__":
     pass

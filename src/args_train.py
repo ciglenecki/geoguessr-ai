@@ -93,6 +93,14 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
     )
 
     user_group.add_argument(
+        "--cached-df",
+        metavar="",
+        type=str,
+        help="Filepath to cached dataframe, e.g. data/raw.ignore/data__num_class_259__spacing_0.2.csv",
+        default=PATH_DATA_RAW,
+    )
+
+    user_group.add_argument(
         "-r",
         "--output-report",
         metavar="dir",
