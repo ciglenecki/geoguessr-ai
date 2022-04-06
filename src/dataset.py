@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from PIL import Image
+import torch
 from torch.utils.data import Dataset
 from torchvision import transforms
 
@@ -112,11 +113,12 @@ class GeoguesserDataset(Dataset):
 
         if self.image_transform is not None:
             transform = self.image_transform
-            images = list(map(lambda i: transform(i), images))
+            images = [transform(image) for image in images]
         if self.coordinate_transform is not None:
             transform = self.coordinate_transform
             latitude, longitude = self.coordinate_transform(latitude, longitude)
 
+        images = torch.cat(images, dim=0)
         # TODO: implement multiimage support
         return images, label
 

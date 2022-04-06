@@ -89,16 +89,15 @@ class LitModel(pl.LightningModule):
             }
         )
 
-    def _backbone_forward_4_images(self, input):
+    def _backbone_forward_4_images(self, image_batch):
         """
         Args:
             input - tensor of shape (batch_size, num_of_images (4), channels (3), image_size, image_size)
         """
-        fake_images_tensor_list = [torch.rand(self.batch_size, 3, self.image_size, self.image_size)] * 4
-        print("fake_images_tensor_list", fake_images_tensor_list[0].shape)
-        backbone_output_list = [self.backbone(image) for image in fake_images_tensor_list]
+
+        backbone_output_list = [self.backbone(image_batch) for image in image_batch]
         print("backbone_output_list", backbone_output_list[0].shape)
-        backbone_output_tensor = torch.stack(backbone_output_list, dim=1)
+        backbone_output_tensor = torch.cat(backbone_output_list, dim=0)
         print("backbone_output_tensor", backbone_output_tensor.shape)
         flattened_output = torch.flatten(backbone_output_tensor, 1)
         print("get_last_fc_in_channels shape", flattened_output.shape)

@@ -4,6 +4,7 @@ from datetime import datetime
 from math import floor
 from pathlib import Path
 from typing import List, Tuple, TypeVar, Union
+import os
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -156,6 +157,11 @@ def is_valid_unfreeze_arg(arg):
         return is_positive_int(arg)  # is_positive_int's raise will be caught by the except
     except:
         raise argparse.ArgumentTypeError("%s has to be positive int or 'all'" % arg)
+
+
+def is_valid_dir(arg):
+    if not os.path.isdir(arg):
+        raise argparse.ArgumentError(arg, "Argument should be a path to directory")
 
 
 class SocketConcatenator(object):

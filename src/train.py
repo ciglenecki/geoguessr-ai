@@ -42,6 +42,7 @@ if __name__ == "__main__":
     dataset_dir = args.dataset_dir
     batch_size = args.batch_size
 
+    # TODO: caculate normalization on the train dataset and use it
     image_transform_train = image_transform_val = transforms.Compose(
         [
             transforms.Resize(image_size),
@@ -114,7 +115,7 @@ if __name__ == "__main__":
 
         trainer: pl.Trainer = pl.Trainer.from_argparse_args(
             pl_args,
-            logger=[tb_logger,tb_logger],
+            logger=[tb_logger, tb_logger],
             default_root_dir=PATH_REPORT,
             callbacks=callbacks,
         )

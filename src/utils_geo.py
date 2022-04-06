@@ -1,13 +1,22 @@
 from __future__ import annotations, division, print_function
 
 from itertools import product
+from types import SimpleNamespace
 from typing import List
 
 import geopandas as gpd
 import numpy as np
 from shapely.geometry import Polygon, box
+from shapely.ops import nearest_points
+from shapely.geometry.point import Point
+from tqdm import tqdm
 
 from utils_paths import PATH_WORLD_BORDERS
+
+
+class ClippedCentroid:
+    point: Point
+    is_true_centroid: bool
 
 
 def get_grid(x_min, y_min, x_max, y_max, spacing):
@@ -33,9 +42,11 @@ def get_country_shape(iso2: str):
 
     Each row containing a multi-part geometry will be split into multiple rows with single geometries, thereby increasing the vertical size of the GeoDataFrame.
     """
+
     world_shape: gpd.GeoDataFrame = gpd.read_file(str(PATH_WORLD_BORDERS))
     country_shape = world_shape[world_shape["ISO2"] == iso2]
     country_shape = country_shape.explode()
+    country_shape = country_shape.droplevel(0)  # index on level 0 is index for a country
     return country_shape
 
 
@@ -50,10 +61,41 @@ def get_intersecting_polygons(grid: List[Polygon], base_shape: List[Polygon], pe
             1 - find intersections where grid's polygon is fully inside of any base's polygons
     """
 
-    intersecting_polygons = []
-    for polygon_grid, polygon_base in product(grid, base_shape):
+    intersecting_polygons: List[Polygon] = []
+    for polygon_grid, polygon_base in tqdm(product(grid, base_shape), desc="Finding polygons that intersect"):
         is_area_valid = (polygon_grid.intersection(polygon_base).area / polygon_grid.area) > percentage_of_intersection_threshold
         if is_area_valid and polygon_grid not in intersecting_polygons:
             intersecting_polygons.append(polygon_grid)
     print(len(intersecting_polygons))
     return intersecting_polygons
+
+
+def get_clipped_centroids(polygons, clipping_shape):
+    """
+    If polygon's centroid in not inside of clipping_shape, the appended value will be the closest point from the true centroid to the clipping_shape
+
+    Args:
+        polygons - polygons whose centroid will be caculated
+        clipping_shape - shape that is used for clipping
+
+    Example:
+        clipping_shape is shape of the Croatia and polygon in a square that contains Island of Krk but it's centroid is somewhere in the sea...
+        clipped centroid will be the closest point from the true centroid to the land of the Island of Krk
+    """
+    polygon_clipped_centroids: List[ClippedCentroid] = []
+    for polygon in tqdm(polygons, desc="Finding clipped centroids of polygons"):
+        clipped_centroid = ClippedCentroid()
+        centroid = polygon.centroid
+        if clipping_shape.contains(centroid).any():
+            clipped_centroid.point = centroid
+            clipped_centroid.is_true_centroid = True
+        else:
+            distances = clipping_shape.distance(centroid)
+            country_polygon_index = distances.sort_values().index[0]
+            country_polygon = clipping_shape.loc[country_polygon_index, :]
+            nearest_point = nearest_points(centroid, country_polygon.geometry)[1]  # [0] is the first argument, [1] is nearest point
+
+            clipped_centroid.point = nearest_point
+            clipped_centroid.is_true_centroid = False
+        polygon_clipped_centroids.append(clipped_centroid)
+    return polygon_clipped_centroids
