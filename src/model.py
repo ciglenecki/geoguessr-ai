@@ -102,7 +102,7 @@ class LitModel(pl.LightningModule):
         if self.logger:
             for logger in self.loggers:
                 zeros_dict = {metric: 0 for metric in hyperparameter_metrics}
-                logger.log_hyperparams(self.hparams, zeros_dict)  # TODO: make sure to
+                logger.log_hyperparams(self.hparams, zeros_dict)
 
     def training_step(self, batch, batch_idx):
         image_list, y, _, _ = batch
@@ -134,10 +134,12 @@ class LitModel(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         image_list, y_true, centroid_lat, centroid_lng = batch
-        y_pred = self(image_list)  # TODO: how to i extract latlng
+        y_pred = self(image_list)
 
+        # TODO: caculation for haversine distances stuff should be cached. How? Create a dict where keys are y_index and values are whatever we need. That might be precaculated np.stack([lat, lng], axis=1). Anything that will speed up the caculations
         y_true_idx = torch.argmax(y_true, dim=1).detach().numpy()
         y_pred_idx = torch.argmax(y_pred, dim=1).detach().numpy()
+
         row_true = self.df_csv.iloc[y_true_idx, :]
         true_lat, true_lng = row_true["latitude"].to_numpy(), row_true["longitude"].to_numpy()
 
@@ -146,7 +148,7 @@ class LitModel(pl.LightningModule):
 
         haver_x = np.stack([true_lat, true_lng], axis=1)
         haver_y = np.stack([pred_lat, pred_lng], axis=1)
-        haver_dist = haversine_distances(haver_x, haver_y)
+        haver_dist = np.mean(haversine_distances(haver_x, haver_y))
 
         loss = F.cross_entropy(y_pred, y_true)
         acc = multi_acc(y_pred, y_true)
@@ -180,7 +182,6 @@ class LitModel(pl.LightningModule):
         return data_dict
 
     def test_epoch_end(self, outs):
-        print(outs)
         loss = sum(map(lambda x: x["test_loss"], outs)) / len(outs)
         acc = sum(map(lambda x: x["test_acc"], outs)) / len(outs)
         data_dict = {"test_loss_epoch": loss, "test_acc_epoch": acc}
@@ -189,7 +190,7 @@ class LitModel(pl.LightningModule):
 
     def configure_optimizers(self):
 
-        optimizer = torch.optim.Adam(self.backbone.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
+        optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
         if type(self.backbone) is EfficientNet:
             optimizer = torch.optim.RMSprop(
                 self.backbone.parameters(),

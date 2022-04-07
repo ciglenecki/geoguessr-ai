@@ -33,6 +33,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
         shuffle_before_splitting=DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING,
         cached_df=None,
     ) -> None:
+        print("GeoguesserDataModule init")
         super().__init__()
 
         self._validate_sizes(train_frac, val_frac, test_frac)

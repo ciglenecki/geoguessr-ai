@@ -17,9 +17,7 @@ import coords_decorate_csv
 
 # TODO: implement polygons on the border; these are addional classes which are expliclty defined. These classes might clash with already exising classes (polygons). How? There might be a polygon which is close to the border and overlaps the explicitly defined polygon. Solution is to remove the intersection so that polygons don't overlap. Polygon on the border (the one that is explicitly defined) should have prioirty over getting more surface area.
 
-# TODO: outside of Croatia bound classification; prediction gives softmax of values; weighted sum ends up in Bosna, what do we do? Solution: find the closest point on the border
-
-# TODO: every polygoin in dataframe can also have additional column that is called center. It doesnt have to be center of the polygon, it can be the edge of the country if the polygon's center goes outside of country's bounds
+# TODO important: outside of Croatia bound classification; prediction gives softmax of values; weighted sum ends up in Bosna, what do we do? Solution: find the closest point on the border
 
 # TODO: use haversine_distances in a loss function. haversine_distances acts just like residual. It might be useful to square the haversine_distances to get similar formula to MSE
 
@@ -39,6 +37,7 @@ class GeoguesserDataset(Dataset):
         coordinate_transform: None | Callable = lambda x, y: np.array([x, y]).astype("float"),
         cached_df=None,
     ) -> None:
+        print("GeoguesserDataset init")
         super().__init__()
         self.degrees = ["0", "90", "180", "270"]
         self.image_transform = image_transform
@@ -51,7 +50,6 @@ class GeoguesserDataset(Dataset):
         self.uuids_with_image = sorted(os.listdir(self.path_images))
         self.df_csv = self.df_csv.loc[self.df_csv["uuid"].isin(self.uuids_with_image), :]
         self.num_classes = int(self.df_csv["y"].max()) + 1
-        print("num classes", self.num_classes)
 
     def name_without_extension(self, filename: Path | str):
         return Path(filename).stem

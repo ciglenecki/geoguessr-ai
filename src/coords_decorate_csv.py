@@ -11,7 +11,7 @@ from tqdm import tqdm
 import numpy as np
 import sys
 
-# TODO: project to CRS (?) then caculate distances, then re-project (?). By not doing this, spacing might be an issue because angles are not linear
+# TODO important: project to CRS (?) then caculate distances, then re-project (?). By not doing this, spacing might be an issue because angles are not linear
 
 
 def parse_args(args):

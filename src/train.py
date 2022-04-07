@@ -43,7 +43,8 @@ if __name__ == "__main__":
     batch_size = args.batch_size
     cached_df = args.cached_df
 
-    # TODO: caculate normalization on the train dataset and use it
+    # TODO important: caculate normalization on the train dataset. You need to get mean=[?,?,?], std=[?,?,?]. What is train set? We didn't explicitly define but we should. The easiest way seems to be to edit the dataframe where we have train, val, test flags
+
     image_transform_train = image_transform_val = transforms.Compose(
         [
             transforms.Resize(image_size),
@@ -55,7 +56,7 @@ if __name__ == "__main__":
     )
     transform_labels = lambda x: np.array(x).astype("float")
 
-    # TODO: monitored value (that we EarlyStop on) should be great-circle distance and not val_loss
+    # TODO importnat: monitored value (that we EarlyStop on) should be great-circle distance and not val_loss. This is done by recording heversine as a metric via the self.logger. When hyperparameter is logged it can be used as a metric for EarlyStop.
 
     data_module = GeoguesserDataModule(
         dataset_dir=dataset_dir,
