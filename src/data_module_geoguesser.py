@@ -60,12 +60,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
     def prepare_data(self) -> None:
         pass
 
-    def _validate_sizes(
-        self,
-        train_frac,
-        val_frac,
-        test_frac,
-    ):
+    def _validate_sizes(self, train_frac, val_frac, test_frac):
         if sum([train_frac, val_frac, test_frac]) != 1:
             raise InvalidSizes("Sum of sizes has to be 1")
 
@@ -77,6 +72,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
             np.random.shuffle(dataset_indices)
 
         dataset_train_indices, dataset_val_indices, dataset_test_indices = split_by_ratio(dataset_indices, self.train_frac, self.val_frac, self.train_frac, use_whole_array=True)
+        print(dataset_train_indices, dataset_val_indices, dataset_test_indices)
 
         self.train_size = len(dataset_train_indices)
         self.val_size = len(dataset_val_indices)

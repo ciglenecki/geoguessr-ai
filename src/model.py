@@ -158,6 +158,7 @@ class LitModel(pl.LightningModule):
             "loss": loss,
             "haver_dist": haver_dist,
         }
+        # self.log("val_loss", loss.detach(), on_step=True, on_epoch=True, logger=True, prog_bar=True)
         self.log_dict(data_dict, on_step=True, on_epoch=True, logger=True, prog_bar=True)
         return data_dict
 

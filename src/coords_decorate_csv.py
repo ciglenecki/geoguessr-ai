@@ -103,7 +103,6 @@ def main(args):
 
         if row_mask.any():  # image existis inside this polygon
             df.loc[row_mask, "true_label"] = polygon_idx
-            df.loc[row_mask, "y"] = len(polys_with_data)
             df.loc[row_mask, "centroid_lat"] = centroid.point.x
             df.loc[row_mask, "centroid_lng"] = centroid.point.y
             df.loc[row_mask, "is_true_centroid"] = centroid.is_true_centroid
