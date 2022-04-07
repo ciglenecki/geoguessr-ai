@@ -82,6 +82,23 @@ def mini_tensor():
     print("Out batch", out_batch[0:5, 0:5])
 
 
+def freeze_batchnorm(model: ResNet):
+    for pair in model.named_modules():
+        param_name = pair[0]
+        param = pair[1]
+        if "bn" in param_name or "downsample.1" in param_name:
+            print(param_name)
+            param.requires_grad_(False)
+            param.affine = False
+
+    # for pair in model.named_parameters():
+    #     param_name = pair[0]
+    #     param = pair[1]
+    #     if "bn" in param_name:
+    #         param.requires_grad = False
+    #         params
+
+
 def model_cat_vs_multi_forward():
 
     """PURE x4 FORWARD"""
@@ -89,10 +106,10 @@ def model_cat_vs_multi_forward():
     channels = 3
     image_size = 3
     batch_size = 3
-    num_images = 100
+    num_images = 20
 
     model, criterion, optimizer, labels, image_batch_list = get_setup(batch_size, num_images, channels, image_size)
-
+    freeze_batchnorm(model)
     model_output_list = [model(image) for image in image_batch_list]
     model_output_cat = torch.cat(model_output_list, dim=0).float()
     model_output_stack = torch.stack(model_output_list, dim=0)
@@ -119,6 +136,7 @@ def model_cat_vs_multi_forward():
     print("\n\n============B===========\n\n\n")
     print("Instead of 8 batches that go through forward 4 times, this time we will stack 4 images on each batch => 8 x 4 = 32 batches")
     model, criterion, optimizer, labels, image_batch_list = get_setup(batch_size, num_images, channels, image_size)
+    freeze_batchnorm(model)
 
     image_batch_cat = torch.cat(image_batch_list, dim=0)  # 15 x 3 x 2 x 2
     output = model(image_batch_cat)  # 15 x 2048
