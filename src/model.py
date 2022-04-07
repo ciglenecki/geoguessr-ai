@@ -55,10 +55,10 @@ class LitModel(pl.LightningModule):
 
     def __init__(self, data_module: GeoguesserDataModule, num_classes: int, model_name, pretrained, learning_rate, weight_decay, batch_size, image_size, context_dict={}, **kwargs: Any):
         super().__init__()
-        self.register_buffer("sigma", torch.eye(3))
+
         self.data_module = data_module
         self.df_csv = data_module.dataset.df_csv
-        self.haver_dist = data_module.dataset.haver_list
+        self.haver_dist = data_module.dataset.class_to_coord_map
         self.learning_rate = learning_rate
         self.weight_decay = weight_decay
         self.batch_size = batch_size

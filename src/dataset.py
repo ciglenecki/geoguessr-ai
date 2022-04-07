@@ -46,27 +46,51 @@ class GeoguesserDataset(Dataset):
         self.df_csv = pd.read_csv(Path(cached_df)) if cached_df else coords_decorate_csv.main(["--spacing", str(0.2), "--no-out"])
 
         """ Filter the dataframe, only include rows for images that exist and remove polygons with no data"""
-        self.uuids_with_image = sorted(os.listdir(self.path_images))
-        self.df_csv = self.df_csv.loc[self.df_csv["uuid"].isin(self.uuids_with_image), :]
-        self.y_map = self.df_csv.filter(["true_label"]).drop_duplicates().sort_values("true_label")
-        self.num_classes = len(self.y_map)
-        self.y_map["y"] = np.arange(self.num_classes)
-        self.df_csv = self.df_csv.merge(self.y_map, on="true_label")
+        self.df_csv = self.filter_df_rows(self.df_csv)
+        self.df_csv = self.append_column_y(self.df_csv)
         self.df_csv.set_index("y")
+        self.num_classes = self.df_csv["y"].max() + 1
+        _class_to_coord_list = self.get_class_to_coord_list()
+        self.class_to_coord_map = torch.tensor(_class_to_coord_list)
 
-        unq_rows = self.df_csv.drop_duplicates(subset='y', keep=False, inplace=False)
-        self.num_classes = len(unq_rows)
-        haver_list = []
-
-        for row_idx in unq_rows['y']:
+    def get_class_to_coord_list(self):
+        _class_to_coord_map = []
+        for row_idx in range(self.num_classes):
             row = self.df_csv.iloc[row_idx, :]
             true_lat, true_lng = row["latitude"], row["longitude"]
-            haver_x = [true_lat, true_lng]
-            haver_list.append(haver_x)
-        self.haver_list = torch.tensor(haver_list)
+            point = [true_lat, true_lng]
+            _class_to_coord_map.append(point)
+        return _class_to_coord_map
 
     def name_without_extension(self, filename: Path | str):
         return Path(filename).stem
+
+    def filter_df_rows(self, df: pd.DataFrame):
+        """
+        Args:
+            df - dataframe
+        Returns:
+            Dataframe with rows for which the image exists
+        """
+
+        uuids_with_image = sorted(os.listdir(self.path_images))
+        row_mask = df["uuid"].isin(uuids_with_image)
+        return df.loc[row_mask, :]
+
+    def append_column_y(self, df: pd.DataFrame):
+        """
+        y_map is temporary dataframe that hold non-duplicated values of polygon_index. y is then created by aranging polygon_index. The issue is that polygon_index might be interupted discrete series. The new column is uninterupted {0, ..., num_classes}
+
+        Args:
+            df - dataframe
+        Returns:
+            Dataframe with new column y
+        """
+
+        self.y_map = df.filter(["polygon_index"]).drop_duplicates().sort_values("polygon_index")
+        self.y_map["y"] = np.arange(len(self.y_map))
+        df = df.merge(self.y_map, on="polygon_index")
+        return df
 
     def one_hot_encode_label(self, label: int):
         return one_hot_encode(label, self.num_classes)
