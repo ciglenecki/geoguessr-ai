@@ -139,16 +139,13 @@ class LitModel(pl.LightningModule):
         y_pred = self(image_list)
 
         y_pred_idx = torch.argmax(y_pred, dim=1).detach()
-        y_pred_idx = torch.argmax(y_true, dim=1).detach()
+        y_true_idx = torch.argmax(y_true, dim=1).detach()
         #
         # row_pred = self.df_csv.iloc[y_pred_idx, :]
         # pred_lat, pred_lng = row_pred["latitude"].to_numpy(), row_pred["longitude"].to_numpy()
-        print(self.class_to_coord_map)
-        print(y_pred_idx)
-        print(len(self.class_to_coord_map))
-        haver_x = self.class_to_coord_map[y_pred_idx]
-        haver_y = self.class_to_coord_map[y_pred_idx]
-        haver_dist = np.mean(haversine_distances(haver_x, haver_y))
+        haver_pred = self.class_to_coord_map[y_pred_idx]
+        haver_true = self.class_to_coord_map[y_true_idx]
+        haver_dist = np.mean(haversine_distances(haver_pred, haver_true))
 
         loss = F.cross_entropy(y_pred, y_true)
         acc = multi_acc(y_pred, y_true)
