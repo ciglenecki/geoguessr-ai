@@ -55,6 +55,7 @@ class LitModel(pl.LightningModule):
 
     def __init__(self, data_module: GeoguesserDataModule, num_classes: int, model_name, pretrained, learning_rate, weight_decay, batch_size, image_size, context_dict={}, **kwargs: Any):
         super().__init__()
+        self.register_buffer("sigma", torch.eye(3))
         self.data_module = data_module
         self.df_csv = data_module.dataset.df_csv
         self.haver_dist = data_module.dataset.haver_list
@@ -137,13 +138,16 @@ class LitModel(pl.LightningModule):
         image_list, y_true, centroid_lat, centroid_lng = batch
         y_pred = self(image_list)
 
-        y_pred_idx = torch.argmax(y_pred, dim=1).detach().numpy()
-
-        row_pred = self.df_csv.iloc[y_pred_idx, :]
-        pred_lat, pred_lng = row_pred["latitude"].to_numpy(), row_pred["longitude"].to_numpy()
-
-        haver_x = self.haver_dist
-        haver_y = np.stack([pred_lat, pred_lng], axis=1)
+        y_pred_idx = torch.argmax(y_pred, dim=1).detach()
+        y_pred_idx = torch.argmax(y_true, dim=1).detach()
+        #
+        # row_pred = self.df_csv.iloc[y_pred_idx, :]
+        # pred_lat, pred_lng = row_pred["latitude"].to_numpy(), row_pred["longitude"].to_numpy()
+        print(self.haver_dist)
+        print(y_pred_idx)
+        print(len(self.haver_dist))
+        haver_x = self.haver_dist[y_pred_idx]
+        haver_y = self.haver_dist[y_pred_idx]
         haver_dist = np.mean(haversine_distances(haver_x, haver_y))
 
         loss = F.cross_entropy(y_pred, y_true)

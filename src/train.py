@@ -121,6 +121,8 @@ if __name__ == "__main__":
             logger=[tb_logger, tb_logger],
             default_root_dir=PATH_REPORT,
             callbacks=callbacks,
+            accelerator="gpu",
+            devices=1
         )
 
         trainer.fit(model, data_module, ckpt_path=trainer_checkpoint)
