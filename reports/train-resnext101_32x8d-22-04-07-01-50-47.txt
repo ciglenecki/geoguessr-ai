@@ -1,83 +1,0 @@
-/home/matej/projects/lumen-geoguesser/reports/train-resnext101_32x8d-22-04-07-01-50-47.txt
-[{'batch_size': 8,
-  'cached_df': 'data/raw.ignoreme/data__num_class_259__spacing_0.2.csv',
-  'dataset_dir': PosixPath('/home/matej/projects/lumen-geoguesser/data/raw.ignoreme'),
-  'dataset_frac': 1,
-  'image_size': 28,
-  'lr': 0.0001,
-  'models': ['resnext101_32x8d'],
-  'output_report': PosixPath('/home/matej/projects/lumen-geoguesser/reports'),
-  'pretrained': True,
-  'quick': True,
-  'shuffle_before_splitting': False,
-  'split_ratios': [0.6, 0.2, 0.2],
-  'trainer_checkpoint': None,
-  'unfreeze_backbone_at_epoch': 4,
-  'unfreeze_blocks': 'all',
-  'weight_decay': 1e-05,
-  'wokers_num': 4},
- {'accelerator': None,
-  'accumulate_grad_batches': None,
-  'amp_backend': 'native',
-  'amp_level': None,
-  'auto_lr_find': False,
-  'auto_scale_batch_size': False,
-  'auto_select_gpus': False,
-  'benchmark': None,
-  'check_val_every_n_epoch': 1,
-  'checkpoint_callback': None,
-  'default_root_dir': None,
-  'detect_anomaly': False,
-  'deterministic': False,
-  'devices': None,
-  'enable_checkpointing': True,
-  'enable_model_summary': True,
-  'enable_progress_bar': True,
-  'fast_dev_run': False,
-  'flush_logs_every_n_steps': None,
-  'gpus': None,
-  'gradient_clip_algorithm': None,
-  'gradient_clip_val': None,
-  'ipus': None,
-  'limit_predict_batches': None,
-  'limit_test_batches': 3,
-  'limit_train_batches': 3,
-  'limit_val_batches': 3,
-  'log_every_n_steps': 1,
-  'log_gpu_memory': None,
-  'logger': True,
-  'max_epochs': None,
-  'max_steps': -1,
-  'max_time': None,
-  'min_epochs': None,
-  'min_steps': None,
-  'move_metrics_to_cpu': False,
-  'multiple_trainloader_mode': 'max_size_cycle',
-  'num_nodes': 1,
-  'num_processes': None,
-  'num_sanity_val_steps': 2,
-  'overfit_batches': 0.0,
-  'plugins': None,
-  'precision': 32,
-  'prepare_data_per_node': None,
-  'process_position': 0,
-  'profiler': None,
-  'progress_bar_refresh_rate': None,
-  'reload_dataloaders_every_n_epochs': 0,
-  'replace_sampler_ddp': True,
-  'resume_from_checkpoint': None,
-  'stochastic_weight_avg': False,
-  'strategy': None,
-  'sync_batchnorm': False,
-  'terminate_on_nan': None,
-  'tpu_cores': None,
-  'track_grad_norm': -1,
-  'val_check_interval': None,
-  'weights_save_path': None,
-  'weights_summary': 'top'}]
-num classes 218
-Sanity Checking: 0it [00:00, ?it/s]Sanity Checking DataLoader 0:   0%|          | 0/2 [00:00<?, ?it/s]Sanity Checking DataLoader 0: 100%|##########| 2/2 [00:01<00:00,  1.01it/s]                                                                           Training: 0it [00:00, ?it/s]Epoch 0:   0%|          | 0/6 [00:00<?, ?it/s]Epoch 0:  50%|#####     | 3/6 [00:12<00:12,  4.23s/it]Epoch 0:  50%|#####     | 3/6 [00:12<00:12,  4.23s/it, loss=5.44, v_num=0, train_loss_step=5.380, train_acc_step=0.000, loss_step=5.380, h_distance_step=0.000]
-Validation: 0it [00:00, ?it/s][A
-Validation DataLoader 0:   0%|          | 0/3 [00:00<?, ?it/s][A
-Validation DataLoader 0: 100%|##########| 3/3 [00:02<00:00,  1.06it/s][AEpoch 0: 100%|##########| 6/6 [00:15<00:00,  2.59s/it, loss=5.44, v_num=0, train_loss_step=5.380, train_acc_step=0.000, loss_step=5.380, h_distance_step=0.000]Epoch 0: 100%|##########| 6/6 [00:15<00:00,  2.59s/it, loss=5.44, v_num=0, train_loss_step=5.380, train_acc_step=0.000, loss_step=5.320, h_distance_step=0.000, val_loss_step=5.320, val_acc_step=0.125, haver_dist_step=0.599, val_loss_epoch=5.360, val_acc_epoch=0.0417, loss_epoch=5.360, haver_dist_epoch=0.670]
-                                                                      [AEpoch 0: 100%|##########| 6/6 [00:15<00:00,  2.60s/it, loss=5.44, v_num=0, train_loss_step=5.380, train_acc_step=0.000, loss_step=5.320, h_distance_step=0.000, val_loss_step=5.320, val_acc_step=0.125, haver_dist_step=0.599, val_loss_epoch=5.360, val_acc_epoch=0.0417, loss_epoch=5.440, haver_dist_epoch=0.670, train_loss_epoch=5.440, train_acc_epoch=0.000, h_distance_epoch=0.000]Epoch 1: 100%|##########| 6/6 [00:16<00:00,  2.72s/it, loss=5.44, v_num=0, train_loss_step=5.380, train_acc_step=0.000, loss_step=5.320, h_distance_step=0.000, val_loss_step=5.320, val_acc_step=0.125, haver_dist_step=0.599, val_loss_epoch=5.360, val_acc_epoch=0.0417, loss_epoch=5.440, haver_dist_epoch=0.670, train_loss_epoch=5.440, train_acc_epoch=0.000, h_distance_epoch=0.000]Testing: 0it [00:00, ?it/s]Testing DataLoader 0:   0%|          | 0/3 [00:00<?, ?it/s]
