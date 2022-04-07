@@ -55,8 +55,10 @@ class LitModel(pl.LightningModule):
 
     def __init__(self, data_module: GeoguesserDataModule, num_classes: int, model_name, pretrained, learning_rate, weight_decay, batch_size, image_size, context_dict={}, **kwargs: Any):
         super().__init__()
+
         self.data_module = data_module
         self.df_csv = data_module.dataset.df_csv
+        self.class_to_coord_map = data_module.dataset.class_to_coord_map
         self.learning_rate = learning_rate
         self.weight_decay = weight_decay
         self.batch_size = batch_size
@@ -136,19 +138,12 @@ class LitModel(pl.LightningModule):
         image_list, y_true, centroid_lat, centroid_lng = batch
         y_pred = self(image_list)
 
-        # TODO: caculation for haversine distances stuff should be cached. How? Create a dict where keys are y_index and values are whatever we need. That might be precaculated np.stack([lat, lng], axis=1). Anything that will speed up the caculations
-        # y_true_idx = torch.argmax(y_true, dim=1).detach().numpy()
-        # y_pred_idx = torch.argmax(y_pred, dim=1).detach().numpy()
+        y_pred_idx = torch.argmax(y_pred, dim=1).detach()
+        y_true_idx = torch.argmax(y_true, dim=1).detach()
 
-        # row_true = self.df_csv.iloc[y_true_idx, :]
-        # true_lat, true_lng = row_true["latitude"].to_numpy(), row_true["longitude"].to_numpy()
-
-        # row_pred = self.df_csv.iloc[y_pred_idx, :]
-        # pred_lat, pred_lng = row_pred["latitude"].to_numpy(), row_pred["longitude"].to_numpy()
-
-        # haver_x = np.stack([true_lat, true_lng], axis=1)
-        # haver_y = np.stack([pred_lat, pred_lng], axis=1)
-        # haver_dist = np.mean(haversine_distances(haver_x, haver_y))
+        haver_pred = self.class_to_coord_map[y_pred_idx]
+        haver_true = self.class_to_coord_map[y_true_idx]
+        haver_dist = np.mean(haversine_distances(haver_pred, haver_true))
 
         loss = F.cross_entropy(y_pred, y_true)
         acc = multi_acc(y_pred, y_true)
@@ -156,9 +151,8 @@ class LitModel(pl.LightningModule):
             "loss": loss,
             "val_loss": loss.detach(),
             "val_acc": acc,
-            # "haver_dist": haver_dist,
+            "haver_dist": haver_dist,
         }
-        # self.log("val_loss", loss.detach(), on_step=True, on_epoch=True, logger=True, prog_bar=True)
         self.log_dict(data_dict, on_step=True, on_epoch=True, logger=True, prog_bar=True)
         return data_dict
 

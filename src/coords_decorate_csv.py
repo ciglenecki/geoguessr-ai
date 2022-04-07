@@ -62,7 +62,7 @@ def parse_args(args):
 
 def append_polygons_without_data(df: pd.DataFrame, df_label_polygon_map: pd.DataFrame):
     """To the dataframe, append polygons for which the data (images) doesn't exist. Image related properties will be set to null"""
-    df_labels_with_images = df["true_label"].unique()
+    df_labels_with_images = df["polygon_index"].unique()
     df_polygons_without_images = df_label_polygon_map.drop(df_labels_with_images)
     df = df.append(df_polygons_without_images)
     return df
@@ -89,7 +89,7 @@ def main(args):
     num_of_polygons = len(clipped_centroid)
 
     polygon_dict = {
-        "true_label": [],
+        "polygon_index": [],
         "centroid_lat": [],
         "centroid_lng": [],
         "is_true_centroid": [],
@@ -102,13 +102,13 @@ def main(args):
         row_mask = df_geo_csv.within(polygon)
 
         if row_mask.any():  # image existis inside this polygon
-            df.loc[row_mask, "true_label"] = polygon_idx
+            df.loc[row_mask, "polygon_index"] = polygon_idx
             df.loc[row_mask, "centroid_lat"] = centroid.point.x
             df.loc[row_mask, "centroid_lng"] = centroid.point.y
             df.loc[row_mask, "is_true_centroid"] = centroid.is_true_centroid
             polys_with_data.append(polygon)
 
-        polygon_dict["true_label"].append(polygon_idx)
+        polygon_dict["polygon_index"].append(polygon_idx)
         polygon_dict["centroid_lat"].append(centroid.point.x)
         polygon_dict["centroid_lng"].append(centroid.point.y)
         polygon_dict["is_true_centroid"].append(centroid.is_true_centroid)
@@ -118,7 +118,7 @@ def main(args):
     num_polygons_without_images = len(df.loc[df["uuid"].isna(), :])
     polys_without_data = [poly for poly in intersecting_polygons if poly not in polys_with_data]
 
-    print("{}/{} images got marked by a polygon label (class)".format(df["true_label"].notnull().sum(), len(df)))
+    print("{}/{} images got marked by a polygon label (class)".format(df["polygon_index"].notnull().sum(), len(df)))
     print("{}/{} polygons have at least one image assigned to them".format(num_of_polygons - num_polygons_without_images, num_of_polygons))
     num_classes = len(intersecting_polygons)
     print(num_classes, "- number of classes (polygons)")
