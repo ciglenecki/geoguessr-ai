@@ -58,7 +58,7 @@ class LitModel(pl.LightningModule):
 
         self.data_module = data_module
         self.df_csv = data_module.dataset.df_csv
-        self.haver_dist = data_module.dataset.class_to_coord_map
+        self.class_to_coord_map = data_module.dataset.class_to_coord_map
         self.learning_rate = learning_rate
         self.weight_decay = weight_decay
         self.batch_size = batch_size
@@ -143,11 +143,11 @@ class LitModel(pl.LightningModule):
         #
         # row_pred = self.df_csv.iloc[y_pred_idx, :]
         # pred_lat, pred_lng = row_pred["latitude"].to_numpy(), row_pred["longitude"].to_numpy()
-        print(self.haver_dist)
+        print(self.class_to_coord_map)
         print(y_pred_idx)
-        print(len(self.haver_dist))
-        haver_x = self.haver_dist[y_pred_idx]
-        haver_y = self.haver_dist[y_pred_idx]
+        print(len(self.class_to_coord_map))
+        haver_x = self.class_to_coord_map[y_pred_idx]
+        haver_y = self.class_to_coord_map[y_pred_idx]
         haver_dist = np.mean(haversine_distances(haver_x, haver_y))
 
         loss = F.cross_entropy(y_pred, y_true)
