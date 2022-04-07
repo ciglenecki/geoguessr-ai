@@ -54,6 +54,17 @@ class GeoguesserDataset(Dataset):
         self.df_csv = self.df_csv.merge(self.y_map, on="true_label")
         self.df_csv.set_index("y")
 
+        unq_rows = self.df_csv.drop_duplicates(subset='y', keep=False, inplace=False)
+
+        for row_idx in unq_rows['y']:
+            print(row_idx)
+            row = self.df_csv.iloc[row_idx, :]
+            true_lat, true_lng = row["latitude"].to_numpy(), row["longitude"].to_numpy()
+            haver_x = np.stack([true_lat, true_lng], axis=1)
+            print(row['y'])
+
+        #row_true = self.df_csv.iloc[y_true_idx, :]
+
     def name_without_extension(self, filename: Path | str):
         return Path(filename).stem
 
