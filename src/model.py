@@ -140,13 +140,13 @@ class LitModel(pl.LightningModule):
         y_true_idx = torch.argmax(y_true, dim=1).detach().numpy()
         y_pred_idx = torch.argmax(y_pred, dim=1).detach().numpy()
 
-        row_true = self.df_csv.iloc[y_true_idx, :]
-        true_lat, true_lng = row_true["latitude"].to_numpy(), row_true["longitude"].to_numpy()
+        row_true = self.df_csv.iloc[y_true_idx, :] #hash
+        true_lat, true_lng = row_true["latitude"].to_numpy(), row_true["longitude"].to_numpy() #hash
 
         row_pred = self.df_csv.iloc[y_pred_idx, :]
         pred_lat, pred_lng = row_pred["latitude"].to_numpy(), row_pred["longitude"].to_numpy()
 
-        haver_x = np.stack([true_lat, true_lng], axis=1)
+        haver_x = np.stack([true_lat, true_lng], axis=1) #hash
         haver_y = np.stack([pred_lat, pred_lng], axis=1)
         haver_dist = np.mean(haversine_distances(haver_x, haver_y))
 

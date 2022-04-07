@@ -44,12 +44,24 @@ class GeoguesserDataset(Dataset):
         self.coordinate_transform = coordinate_transform
         self.path_images = Path(dataset_dir, "data")
         self.df_csv = pd.read_csv(Path(cached_df)) if cached_df else coords_decorate_csv.main(["--spacing", str(0.2), "--no-out"])
+        self.df_csv = self.df_csv['y'].astype(int)
         self.df_csv.set_index("y")
 
         """ Filter the dataframe, only include rows for images that exist"""
         self.uuids_with_image = sorted(os.listdir(self.path_images))
         self.df_csv = self.df_csv.loc[self.df_csv["uuid"].isin(self.uuids_with_image), :]
         self.num_classes = int(self.df_csv["y"].max()) + 1
+
+        unq_rows = self.df_csv.drop_duplicates(subset='y', keep=False, inplace=False)
+
+        for row_idx in unq_rows['y']:
+            print(row_idx)
+            row = self.df_csv.iloc[row_idx, :]
+            true_lat, true_lng = row["latitude"].to_numpy(), row["longitude"].to_numpy()
+            haver_x = np.stack([true_lat, true_lng], axis=1)
+            print(row['y'])
+
+        #row_true = self.df_csv.iloc[y_true_idx, :]
 
     def name_without_extension(self, filename: Path | str):
         return Path(filename).stem
