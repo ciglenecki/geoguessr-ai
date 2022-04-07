@@ -1,4 +1,4 @@
-from typing import Iterable, Optional, Union
+from typing import Iterable, List, Optional, Union
 
 from pytorch_lightning.callbacks import BackboneFinetuning
 from torch.nn import Module
@@ -29,10 +29,11 @@ class BackboneFinetuningLastLayers(BackboneFinetuning):
 
         # TODO: add support for multiple modules, current version suports only one module
         blocks = get_model_blocks(modules)
-        trainable_blocks = blocks
+        print("model block", len(blocks))
 
+        trainable_blocks: List[Module] = []
         if type(self.unfreeze_blocks_num) is int:
-            trainable_blocks = trainable_blocks[len(trainable_blocks) - self.unfreeze_blocks_num :]
+            trainable_blocks = blocks[len(blocks) - self.unfreeze_blocks_num :]
         if self.unfreeze_blocks_num != "all":
             raise InvalidArgument("unfreeze_blocks_num argument should be [0, inf> or 'all'")
 

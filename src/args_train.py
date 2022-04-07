@@ -186,6 +186,7 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
         pl_args.limit_test_batches = 3
         pl_args.log_every_n_steps = 1
         args.image_size = 28
+        args.batch_size = 4
     return args, pl_args
 
 

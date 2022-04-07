@@ -71,8 +71,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
         if self.shuffle_before_splitting:
             np.random.shuffle(dataset_indices)
 
-        dataset_train_indices, dataset_val_indices, dataset_test_indices = split_by_ratio(dataset_indices, self.train_frac, self.val_frac, self.train_frac, use_whole_array=True)
-        print(dataset_train_indices, dataset_val_indices, dataset_test_indices)
+        dataset_train_indices, dataset_val_indices, dataset_test_indices = split_by_ratio(dataset_indices, self.train_frac, self.val_frac, self.test_frac, use_whole_array=True)
 
         self.train_size = len(dataset_train_indices)
         self.val_size = len(dataset_val_indices)
