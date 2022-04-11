@@ -10,6 +10,7 @@ from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from pytorch_lightning.callbacks.progress.tqdm_progress import TQDMProgressBar
 from torchvision import transforms
+from torchvision.transforms import AutoAugmentPolicy
 
 from args_train import parse_args_train
 from callback_finetuning_last_n_layers import BackboneFinetuningLastLayers
@@ -49,7 +50,7 @@ if __name__ == "__main__":
         [
             transforms.Resize(image_size),
             transforms.RandomHorizontalFlip(),
-            # transforms.AutoAugment(policy=AutoAugmentPolicy.IMAGENET),
+            transforms.AutoAugment(policy=AutoAugmentPolicy.IMAGENET),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
         ]
