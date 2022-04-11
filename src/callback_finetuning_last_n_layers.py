@@ -29,7 +29,6 @@ class BackboneFinetuningLastLayers(BackboneFinetuning):
 
         # TODO: add support for multiple modules, current version suports only one module
         blocks = get_model_blocks(modules)
-        print("model block", len(blocks))
 
         trainable_blocks: List[Module] = []
         if type(self.unfreeze_blocks_num) is int:

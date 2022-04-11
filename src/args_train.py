@@ -62,7 +62,7 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
     )
     user_group.add_argument(
         "-w",
-        "--wokers-num",
+        "--num-workers",
         metavar="int",
         default=DEAFULT_NUM_WORKERS,
         type=is_positive_int,
