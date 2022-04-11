@@ -29,7 +29,7 @@ if __name__ == "__main__":
     pprint([vars(args), vars(pl_args)])
 
     image_size = args.image_size
-    num_workers = args.wokers_num
+    num_workers = args.num_workers
     model_names = args.models
     unfreeze_blocks_num = args.unfreeze_blocks
     pretrained = args.pretrained
