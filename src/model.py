@@ -123,7 +123,6 @@ class LitModel(pl.LightningModule):
             "train_loss": loss.detach(),
             "train_acc": acc,
             "loss": loss,
-            "h_distance": 0,
         }
         self.log("train_loss", loss.detach(), on_step=True, on_epoch=True, logger=True, prog_bar=True)
         self.log_dict(data_dict, on_step=True, on_epoch=True, logger=True, prog_bar=True)
@@ -150,9 +149,6 @@ class LitModel(pl.LightningModule):
         y_pred_idx = torch.argmax(y_pred, dim=1).detach()
         coord_pred = self.class_to_coord_map[y_pred_idx]
 
-        print(type(coord_pred), coord_pred.get_device())
-        print(type(image_true_coords), coord_pred.get_device())
-        print("TESTTESTESTSET\n\n\n")
         haver_dist = np.mean(haversine_distances(coord_pred.cpu(), image_true_coords.cpu()))
 
         loss = F.cross_entropy(y_pred, y_true)
