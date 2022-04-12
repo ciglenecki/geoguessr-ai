@@ -32,8 +32,11 @@ hyperparameter_metrics = [
 
 class OnTrainEpochStartLogCallback(pl.Callback):
     def on_train_epoch_start(self, trainer, pl_module: LitModel):
+
+        current_lr = trainer.optimizers[0].param_groups[0]["lr"]
         data_dict = {
             "trainable_params_num": pl_module.get_num_of_trainable_params(),
+            "current_lr": current_lr,
         }
         pl_module.log_dict(data_dict)
 
