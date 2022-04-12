@@ -149,6 +149,7 @@ class LitModel(pl.LightningModule):
 
         print(type(coord_pred), coord_pred.get_device())
         print(type(image_true_coords), coord_pred.get_device())
+        print("TESTTESTESTSET\n\n\n")
         haver_dist = np.mean(haversine_distances(coord_pred.cpu(), image_true_coords.cpu()))
 
         loss = F.cross_entropy(y_pred, y_true)
