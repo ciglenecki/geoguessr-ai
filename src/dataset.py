@@ -120,7 +120,7 @@ class GeoguesserDataset(Dataset):
 
     def __getitem__(self, index: int):
         row = self.df_csv.iloc[index, :]
-        uuid, latitude, longitude, label, centroid_lat, centroid_lng, is_true_centroid = self.get_row_attributes(row)
+        uuid, image_latitude, image_longitude, label, centroid_lat, centroid_lng, is_true_centroid = self.get_row_attributes(row)
 
         images = self.image_cache[uuid]
         if not self.load_dataset_in_ram:
@@ -133,9 +133,10 @@ class GeoguesserDataset(Dataset):
             images = [transform(image) for image in images]
         if self.coordinate_transform is not None:
             transform = self.coordinate_transform
-            latitude, longitude = self.coordinate_transform(latitude, longitude)
+            image_latitude, image_longitude = self.coordinate_transform(image_latitude, image_longitude)
 
-        return images, label, centroid_lat, centroid_lng
+        image_coords = torch.tensor([image_latitude, image_longitude])
+        return images, label, centroid_lat, centroid_lng, image_coords
 
 
 if __name__ == "__main__":

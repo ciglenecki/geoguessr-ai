@@ -107,7 +107,7 @@ class LitModel(pl.LightningModule):
                 logger.log_hyperparams(self.hparams, zeros_dict)
 
     def training_step(self, batch, batch_idx):
-        image_list, y, _, _ = batch
+        image_list, y, _, _, _, _ = batch
         y_pred = self(image_list)
 
         loss = F.cross_entropy(y_pred, y)
@@ -135,15 +135,15 @@ class LitModel(pl.LightningModule):
         pass
 
     def validation_step(self, batch, batch_idx):
-        image_list, y_true, centroid_lat, centroid_lng = batch
+        image_list, y_true, centroid_lat, centroid_lng, image_true_coords = batch
         y_pred = self(image_list)
 
-        y_pred_idx = torch.argmax(y_pred, dim=1).detach()
-        y_true_idx = torch.argmax(y_true, dim=1).detach()
+        # TODO: fix this
+        # for y_true, instead of mapping to class_to_coord_map use actual true values centroid_lat, centroid_lng which are NOT the centroid of the
 
-        haver_pred = self.class_to_coord_map[y_pred_idx]
-        haver_true = self.class_to_coord_map[y_true_idx]
-        haver_dist = np.mean(haversine_distances(haver_pred, haver_true))
+        y_pred_idx = torch.argmax(y_pred, dim=1).detach()
+        coord_pred = self.class_to_coord_map[y_pred_idx]
+        haver_dist = np.mean(haversine_distances(coord_pred, image_true_coords))
 
         loss = F.cross_entropy(y_pred, y_true)
         acc = multi_acc(y_pred, y_true)
@@ -164,7 +164,7 @@ class LitModel(pl.LightningModule):
         pass
 
     def test_step(self, batch, batch_idx):
-        image_list, y, _, _ = batch
+        image_list, y, _, _, _, _ = batch
         y_pred = self(image_list)
         loss = F.cross_entropy(y_pred, y)
         acc = multi_acc(y_pred, y)
