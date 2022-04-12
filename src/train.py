@@ -49,7 +49,7 @@ if __name__ == "__main__":
     image_transform_train = image_transform_val = transforms.Compose(
         [
             transforms.Resize(image_size),
-            transforms.RandomHorizontalFlip(),
+            # transforms.RandomHorizontalFlip(),
             transforms.AutoAugment(policy=transforms.AutoAugmentPolicy.IMAGENET),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
