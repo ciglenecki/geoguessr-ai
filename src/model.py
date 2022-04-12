@@ -37,6 +37,7 @@ class OnTrainEpochStartLogCallback(pl.Callback):
         data_dict = {
             "trainable_params_num": pl_module.get_num_of_trainable_params(),
             "current_lr": current_lr,
+            "step": trainer.current_epoch,
         }
         pl_module.log_dict(data_dict)
 
@@ -135,6 +136,7 @@ class LitModel(pl.LightningModule):
             "train_loss_epoch": loss,
             "train_acc_epoch": acc,
             "trainable_params_num": self.get_num_of_trainable_params(),
+            "step": self.current_epoch,
         }
         self.log_dict(data_dict)
         pass
@@ -165,7 +167,11 @@ class LitModel(pl.LightningModule):
     def validation_epoch_end(self, outs):
         loss = sum(map(lambda x: x["val_loss"], outs)) / len(outs)
         acc = sum(map(lambda x: x["val_acc"], outs)) / len(outs)
-        data_dict = {"val_loss_epoch": loss, "val_acc_epoch": acc}
+        data_dict = {
+            "val_loss_epoch": loss,
+            "val_acc_epoch": acc,
+            "step": self.current_epoch,
+        }
         self.log_dict(data_dict)
         pass
 
@@ -185,7 +191,11 @@ class LitModel(pl.LightningModule):
     def test_epoch_end(self, outs):
         loss = sum(map(lambda x: x["test_loss"], outs)) / len(outs)
         acc = sum(map(lambda x: x["test_acc"], outs)) / len(outs)
-        data_dict = {"test_loss_epoch": loss, "test_acc_epoch": acc}
+        data_dict = {
+            "test_loss_epoch": loss,
+            "test_acc_epoch": acc,
+            "step": self.current_epoch,
+        }
         self.log_dict(data_dict)
         pass
 
