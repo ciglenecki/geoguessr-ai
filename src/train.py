@@ -42,6 +42,7 @@ if __name__ == "__main__":
     dataset_dir = args.dataset_dir
     batch_size = args.batch_size
     cached_df = args.cached_df
+    load_dataset_in_ram = args.load_in_ram
 
     # TODO important: caculate normalization on the train dataset. You need to get mean=[?,?,?], std=[?,?,?]. What is train set? We didn't explicitly define but we should. The easiest way seems to be to edit the dataframe where we have train, val, test flags
 
@@ -68,6 +69,7 @@ if __name__ == "__main__":
         num_workers=num_workers,
         shuffle_before_splitting=shuffle_before_splitting,
         cached_df=cached_df,
+        load_dataset_in_ram=load_dataset_in_ram,
     )
     data_module.setup()
 
@@ -89,7 +91,7 @@ if __name__ == "__main__":
         ]
 
         if unfreeze_backbone_at_epoch:
-            multiplicative = lambda epoch: 1.5
+            multiplicative = lambda epoch: 1.4
             callbacks.append(
                 BackboneFinetuningLastLayers(
                     unfreeze_blocks_num=unfreeze_blocks_num,

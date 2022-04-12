@@ -10,7 +10,7 @@ from torch.utils.data.sampler import SubsetRandomSampler, Sampler
 from torchvision import transforms
 
 from dataset import GeoguesserDataset
-from utils_env import DEAFULT_DROP_LAST, DEAFULT_NUM_WORKERS, DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING, DEFAULT_BATCH_SIZE, DEFAULT_TEST_FRAC, DEFAULT_TRAIN_FRAC, DEFAULT_VAL_FRAC
+from utils_env import DEAFULT_DROP_LAST, DEAFULT_NUM_WORKERS, DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING, DEFAULT_BATCH_SIZE, DEFAULT_LOAD_DATASET_IN_RAM, DEFAULT_TEST_FRAC, DEFAULT_TRAIN_FRAC, DEFAULT_VAL_FRAC
 from utils_functions import split_by_ratio
 from utils_paths import PATH_DATA_RAW
 
@@ -32,6 +32,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
         drop_last=DEAFULT_DROP_LAST,
         shuffle_before_splitting=DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING,
         cached_df=None,
+        load_dataset_in_ram=DEFAULT_LOAD_DATASET_IN_RAM,
     ) -> None:
         self.test_sampler = None
         self.val_sampler = None
@@ -61,6 +62,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
             dataset_dir=self.dataset_dir,
             image_transform=self.image_transform,
             cached_df=cached_df,
+            load_dataset_in_ram=load_dataset_in_ram,
         )
 
     def prepare_data(self) -> None:

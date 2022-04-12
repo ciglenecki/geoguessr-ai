@@ -10,6 +10,7 @@ from PIL import Image
 import torch
 from torch.utils.data import Dataset
 from torchvision import transforms
+from utils_env import DEFAULT_LOAD_DATASET_IN_RAM
 
 from utils_functions import one_hot_encode
 from utils_paths import PATH_DATA_RAW
@@ -36,6 +37,7 @@ class GeoguesserDataset(Dataset):
         image_transform: None | transforms.Compose = transforms.Compose([transforms.ToTensor()]),
         coordinate_transform: None | Callable = lambda x, y: np.array([x, y]).astype("float"),
         cached_df=None,
+        load_dataset_in_ram=DEFAULT_LOAD_DATASET_IN_RAM,
     ) -> None:
         print("GeoguesserDataset init")
         super().__init__()
@@ -52,6 +54,21 @@ class GeoguesserDataset(Dataset):
         self.num_classes = self.df_csv["y"].max() + 1
         _class_to_coord_list = self.get_class_to_coord_list()
         self.class_to_coord_map = torch.tensor(_class_to_coord_list)
+
+        """ Build image cache """
+        self.load_dataset_in_ram = load_dataset_in_ram
+        self.image_cache = self._get_image_cache()
+
+    def _get_image_cache(self):
+        """Cache image paths or images itself"""
+        image_cache = {}
+        uuids = self.df_csv["uuid"].to_list()
+        for uuid in uuids:
+            image_dir = Path(self.path_images, uuid)
+            image_filepaths = [Path(image_dir, "{}.jpg".format(degree)) for degree in self.degrees]
+            cache_item = [Image.open(image_path) for image_path in image_filepaths] if self.load_dataset_in_ram else image_filepaths
+            image_cache[uuid] = cache_item
+        return image_cache
 
     def get_class_to_coord_list(self):
         _class_to_coord_map = []
@@ -104,9 +121,11 @@ class GeoguesserDataset(Dataset):
     def __getitem__(self, index: int):
         row = self.df_csv.iloc[index, :]
         uuid, latitude, longitude, label, centroid_lat, centroid_lng, is_true_centroid = self.get_row_attributes(row)
-        image_dir = Path(self.path_images, uuid)
-        image_filepaths = [Path(image_dir, "{}.jpg".format(degree)) for degree in self.degrees]
-        images = [Image.open(image_path) for image_path in image_filepaths]
+
+        images = self.image_cache[uuid]
+        if not self.load_dataset_in_ram:
+            images = [Image.open(image_path) for image_path in images]
+
         label = self.one_hot_encode_label(label)
 
         if self.image_transform is not None:
