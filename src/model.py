@@ -145,9 +145,6 @@ class LitModel(pl.LightningModule):
         image_list, y_true, centroid_lat, centroid_lng, image_true_coords = batch
         y_pred = self(image_list)
 
-        # TODO: fix this
-        # for y_true, instead of mapping to class_to_coord_map use actual true values centroid_lat, centroid_lng which are NOT the centroid of the
-
         y_pred_idx = torch.argmax(y_pred, dim=1).detach()
         coord_pred = self.class_to_coord_map[y_pred_idx]
 

@@ -16,12 +16,6 @@ from utils_functions import one_hot_encode
 from utils_paths import PATH_DATA_RAW
 import coords_decorate_csv
 
-# TODO: implement polygons on the border; these are addional classes which are expliclty defined. These classes might clash with already exising classes (polygons). How? There might be a polygon which is close to the border and overlaps the explicitly defined polygon. Solution is to remove the intersection so that polygons don't overlap. Polygon on the border (the one that is explicitly defined) should have prioirty over getting more surface area.
-
-# TODO important: outside of Croatia bound classification; prediction gives softmax of values; weighted sum ends up in Bosna, what do we do? Solution: find the closest point on the border
-
-# TODO: use haversine_distances in a loss function. haversine_distances acts just like residual. It might be useful to square the haversine_distances to get similar formula to MSE
-
 
 class GeoguesserDataset(Dataset):
     """
@@ -55,6 +49,7 @@ class GeoguesserDataset(Dataset):
         _class_to_coord_list = self.get_class_to_coord_list()
         self.class_to_coord_map = torch.tensor(_class_to_coord_list)
 
+        self.df_csv.to_csv("tmp.csv")
         """ Build image cache """
         self.load_dataset_in_ram = load_dataset_in_ram
         self.image_cache = self._get_image_cache()

@@ -26,7 +26,6 @@ class BackboneFinetuningLastLayers(BackboneFinetuning):
         super(BackboneFinetuningLastLayers, self).__init__(*args, **kwargs)
 
     def unfreeze_and_add_param_group(self, modules: Union[Module, Iterable[Union[Module, Iterable]]], optimizer: Optimizer, lr: Optional[float] = None, initial_denom_lr: float = 10, train_bn: bool = True) -> None:
-        print("\n\n\n\n\nCALLING unfreeze_and_add_param_group\n\n\n\n\n")
         # TODO: add support for multiple modules, current version suports only one module
         blocks = get_model_blocks(modules)
 
