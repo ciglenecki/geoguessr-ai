@@ -40,6 +40,9 @@ class OnTrainEpochStartLogCallback(pl.Callback):
         }
         pl_module.log_dict(data_dict)
 
+    def on_train_start(self, trainer, pl_module: LitModel):
+        self.on_train_epoch_start(trainer, pl_module)
+
 
 class LitModel(pl.LightningModule):
     """
