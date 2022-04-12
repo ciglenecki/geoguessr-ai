@@ -146,6 +146,9 @@ class LitModel(pl.LightningModule):
 
         y_pred_idx = torch.argmax(y_pred, dim=1).detach()
         coord_pred = self.class_to_coord_map[y_pred_idx]
+
+        print(type(coord_pred), coord_pred.get_device())
+        print(type(image_true_coords), coord_pred.get_device())
         haver_dist = np.mean(haversine_distances(coord_pred, image_true_coords))
 
         loss = F.cross_entropy(y_pred, y_true)
