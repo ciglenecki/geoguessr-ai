@@ -106,11 +106,11 @@ class LitModel(pl.LightningModule):
         out = self.fc(out_flatten)
         return out
 
-    def on_train_start(self) -> None:
-        if self.logger:
-            for logger in self.loggers:
-                zeros_dict = {metric: 0 for metric in hyperparameter_metrics}
-                logger.log_hyperparams(self.hparams, zeros_dict)
+    # def on_train_start(self) -> None:
+    #     if self.logger:
+    #         for logger in self.loggers:
+    #             zeros_dict = {metric: 0 for metric in hyperparameter_metrics}
+    #             logger.log_hyperparams(self.hparams, zeros_dict)
 
     def training_step(self, batch, batch_idx):
         image_list, y, _, _, _ = batch
