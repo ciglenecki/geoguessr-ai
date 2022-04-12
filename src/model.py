@@ -107,7 +107,7 @@ class LitModel(pl.LightningModule):
                 logger.log_hyperparams(self.hparams, zeros_dict)
 
     def training_step(self, batch, batch_idx):
-        image_list, y, _, _, _, _ = batch
+        image_list, y, _, _, _ = batch
         y_pred = self(image_list)
 
         loss = F.cross_entropy(y_pred, y)
