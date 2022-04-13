@@ -45,10 +45,8 @@ class GeoguesserDataset(Dataset):
         """ Filter the dataframe, only include rows for images that exist and remove polygons with no data"""
         self.df_csv = self.filter_df_rows(self.df_csv)
         self.df_csv = self.append_column_y(self.df_csv)
-        self.df_csv.set_index("y")
         self.num_classes = self.df_csv["y"].max() + 1
-        _class_to_coord_list = self.get_class_to_coord_list()
-        self.class_to_coord_map = torch.tensor(_class_to_coord_list)
+        self.class_to_coord_map = None
 
         self.df_csv.to_csv("tmp.csv")
         """ Build image cache """
@@ -69,9 +67,9 @@ class GeoguesserDataset(Dataset):
     def get_class_to_coord_list(self):
         _class_to_coord_map = []
         for row_idx in range(self.num_classes):
-            row = self.df_csv.loc[row_idx, :]
-            true_lat, true_lng = row["latitude"], row["longitude"]
-            point = [true_lat, true_lng]
+            row = self.df_csv.loc[self.df_csv['y'] == row_idx]
+            true_lat, true_lng = row["centroid_lat"], row["centroid_lng"]
+            point = [true_lat.values[0], true_lng.values[0]]
             _class_to_coord_map.append(point)
         return _class_to_coord_map
 

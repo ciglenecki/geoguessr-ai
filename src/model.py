@@ -149,7 +149,7 @@ class LitModel(pl.LightningModule):
         y_pred = self(image_list)
 
         y_pred_idx = torch.argmax(y_pred, dim=1).detach()
-        coord_pred = self.class_to_coord_map[y_pred_idx]
+        coord_pred = self.class_to_coord_map_val[y_pred_idx]
 
         haver_dist = np.mean(haversine_distances(coord_pred.cpu(), image_true_coords.cpu()))
 

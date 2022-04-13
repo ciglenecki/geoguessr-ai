@@ -10,7 +10,6 @@ from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from pytorch_lightning.callbacks.progress.tqdm_progress import TQDMProgressBar
 from torchvision import transforms
-from torchvision.transforms import AutoAugmentPolicy
 
 from args_train import parse_args_train
 from callback_finetuning_last_n_layers import BackboneFinetuningLastLayers

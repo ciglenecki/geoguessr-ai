@@ -36,6 +36,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
         drop_last=DEAFULT_DROP_LAST,
         shuffle_before_splitting=DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING,
         cached_df=None,
+        load_dataset_in_ram=DEFAULT_LOAD_DATASET_IN_RAM,
     ) -> None:
         self.test_sampler = None
         self.val_sampler = None
@@ -89,11 +90,9 @@ class GeoguesserDataModule(pl.LightningDataModule):
         self.train_dataset.num_classes = num_classes
         self.val_dataset.num_classes = num_classes
 
-        # _class_to_coord_list = self.train_dataset.get_class_to_coord_list()
-        # self.train_dataset.class_to_coord_map = torch.tensor(_class_to_coord_list)
-        #
-        # _class_to_coord_list = self.val_dataset.get_class_to_coord_list()
-        # self.val_dataset.class_to_coord_map = torch.tensor(_class_to_coord_list)
+        _class_to_coord_list = self.train_dataset.get_class_to_coord_list()
+        self.train_dataset.class_to_coord_map = torch.tensor(_class_to_coord_list)
+        self.val_dataset.class_to_coord_map = torch.tensor(_class_to_coord_list)
 
     def prepare_data(self) -> None:
         pass
