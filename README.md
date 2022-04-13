@@ -14,6 +14,8 @@
 
 ## 📝 Todo
 
+- [] Sanity image check - open some images during the training to see if they make sense
+
 - [] Regression - Create a haversine loss functions by using torch tensor operations (you can't use sklearn). Then, replace the existing loss function. Haversine distance is similar to a residual. It might be useful to square the Haversine distance to get similar formula to MSE.
   - [] Outside of Croatia bound classification - prediction gives softmax of values; weighted sum ends up in Bosna, what do we do?
     - Solution 1: find the closest point on the border
@@ -23,6 +25,8 @@
 - [] Train/val/test explicit split - What is train set? Currently, dataset is randomimzed each time training is started. We didn't explicitly define the split (by directories) but we should. The easiest way seems to be to edit the dataframe where we have train, val, test flags
 
 - [] Normalization - caculate normalization on the train dataset (once the task above is done). You need to get mean=[?,?,?], std=[?,?,?]
+
+- [] Haver sine logging - add at the end of the epoch in val, at every step in test and ad end of the epoch in test
 
 
 - [] monitored value (that we EarlyStop on) should be great-circle distance and not val_loss. This is done by recording heversine as a metric via the self.logger. When hyperparameter is logged it can be used as a metric for EarlyStop.

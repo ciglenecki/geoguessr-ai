@@ -20,14 +20,14 @@ import numpy as np
 
 allowed_models = list(resnet_model_urls.keys()) + list(efficientnet_model_urls.keys())
 
-hyperparameter_metrics = [
-    "train_loss_epoch",
-    "train_acc_epoch",
-    "val_loss_epoch",
-    "val_acc_epoch",
-    "test_loss_epoch",
-    "test_acc_epoch",
-]
+hyperparameter_metrics_init = {
+    "train_loss_epoch": 100000,
+    "train_acc_epoch": 0,
+    "val_loss_epoch": 100000,
+    "val_acc_epoch": 0,
+    "test_loss_epoch": 100000,
+    "test_acc_epoch": 0,
+}
 
 
 class OnTrainEpochStartLogCallback(pl.Callback):
@@ -107,11 +107,10 @@ class LitModel(pl.LightningModule):
         out = self.fc(out_flatten)
         return out
 
-    # def on_train_start(self) -> None:
-    #     if self.logger:
-    #         for logger in self.loggers:
-    #             zeros_dict = {metric: 0 for metric in hyperparameter_metrics}
-    #             logger.log_hyperparams(self.hparams, zeros_dict)
+    def on_train_start(self) -> None:
+        if self.logger:
+            for logger in self.loggers:
+                logger.log_hyperparams(self.hparams, hyperparameter_metrics_init)
 
     def training_step(self, batch, batch_idx):
         image_list, y, _, _, _ = batch
@@ -136,7 +135,7 @@ class LitModel(pl.LightningModule):
             "train_loss_epoch": loss,
             "train_acc_epoch": acc,
             "trainable_params_num": self.get_num_of_trainable_params(),
-            "step": self.current_epoch,
+            # "step": self.current_epoch,
         }
         self.log_dict(data_dict)
         pass
@@ -167,7 +166,7 @@ class LitModel(pl.LightningModule):
         data_dict = {
             "val_loss_epoch": loss,
             "val_acc_epoch": acc,
-            "step": self.current_epoch,
+            # "step": self.current_epoch,
         }
         self.log_dict(data_dict)
         pass
@@ -191,7 +190,7 @@ class LitModel(pl.LightningModule):
         data_dict = {
             "test_loss_epoch": loss,
             "test_acc_epoch": acc,
-            "step": self.current_epoch,
+            # "step": self.current_epoch,
         }
         self.log_dict(data_dict)
         pass
