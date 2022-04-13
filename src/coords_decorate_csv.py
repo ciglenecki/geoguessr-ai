@@ -1,11 +1,12 @@
 import argparse
+from email.policy import default
 import os
 from pathlib import Path
 from utils_functions import is_valid_dir
 from utils_geo import ClippedCentroid, get_clipped_centroids, get_country_shape, get_grid, get_intersecting_polygons
 import geopandas as gpd
 import pandas as pd
-from utils_paths import PATH_DATA_RAW, PATH_FIGURE
+from utils_paths import PATH_DATA_CSV_DECORATED, PATH_DATA_RAW, PATH_FIGURE
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import numpy as np
@@ -25,7 +26,7 @@ def parse_args(args):
         metavar="dir",
         type=is_valid_dir,
         help="Directory where the enriched dataframe will be saved",
-        required=False,
+        default=PATH_DATA_CSV_DECORATED,
     )
 
     parser.add_argument(
@@ -70,7 +71,7 @@ def append_polygons_without_data(df: pd.DataFrame, df_label_polygon_map: pd.Data
 def main(args):
     args = parse_args(args)
     path_csv = args.csv
-    out_dir_csv = args.out if args.out else os.path.dirname(args.csv)
+    out_dir_csv = args.out
     spacing = args.spacing
     out_dir_fig = args.out_fig
     fig_format = args.fig_format

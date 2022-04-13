@@ -49,7 +49,6 @@ class GeoguesserDataset(Dataset):
         _class_to_coord_list = self.get_class_to_coord_list()
         self.class_to_coord_map = torch.tensor(_class_to_coord_list)
 
-        self.df_csv.to_csv("tmp.csv")
         """ Build image cache """
         self.load_dataset_in_ram = load_dataset_in_ram
         self.image_cache = self._get_image_cache()

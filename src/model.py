@@ -64,7 +64,6 @@ class LitModel(pl.LightningModule):
         super().__init__()
 
         self.data_module = data_module
-        self.df_csv = data_module.dataset.df_csv
         self.class_to_coord_map = data_module.dataset.class_to_coord_map
         self.learning_rate = learning_rate
         self.weight_decay = weight_decay
