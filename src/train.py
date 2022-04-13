@@ -73,7 +73,8 @@ if __name__ == "__main__":
     data_module.setup()
 
     for model_name in model_names:
-        # The EarlyStopping callback runs at the end of every validation epoch, which, under the default configuration, happen after every training epoch.
+        # The EarlyStopping callback runs at the end of every validation epoch, which, under the default
+        # configuration, happen after every training epoch.
         callback_early_stopping = EarlyStopping(
             monitor="val_loss",
             patience=DEFAULT_EARLY_STOPPING_EPOCH_FREQ,
@@ -101,7 +102,7 @@ if __name__ == "__main__":
 
         model = LitModel(
             data_module=data_module,
-            num_classes=data_module.dataset.num_classes,
+            num_classes=data_module.train_dataset.num_classes,
             model_name=model_names[0],
             pretrained=pretrained,
             learning_rate=learning_rate,

@@ -36,13 +36,15 @@ class GeoguesserDataset(Dataset):
         image_transform: None | transforms.Compose = transforms.Compose([transforms.ToTensor()]),
         coordinate_transform: None | Callable = lambda x, y: np.array([x, y]).astype("float"),
         cached_df=None,
+        load_dataset_in_ram=DEFAULT_LOAD_DATASET_IN_RAM,
+        dataset_type=None
     ) -> None:
         print("GeoguesserDataset init")
         super().__init__()
         self.degrees = ["0", "90", "180", "270"]
         self.image_transform = image_transform
         self.coordinate_transform = coordinate_transform
-        self.path_images = Path(dataset_dir, "data")
+        self.path_images = Path(dataset_dir, "data", dataset_type)
         self.df_csv = pd.read_csv(Path(cached_df)) if cached_df else coords_decorate_csv.main(["--spacing", str(0.2), "--no-out"])
 
         """ Filter the dataframe, only include rows for images that exist and remove polygons with no data"""
@@ -56,7 +58,7 @@ class GeoguesserDataset(Dataset):
     def get_class_to_coord_list(self):
         _class_to_coord_map = []
         for row_idx in range(self.num_classes):
-            row = self.df_csv.iloc[row_idx, :]
+            row = self.df_csv.loc[row_idx, :]
             true_lat, true_lng = row["latitude"], row["longitude"]
             point = [true_lat, true_lng]
             _class_to_coord_map.append(point)

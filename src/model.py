@@ -2,21 +2,21 @@ from __future__ import annotations, division, print_function
 
 from typing import Any, List
 
+import numpy as np
 import pytorch_lightning as pl
 import torch
 import torch.nn.functional as F
-from pytorch_lightning.loggers import LoggerCollection, TensorBoardLogger
+from pytorch_lightning.loggers import TensorBoardLogger
+from sklearn.metrics.pairwise import haversine_distances
 from torch import nn
 from torchvision.models.efficientnet import EfficientNet
 from torchvision.models.efficientnet import model_urls as efficientnet_model_urls
-from torchvision.models.resnet import ResNet
 from torchvision.models.resnet import model_urls as resnet_model_urls
+
 from data_module_geoguesser import GeoguesserDataModule
-from sklearn.metrics.pairwise import haversine_distances
-from utils_model import Identity, model_remove_fc
 from utils_env import DEFAULT_EARLY_STOPPING_EPOCH_FREQ
+from utils_model import model_remove_fc
 from utils_train import multi_acc
-import numpy as np
 
 allowed_models = list(resnet_model_urls.keys()) + list(efficientnet_model_urls.keys())
 
@@ -57,8 +57,12 @@ class LitModel(pl.LightningModule):
         super().__init__()
 
         self.data_module = data_module
-        self.df_csv = data_module.dataset.df_csv
-        self.class_to_coord_map = data_module.dataset.class_to_coord_map
+        self.df_csv_train = data_module.train_dataset.df_csv
+        self.df_csv_val = data_module.val_dataset.df_csv
+        self.df_csv_test = data_module.test_dataset.df_csv
+        self.class_to_coord_map_train = data_module.train_dataset.class_to_coord_map
+        self.class_to_coord_map_val = data_module.val_dataset.class_to_coord_map
+        self.class_to_coord_map_test = data_module.test_dataset.class_to_coord_map
         self.learning_rate = learning_rate
         self.weight_decay = weight_decay
         self.batch_size = batch_size
@@ -146,6 +150,9 @@ class LitModel(pl.LightningModule):
         haver_pred = self.class_to_coord_map[y_pred_idx]
         haver_true = self.class_to_coord_map[y_true_idx]
         haver_dist = np.mean(haversine_distances(haver_pred, haver_true))
+        coord_pred = self.class_to_coord_map_val[y_pred_idx]
+
+        haver_dist = np.mean(haversine_distances(coord_pred.cpu(), image_true_coords.cpu()))
 
         loss = F.cross_entropy(y_pred, y_true)
         acc = multi_acc(y_pred, y_true)

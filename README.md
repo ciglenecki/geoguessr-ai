@@ -1,4 +1,4 @@
-# 🗺️ Lumen Geoguesser
+  # 🗺️ Lumen Geoguesser
 
 <p align="center">
 	<img src="readme-pics/geoguesser-logo.png"></img>
