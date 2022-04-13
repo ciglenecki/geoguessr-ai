@@ -30,7 +30,7 @@ if __name__ == "__main__":
     pprint([vars(args), vars(pl_args)])
 
     image_size = args.image_size
-    num_workers = args.wokers_num
+    num_workers = args.num_workers
     model_names = args.models
     unfreeze_blocks_num = args.unfreeze_blocks
     pretrained = args.pretrained
@@ -43,21 +43,18 @@ if __name__ == "__main__":
     dataset_dir = args.dataset_dir
     batch_size = args.batch_size
     cached_df = args.cached_df
-
-    # TODO important: caculate normalization on the train dataset. You need to get mean=[?,?,?], std=[?,?,?]. What is train set? We didn't explicitly define but we should. The easiest way seems to be to edit the dataframe where we have train, val, test flags
+    load_dataset_in_ram = args.load_in_ram
 
     image_transform_train = image_transform_val = transforms.Compose(
         [
             transforms.Resize(image_size),
-            transforms.RandomHorizontalFlip(),
-            transforms.AutoAugment(policy=AutoAugmentPolicy.IMAGENET),
+            # transforms.RandomHorizontalFlip(),
+            transforms.AutoAugment(policy=transforms.AutoAugmentPolicy.IMAGENET),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
         ]
     )
     transform_labels = lambda x: np.array(x).astype("float")
-
-    # TODO importnat: monitored value (that we EarlyStop on) should be great-circle distance and not val_loss. This is done by recording heversine as a metric via the self.logger. When hyperparameter is logged it can be used as a metric for EarlyStop.
 
     data_module = GeoguesserDataModule(
         dataset_dir=dataset_dir,
@@ -69,6 +66,7 @@ if __name__ == "__main__":
         num_workers=num_workers,
         shuffle_before_splitting=shuffle_before_splitting,
         cached_df=cached_df,
+        load_dataset_in_ram=load_dataset_in_ram,
     )
     data_module.setup()
 
@@ -91,7 +89,7 @@ if __name__ == "__main__":
         ]
 
         if unfreeze_backbone_at_epoch:
-            multiplicative = lambda epoch: 1.5
+            multiplicative = lambda epoch: 1.4
             callbacks.append(
                 BackboneFinetuningLastLayers(
                     unfreeze_blocks_num=unfreeze_blocks_num,

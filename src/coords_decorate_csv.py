@@ -11,8 +11,6 @@ from tqdm import tqdm
 import numpy as np
 import sys
 
-# TODO important: project to CRS (?) then caculate distances, then re-project (?). By not doing this, spacing might be an issue because angles are not linear
-
 
 def parse_args(args):
     parser = argparse.ArgumentParser()
@@ -62,7 +60,8 @@ def parse_args(args):
 
 def append_polygons_without_data(df: pd.DataFrame, df_label_polygon_map: pd.DataFrame):
     """To the dataframe, append polygons for which the data (images) doesn't exist. Image related properties will be set to null"""
-    df_labels_with_images = df["polygon_index"].unique()
+    df_labels_with_images = df["polygon_index"].dropna().unique()
+
     df_polygons_without_images = df_label_polygon_map.drop(df_labels_with_images)
     df = df.append(df_polygons_without_images)
     return df
@@ -114,6 +113,7 @@ def main(args):
         polygon_dict["is_true_centroid"].append(centroid.is_true_centroid)
 
     df_label_polygon_map = pd.DataFrame.from_dict(polygon_dict)
+
     df = append_polygons_without_data(df, df_label_polygon_map)
     num_polygons_without_images = len(df.loc[df["uuid"].isna(), :])
     polys_without_data = [poly for poly in intersecting_polygons if poly not in polys_with_data]
@@ -126,11 +126,11 @@ def main(args):
     if no_out:
         return df
 
-    filepath_csv = Path(out_dir_csv, "data__num_class_{}__spacing_{}.csv".format(num_classes, spacing))
+    filepath_csv = Path(out_dir_csv, "data__spacing_{}__num_class_{}.csv".format(spacing, num_classes))
     df.to_csv(filepath_csv, index=False)
     print("Saved file:", filepath_csv)
 
-    filepath_csv_map = Path(out_dir_csv, "label_map__num_class_{}__spacing_{}.csv".format(num_classes, spacing))
+    filepath_csv_map = Path(out_dir_csv, "label_map__spacing_{}__num_class_{}.csv".format(spacing, num_classes))
     df_label_polygon_map.to_csv(filepath_csv_map, index=False)
 
     df_polys_with_data = gpd.GeoDataFrame({"geometry": polys_with_data})
@@ -146,7 +146,7 @@ def main(args):
     ax.set_xlabel("Longitude")
     ax.set_ylabel("Latitude")
 
-    filepath_fig = Path(out_dir_fig, "data_fig__num_class_{}__spacing_{}.{}".format(num_classes, spacing, fig_format))
+    filepath_fig = Path(out_dir_fig, "data_fig__spacing_{}__num_class_{}.{}".format(spacing, num_classes, fig_format))
 
     plt.savefig(filepath_fig, dpi=1200)
     print("Saved file:", filepath_fig)

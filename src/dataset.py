@@ -10,16 +10,11 @@ from PIL import Image
 import torch
 from torch.utils.data import Dataset
 from torchvision import transforms
+from utils_env import DEFAULT_LOAD_DATASET_IN_RAM
 
 from utils_functions import one_hot_encode
 from utils_paths import PATH_DATA_RAW
 import coords_decorate_csv
-
-# TODO: implement polygons on the border; these are addional classes which are expliclty defined. These classes might clash with already exising classes (polygons). How? There might be a polygon which is close to the border and overlaps the explicitly defined polygon. Solution is to remove the intersection so that polygons don't overlap. Polygon on the border (the one that is explicitly defined) should have prioirty over getting more surface area.
-
-# TODO important: outside of Croatia bound classification; prediction gives softmax of values; weighted sum ends up in Bosna, what do we do? Solution: find the closest point on the border
-
-# TODO: use haversine_distances in a loss function. haversine_distances acts just like residual. It might be useful to square the haversine_distances to get similar formula to MSE
 
 
 class GeoguesserDataset(Dataset):
@@ -54,6 +49,22 @@ class GeoguesserDataset(Dataset):
         self.num_classes = self.df_csv["y"].max() + 1
         _class_to_coord_list = self.get_class_to_coord_list()
         self.class_to_coord_map = torch.tensor(_class_to_coord_list)
+
+        self.df_csv.to_csv("tmp.csv")
+        """ Build image cache """
+        self.load_dataset_in_ram = load_dataset_in_ram
+        self.image_cache = self._get_image_cache()
+
+    def _get_image_cache(self):
+        """Cache image paths or images itself"""
+        image_cache = {}
+        uuids = self.df_csv["uuid"].to_list()
+        for uuid in uuids:
+            image_dir = Path(self.path_images, uuid)
+            image_filepaths = [Path(image_dir, "{}.jpg".format(degree)) for degree in self.degrees]
+            cache_item = [Image.open(image_path) for image_path in image_filepaths] if self.load_dataset_in_ram else image_filepaths
+            image_cache[uuid] = cache_item
+        return image_cache
 
     def get_class_to_coord_list(self):
         _class_to_coord_map = []
@@ -105,10 +116,12 @@ class GeoguesserDataset(Dataset):
 
     def __getitem__(self, index: int):
         row = self.df_csv.iloc[index, :]
-        uuid, latitude, longitude, label, centroid_lat, centroid_lng, is_true_centroid = self.get_row_attributes(row)
-        image_dir = Path(self.path_images, uuid)
-        image_filepaths = [Path(image_dir, "{}.jpg".format(degree)) for degree in self.degrees]
-        images = [Image.open(image_path) for image_path in image_filepaths]
+        uuid, image_latitude, image_longitude, label, centroid_lat, centroid_lng, is_true_centroid = self.get_row_attributes(row)
+
+        images = self.image_cache[uuid]
+        if not self.load_dataset_in_ram:
+            images = [Image.open(image_path) for image_path in images]
+
         label = self.one_hot_encode_label(label)
 
         if self.image_transform is not None:
@@ -116,9 +129,10 @@ class GeoguesserDataset(Dataset):
             images = [transform(image) for image in images]
         if self.coordinate_transform is not None:
             transform = self.coordinate_transform
-            latitude, longitude = self.coordinate_transform(latitude, longitude)
+            image_latitude, image_longitude = self.coordinate_transform(image_latitude, image_longitude)
 
-        return images, label, centroid_lat, centroid_lng
+        image_coords = torch.tensor([image_latitude, image_longitude])
+        return images, label, centroid_lat, centroid_lng, image_coords
 
 
 if __name__ == "__main__":

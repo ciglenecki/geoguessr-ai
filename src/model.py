@@ -20,22 +20,29 @@ from utils_train import multi_acc
 
 allowed_models = list(resnet_model_urls.keys()) + list(efficientnet_model_urls.keys())
 
-hyperparameter_metrics = [
-    "train_loss_epoch",
-    "train_acc_epoch",
-    "val_loss_epoch",
-    "val_acc_epoch",
-    "test_loss_epoch",
-    "test_acc_epoch",
-]
+hyperparameter_metrics_init = {
+    "train_loss_epoch": 100000,
+    "train_acc_epoch": 0,
+    "val_loss_epoch": 100000,
+    "val_acc_epoch": 0,
+    "test_loss_epoch": 100000,
+    "test_acc_epoch": 0,
+}
 
 
 class OnTrainEpochStartLogCallback(pl.Callback):
     def on_train_epoch_start(self, trainer, pl_module: LitModel):
+
+        current_lr = trainer.optimizers[0].param_groups[0]["lr"]
         data_dict = {
             "trainable_params_num": pl_module.get_num_of_trainable_params(),
+            "current_lr": current_lr,
+            "step": trainer.current_epoch,
         }
         pl_module.log_dict(data_dict)
+
+    def on_train_start(self, trainer, pl_module: LitModel):
+        self.on_train_epoch_start(trainer, pl_module)
 
 
 class LitModel(pl.LightningModule):
@@ -107,11 +114,10 @@ class LitModel(pl.LightningModule):
     def on_train_start(self) -> None:
         if self.logger:
             for logger in self.loggers:
-                zeros_dict = {metric: 0 for metric in hyperparameter_metrics}
-                logger.log_hyperparams(self.hparams, zeros_dict)
+                logger.log_hyperparams(self.hparams, hyperparameter_metrics_init)
 
     def training_step(self, batch, batch_idx):
-        image_list, y, _, _ = batch
+        image_list, y, _, _, _ = batch
         y_pred = self(image_list)
 
         loss = F.cross_entropy(y_pred, y)
@@ -121,7 +127,6 @@ class LitModel(pl.LightningModule):
             "train_loss": loss.detach(),
             "train_acc": acc,
             "loss": loss,
-            "h_distance": 0,
         }
         self.log("train_loss", loss.detach(), on_step=True, on_epoch=True, logger=True, prog_bar=True)
         self.log_dict(data_dict, on_step=True, on_epoch=True, logger=True, prog_bar=True)
@@ -134,47 +139,44 @@ class LitModel(pl.LightningModule):
             "train_loss_epoch": loss,
             "train_acc_epoch": acc,
             "trainable_params_num": self.get_num_of_trainable_params(),
+            # "step": self.current_epoch,
         }
         self.log_dict(data_dict)
         pass
 
     def validation_step(self, batch, batch_idx):
-        image_list, y_true, centroid_lat, centroid_lng = batch
+        image_list, y_true, centroid_lat, centroid_lng, image_true_coords = batch
         y_pred = self(image_list)
 
         y_pred_idx = torch.argmax(y_pred, dim=1).detach()
-        y_true_idx = torch.argmax(y_true, dim=1).detach()
-        #
-        # row_pred = self.df_csv.iloc[y_pred_idx, :]
-        # pred_lat, pred_lng = row_pred["latitude"].to_numpy(), row_pred["longitude"].to_numpy()
-        haver_pred = self.class_to_coord_map[y_pred_idx]
-        haver_true = self.class_to_coord_map[y_true_idx]
-        haver_dist = np.mean(haversine_distances(haver_pred, haver_true))
-        coord_pred = self.class_to_coord_map_val[y_pred_idx]
+        coord_pred = self.class_to_coord_map[y_pred_idx]
 
         haver_dist = np.mean(haversine_distances(coord_pred.cpu(), image_true_coords.cpu()))
 
         loss = F.cross_entropy(y_pred, y_true)
         acc = multi_acc(y_pred, y_true)
         data_dict = {
+            "loss": loss,
             "val_loss": loss.detach(),
             "val_acc": acc,
-            "loss": loss,
             "haver_dist": haver_dist,
         }
-        # self.log("val_loss", loss.detach(), on_step=True, on_epoch=True, logger=True, prog_bar=True)
         self.log_dict(data_dict, on_step=True, on_epoch=True, logger=True, prog_bar=True)
         return data_dict
 
     def validation_epoch_end(self, outs):
         loss = sum(map(lambda x: x["val_loss"], outs)) / len(outs)
         acc = sum(map(lambda x: x["val_acc"], outs)) / len(outs)
-        data_dict = {"val_loss_epoch": loss, "val_acc_epoch": acc}
+        data_dict = {
+            "val_loss_epoch": loss,
+            "val_acc_epoch": acc,
+            # "step": self.current_epoch,
+        }
         self.log_dict(data_dict)
         pass
 
     def test_step(self, batch, batch_idx):
-        image_list, y, _, _ = batch
+        image_list, y, _, _, _ = batch
         y_pred = self(image_list)
         loss = F.cross_entropy(y_pred, y)
         acc = multi_acc(y_pred, y)
@@ -189,7 +191,11 @@ class LitModel(pl.LightningModule):
     def test_epoch_end(self, outs):
         loss = sum(map(lambda x: x["test_loss"], outs)) / len(outs)
         acc = sum(map(lambda x: x["test_acc"], outs)) / len(outs)
-        data_dict = {"test_loss_epoch": loss, "test_acc_epoch": acc}
+        data_dict = {
+            "test_loss_epoch": loss,
+            "test_acc_epoch": acc,
+            # "step": self.current_epoch,
+        }
         self.log_dict(data_dict)
         pass
 
@@ -198,12 +204,12 @@ class LitModel(pl.LightningModule):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
         if type(self.backbone) is EfficientNet:
             optimizer = torch.optim.RMSprop(
-                self.backbone.parameters(),
+                self.parameters(),
                 lr=self.learning_rate,
                 weight_decay=self.weight_decay,
                 momentum=0.2,
             )
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, "min", patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ / 2) - 1)
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, "min", patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ // 2) - 1)
         return {
             "optimizer": optimizer,
             "lr_scheduler": {

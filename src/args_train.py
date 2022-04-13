@@ -13,6 +13,7 @@ from utils_env import (
     DEFAULT_DATASET_SIZE,
     DEFAULT_FINETUNING_EPOCH_PERIOD,
     DEFAULT_IMAGE_SIZE,
+    DEFAULT_LOAD_DATASET_IN_RAM,
     DEFAULT_LR,
     DEFAULT_MODEL,
     DEFAULT_PRETRAINED,
@@ -62,7 +63,7 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
     )
     user_group.add_argument(
         "-w",
-        "--wokers-num",
+        "--num-workers",
         metavar="int",
         default=DEAFULT_NUM_WORKERS,
         type=is_positive_int,
@@ -162,6 +163,12 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
         type=int,
         default=DEFAULT_BATCH_SIZE,
     )
+    user_group.add_argument(
+        "--load-in-ram",
+        action="store_true",
+        help="Load the dataset in RAM ~ 20GB",
+        default=DEFAULT_LOAD_DATASET_IN_RAM,
+    )
 
     args = parser.parse_args()
 
@@ -181,11 +188,12 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
         pl_args.limit_test_batches = args.dataset_frac
 
     if args.quick:
-        pl_args.limit_train_batches = 3
-        pl_args.limit_val_batches = 3
-        pl_args.limit_test_batches = 3
+        pl_args.limit_train_batches = 15
+        pl_args.limit_val_batches = 15
+        pl_args.limit_test_batches = 15
         pl_args.log_every_n_steps = 1
         args.image_size = 28
+        args.batch_size = 2
     return args, pl_args
 
 

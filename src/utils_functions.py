@@ -171,7 +171,7 @@ class SocketConcatenator(object):
     def write(self, obj):
         for f in self.files:
             f.write(obj)
-            f.flush()
+        self.flush()
 
     def flush(self):
         for f in self.files:
