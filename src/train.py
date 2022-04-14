@@ -44,16 +44,7 @@ if __name__ == "__main__":
     cached_df = args.cached_df
     load_dataset_in_ram = args.load_in_ram
 
-    image_transform_train = image_transform_val = transforms.Compose(
-        [
-            transforms.Resize(image_size),
-            # transforms.RandomHorizontalFlip(),
-            transforms.AutoAugment(policy=transforms.AutoAugmentPolicy.IMAGENET),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
-        ]
-    )
-    transform_labels = lambda x: np.array(x).astype("float")
+    # transform_labels = lambda x: np.array(x).astype("float")
 
     data_module = GeoguesserDataModule(
         dataset_dir=dataset_dir,
@@ -61,7 +52,7 @@ if __name__ == "__main__":
         train_frac=train_frac,
         val_frac=val_frac,
         test_frac=test_frac,
-        image_transform=image_transform_train,
+        # image_transform=image_transform_train,
         num_workers=num_workers,
         shuffle_before_splitting=shuffle_before_splitting,
         cached_df=cached_df,

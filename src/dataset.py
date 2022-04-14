@@ -10,6 +10,8 @@ from PIL import Image
 import torch
 from torch.utils.data import Dataset
 from torchvision import transforms
+
+# from src.args_train import parse_args_train
 from utils_env import DEFAULT_LOAD_DATASET_IN_RAM
 
 from utils_functions import one_hot_encode
@@ -52,6 +54,18 @@ class GeoguesserDataset(Dataset):
         """ Build image cache """
         self.load_dataset_in_ram = load_dataset_in_ram
         self.image_cache = self._get_image_cache()
+
+        args, pl_args = parse_args_train()
+
+        image_transform_train = image_transform_val = transforms.Compose(
+            [
+                transforms.Resize(args.image_size),
+                # transforms.RandomHorizontalFlip(),
+                transforms.AutoAugment(policy=transforms.AutoAugmentPolicy.IMAGENET),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+            ]
+        )
 
     def _get_image_cache(self):
         """Cache image paths or images itself"""

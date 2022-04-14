@@ -31,7 +31,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
         train_frac=DEFAULT_TRAIN_FRAC,
         val_frac=DEFAULT_VAL_FRAC,
         test_frac=DEFAULT_TEST_FRAC,
-        image_transform: None | transforms.Compose = transforms.Compose([transforms.ToTensor()]),
+        # image_transform: None | transforms.Compose = transforms.Compose([transforms.ToTensor()]),
         num_workers=DEAFULT_NUM_WORKERS,
         drop_last=DEAFULT_DROP_LAST,
         shuffle_before_splitting=DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING,
@@ -56,7 +56,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
         self.val_frac = val_frac
         self.test_frac = test_frac
 
-        self.image_transform = image_transform
+        # self.image_transform = image_transform
         self.num_workers = num_workers
         self.drop_last = drop_last
 
@@ -64,7 +64,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
 
         self.train_dataset = GeoguesserDataset(
             dataset_dir=self.dataset_dir,
-            image_transform=self.image_transform,
+            # image_transform=self.image_transform,
             cached_df=cached_df,
             load_dataset_in_ram=load_dataset_in_ram,
             dataset_type="train"
@@ -72,7 +72,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
 
         self.val_dataset = GeoguesserDataset(
             dataset_dir=self.dataset_dir,
-            image_transform=self.image_transform,
+            # image_transform=self.image_transform,
             cached_df=cached_df,
             load_dataset_in_ram=load_dataset_in_ram,
             dataset_type="val"
@@ -80,7 +80,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
 
         self.test_dataset = GeoguesserDataset(
             dataset_dir=self.dataset_dir,
-            image_transform=self.image_transform,
+            # image_transform=self.image_transform,
             cached_df=cached_df,
             load_dataset_in_ram=load_dataset_in_ram,
             dataset_type="test"
