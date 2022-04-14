@@ -124,7 +124,7 @@ def main(args):
     if not no_fig_out:
         print("Saving figure...")
         ax = country_shape.plot(color="green")
-        final_df.plot(ax=ax, alpha=1, linewidth=0.001, markersize=0.001, edgecolor="white", color="red")
+        final_df.plot(ax=ax, alpha=1, linewidth=0.01, markersize=0.01, edgecolor="white", color="red")
         ax.set_xlabel("Longitude")
         ax.set_ylabel("Latitude")
         fig_path = Path(out_dir, basename + "." + fig_format)
