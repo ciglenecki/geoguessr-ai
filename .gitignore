@@ -1,4 +1,10 @@
 # Byte-compiled / optimized / DLL files
+/data/**/*.png
+/data/**/*.jpg
+/data/**/*.zip
+!data/raw_example/**
+.directory
+
 .idea
 *.ckpt
 *ignoreme*

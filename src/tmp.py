@@ -1,8 +1,9 @@
+import random
+
+import numpy as np
 import torch
 import torch.nn as nn
 from torchvision.models.resnet import ResNet
-import random
-import numpy as np
 
 torch.autograd.set_detect_anomaly(True)
 torch.set_printoptions(threshold=10_000)

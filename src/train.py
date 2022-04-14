@@ -14,8 +14,8 @@ from torchvision import transforms
 from args_train import parse_args_train
 from callback_finetuning_last_n_layers import BackboneFinetuningLastLayers
 from data_module_geoguesser import GeoguesserDataModule
+from defaults import DEFAULT_EARLY_STOPPING_EPOCH_FREQ
 from model import LitModel, OnTrainEpochStartLogCallback
-from utils_env import DEFAULT_EARLY_STOPPING_EPOCH_FREQ
 from utils_functions import get_timestamp, stdout_to_file
 from utils_paths import PATH_REPORT
 
@@ -47,6 +47,7 @@ if __name__ == "__main__":
     # transform_labels = lambda x: np.array(x).astype("float")
 
     data_module = GeoguesserDataModule(
+        cached_df=cached_df,
         dataset_dir=dataset_dir,
         batch_size=batch_size,
         train_frac=train_frac,
@@ -55,7 +56,6 @@ if __name__ == "__main__":
         # image_transform=image_transform_train,
         num_workers=num_workers,
         shuffle_before_splitting=shuffle_before_splitting,
-        cached_df=cached_df,
         load_dataset_in_ram=load_dataset_in_ram,
     )
     data_module.setup()

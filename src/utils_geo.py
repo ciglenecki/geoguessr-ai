@@ -6,8 +6,8 @@ from typing import List
 import geopandas as gpd
 import numpy as np
 from shapely.geometry import Polygon, box
-from shapely.ops import nearest_points
 from shapely.geometry.point import Point
+from shapely.ops import nearest_points
 from tqdm import tqdm
 
 from utils_paths import PATH_WORLD_BORDERS
