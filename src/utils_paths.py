@@ -21,7 +21,6 @@ PATH_DATA_RAW_IMAGES = Path(PATH_DATA_RAW, "data")
 PATH_DATA_SAMPLER = Path(PATH_DATA, "coord_sampler")
 
 
-# PATH_WORLD_BORDERS = Path(PATH_DATA, "world-borders/TM_WORLD_BORDERS-0.3.shp")
 PATH_WORLD_BORDERS = Path(PATH_DATA, "world-borders", "world_no_croatia_islands.shp")
 PATH_DATA_CSV_DECORATED = Path(PATH_DATA, "csv_decorated")
 
