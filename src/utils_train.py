@@ -3,10 +3,12 @@ import torch
 
 def multi_acc(y_pred_log, y_test):
     """
-    y_pred: softmaxed prediciton from the model
-    y_test: true value
+    Args:
+        y_pred: softmaxed prediciton from the model
+        y_test: true value
 
-    0.78 %
+    Returns:
+        mean accuracy (e.g. 0.78)
     """
     # print("MultiAcc")
     _, y_pred_k = torch.max(y_pred_log, dim=1)
@@ -21,11 +23,13 @@ def multi_acc(y_pred_log, y_test):
 
 def topk_accuracy(y_pred_log, y_test, k=3):
     """
-    y_pred: softmaxed prediciton from the model
-    y_test: true value
+    Args:
+        y_pred: softmaxed prediciton from the model
+        y_test: true value
 
-    0.78 %
-    #"""
+    Returns:
+        top k accuracy (e.g. 0.78)
+    """
     # print("TopK")
     # print("y_pred_log", y_pred_log)
     # print("y_test", y_test)
