@@ -2,21 +2,21 @@ from __future__ import annotations, division, print_function
 
 from typing import Any, List
 
+import numpy as np
 import pytorch_lightning as pl
 import torch
 import torch.nn.functional as F
-from pytorch_lightning.loggers import LoggerCollection, TensorBoardLogger
+from pytorch_lightning.loggers import TensorBoardLogger
+from sklearn.metrics.pairwise import haversine_distances
 from torch import nn
 from torchvision.models.efficientnet import EfficientNet
 from torchvision.models.efficientnet import model_urls as efficientnet_model_urls
-from torchvision.models.resnet import ResNet
 from torchvision.models.resnet import model_urls as resnet_model_urls
+
 from data_module_geoguesser import GeoguesserDataModule
-from sklearn.metrics.pairwise import haversine_distances
-from utils_model import Identity, model_remove_fc
-from utils_env import DEFAULT_EARLY_STOPPING_EPOCH_FREQ
+from defaults import DEFAULT_EARLY_STOPPING_EPOCH_FREQ
+from utils_model import model_remove_fc
 from utils_train import multi_acc
-import numpy as np
 
 allowed_models = list(resnet_model_urls.keys()) + list(efficientnet_model_urls.keys())
 
@@ -64,7 +64,10 @@ class LitModel(pl.LightningModule):
         super().__init__()
 
         self.data_module = data_module
-        self.class_to_coord_map = data_module.dataset.class_to_coord_map
+
+        self.df = data_module.df
+        self.class_to_centroid_map = data_module.class_to_centroid_map
+
         self.learning_rate = learning_rate
         self.weight_decay = weight_decay
         self.batch_size = batch_size
@@ -112,7 +115,7 @@ class LitModel(pl.LightningModule):
                 logger.log_hyperparams(self.hparams, hyperparameter_metrics_init)
 
     def training_step(self, batch, batch_idx):
-        image_list, y, _, _, _ = batch
+        image_list, y, _ = batch
         y_pred = self(image_list)
 
         loss = F.cross_entropy(y_pred, y)
@@ -134,17 +137,17 @@ class LitModel(pl.LightningModule):
             "train_loss_epoch": loss,
             "train_acc_epoch": acc,
             "trainable_params_num": self.get_num_of_trainable_params(),
-            # "step": self.current_epoch,
+            "step": self.current_epoch,
         }
         self.log_dict(data_dict)
         pass
 
     def validation_step(self, batch, batch_idx):
-        image_list, y_true, centroid_lat, centroid_lng, image_true_coords = batch
+        image_list, y_true, image_true_coords = batch
         y_pred = self(image_list)
 
         y_pred_idx = torch.argmax(y_pred, dim=1).detach()
-        coord_pred = self.class_to_coord_map[y_pred_idx]
+        coord_pred = self.class_to_centroid_map[y_pred_idx]
 
         haver_dist = np.mean(haversine_distances(coord_pred.cpu(), image_true_coords.cpu()))
 
@@ -165,13 +168,13 @@ class LitModel(pl.LightningModule):
         data_dict = {
             "val_loss_epoch": loss,
             "val_acc_epoch": acc,
-            # "step": self.current_epoch,
+            "step": self.current_epoch,
         }
         self.log_dict(data_dict)
         pass
 
     def test_step(self, batch, batch_idx):
-        image_list, y, _, _, _ = batch
+        image_list, y, _ = batch
         y_pred = self(image_list)
         loss = F.cross_entropy(y_pred, y)
         acc = multi_acc(y_pred, y)
@@ -189,7 +192,7 @@ class LitModel(pl.LightningModule):
         data_dict = {
             "test_loss_epoch": loss,
             "test_acc_epoch": acc,
-            # "step": self.current_epoch,
+            "step": self.current_epoch,
         }
         self.log_dict(data_dict)
         pass

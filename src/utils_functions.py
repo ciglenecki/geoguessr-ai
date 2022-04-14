@@ -1,10 +1,10 @@
 import argparse
+import os
 import sys
 from datetime import datetime
 from math import floor
 from pathlib import Path
 from typing import List, Tuple, TypeVar, Union
-import os
 
 import matplotlib.pyplot as plt
 import numpy as np

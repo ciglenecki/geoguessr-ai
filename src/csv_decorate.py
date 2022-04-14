@@ -1,16 +1,17 @@
 import argparse
-from email.policy import default
-import os
+import sys
 from pathlib import Path
+
+import geopandas as gpd
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from tqdm import tqdm
+from defaults import DEFAULT_SPACING
+
 from utils_functions import is_valid_dir
 from utils_geo import ClippedCentroid, get_clipped_centroids, get_country_shape, get_grid, get_intersecting_polygons
-import geopandas as gpd
-import pandas as pd
 from utils_paths import PATH_DATA_CSV_DECORATED, PATH_DATA_RAW, PATH_FIGURE
-import matplotlib.pyplot as plt
-from tqdm import tqdm
-import numpy as np
-import sys
 
 
 def parse_args(args):
@@ -33,7 +34,7 @@ def parse_args(args):
         "--spacing",
         type=float,
         help="Spacing that will be used to create a grid of polygons.",
-        default=0.2,
+        default=DEFAULT_SPACING,
     )
     parser.add_argument(
         "--out-fig",
@@ -121,17 +122,17 @@ def main(args):
 
     print("{}/{} images got marked by a polygon label (class)".format(df["polygon_index"].notnull().sum(), len(df)))
     print("{}/{} polygons have at least one image assigned to them".format(num_of_polygons - num_polygons_without_images, num_of_polygons))
-    num_classes = len(intersecting_polygons)
-    print(num_classes, "- number of classes (polygons)")
+    num_valid_polys = len(intersecting_polygons)
+    print(num_valid_polys, "- number of classes (polygons)")
 
     if no_out:
         return df
 
-    filepath_csv = Path(out_dir_csv, "data__spacing_{}__num_class_{}.csv".format(spacing, num_classes))
+    filepath_csv = Path(out_dir_csv, "data__spacing_{}__num_class_{}.csv".format(spacing, num_valid_polys))
     df.to_csv(filepath_csv, index=False)
     print("Saved file:", filepath_csv)
 
-    filepath_csv_map = Path(out_dir_csv, "label_map__spacing_{}__num_class_{}.csv".format(spacing, num_classes))
+    filepath_csv_map = Path(out_dir_csv, "label_map__spacing_{}__num_class_{}.csv".format(spacing, num_valid_polys))
     df_label_polygon_map.to_csv(filepath_csv_map, index=False)
 
     df_polys_with_data = gpd.GeoDataFrame({"geometry": polys_with_data})
@@ -147,7 +148,7 @@ def main(args):
     ax.set_xlabel("Longitude")
     ax.set_ylabel("Latitude")
 
-    filepath_fig = Path(out_dir_fig, "data_fig__spacing_{}__num_class_{}.{}".format(spacing, num_classes, fig_format))
+    filepath_fig = Path(out_dir_fig, "data_fig__spacing_{}__num_class_{}.{}".format(spacing, num_valid_polys, fig_format))
 
     plt.savefig(filepath_fig, dpi=1200)
     print("Saved file:", filepath_fig)
