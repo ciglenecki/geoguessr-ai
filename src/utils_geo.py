@@ -35,14 +35,13 @@ def get_grid(x_min, y_min, x_max, y_max, spacing):
     return polygons
 
 
-def get_country_shape(iso2: str) -> gpd.GeoDataFrame:
+def get_country_shape(world_shape: gpd.GeoDataFrame, iso2: str) -> gpd.GeoDataFrame:
     """
     Country shape dataframe has multi-part geometry (multi-polygons) as rows. By calling explode, multi-part geometry will be flattened. Dataframe will have more rows.
     """
 
-    world_shape: gpd.GeoDataFrame = gpd.read_file(str(PATH_WORLD_BORDERS))
     country_shape = world_shape[world_shape["ISO2"] == iso2]
-    country_shape = country_shape.explode()
+    country_shape = country_shape.explode(ignore_index=False)
     country_shape = country_shape.droplevel(0)  # we don't need country index on level 0, we work with a single country
     return country_shape  # type: ignore [can't recognize type because of modifications]
 

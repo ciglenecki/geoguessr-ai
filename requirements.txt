@@ -19,3 +19,4 @@ tabulate
 pyshp #shapefiles, country
 geopandas
 shapely
+pygeos

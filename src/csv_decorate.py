@@ -11,7 +11,7 @@ from defaults import DEFAULT_SPACING
 
 from utils_functions import is_valid_dir
 from utils_geo import ClippedCentroid, get_clipped_centroids, get_country_shape, get_grid, get_intersecting_polygons
-from utils_paths import PATH_DATA_CSV_DECORATED, PATH_DATA_RAW, PATH_FIGURE
+from utils_paths import PATH_DATA_CSV_DECORATED, PATH_DATA_RAW, PATH_FIGURE, PATH_WORLD_BORDERS
 
 
 def parse_args(args):
@@ -82,7 +82,8 @@ def main(args):
     df_geo_csv = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.loc[:, "longitude"], df.loc[:, "latitude"]))
     df.drop("geometry", axis=1, inplace=True)  # info: GeoDataFrame somehow adds "geometry" column onto df
 
-    country_shape = get_country_shape("HR")
+    world_shape: gpd.GeoDataFrame = gpd.read_file(str(PATH_WORLD_BORDERS))
+    country_shape = get_country_shape(world_shape, "HR")
     x_min, y_min, x_max, y_max = country_shape.total_bounds
     grid_polygons = get_grid(x_min, y_min, x_max, y_max, spacing=spacing)
     intersecting_polygons = get_intersecting_polygons(grid_polygons, country_shape.geometry, percentage_of_intersection_threshold=0)
