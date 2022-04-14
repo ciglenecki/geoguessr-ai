@@ -10,6 +10,7 @@ import torch
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
 from torchvision import transforms
+from itertools import combinations
 
 from dataset import GeoguesserDataset
 from defaults import DEAFULT_DROP_LAST, DEAFULT_NUM_WORKERS, DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING, DEFAULT_BATCH_SIZE, DEFAULT_LOAD_DATASET_IN_RAM, DEFAULT_SPACING, DEFAULT_TEST_FRAC, DEFAULT_TRAIN_FRAC, DEFAULT_VAL_FRAC
@@ -119,12 +120,20 @@ class GeoguesserDataModule(pl.LightningDataModule):
     def prepare_data(self) -> None:
         pass
 
+    def _sanity_check_indices(self, dataset_train_indices: np.ndarray, dataset_val_indices: np.ndarray, dataset_test_indices: np.ndarray):
+        for ind_a, ind_b in combinations([dataset_train_indices, dataset_val_indices, dataset_test_indices], 2):
+            assert len(np.intersect1d(ind_a, ind_b)) == 0, "Some indices share an index"
+        set_ind = set(dataset_train_indices)
+        set_ind.update(dataset_val_indices)
+        set_ind.update(dataset_test_indices)
+        assert len(set_ind) == (len(dataset_train_indices) + len(dataset_val_indices) + len(dataset_test_indices)), "Some indices might contain non-unqiue values"
+
     def setup(self, stage: Optional[str] = None):
 
-        # TODO: check if there are any same index in some of the 3 indicies
         dataset_train_indices = self.df.index[self.df["uuid"].isin(self.train_dataset.uuids)].to_list()  # type: ignore [indices can be converted to list]
         dataset_val_indices = self.df.index[self.df["uuid"].isin(self.val_dataset.uuids)].to_list()  # type: ignore [indices can be converted to list]
         dataset_test_indices = self.df.index[self.df["uuid"].isin(self.test_dataset.uuids)].to_list()  # type: ignore [indices can be converted to list]
+        self._sanity_check_indices(dataset_train_indices, dataset_val_indices, dataset_test_indices)
 
         if self.shuffle_before_splitting:
             np.random.shuffle(dataset_train_indices)
