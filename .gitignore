@@ -1,7 +1,15 @@
 # Byte-compiled / optimized / DLL files
+/data/**/*.png
+/data/**/*.jpg
+/data/**/*.zip
+!data/raw_example/**
+.directory
+
 .idea
 *.ckpt
 *ignoreme*
+reports/22*
+reports/train*
 
 __pycache__/
 *.py[cod]

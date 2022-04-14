@@ -1,4 +1,5 @@
 import argparse
+import os
 import sys
 from datetime import datetime
 from math import floor
@@ -158,6 +159,11 @@ def is_valid_unfreeze_arg(arg):
         raise argparse.ArgumentTypeError("%s has to be positive int or 'all'" % arg)
 
 
+def is_valid_dir(arg):
+    if not os.path.isdir(arg):
+        raise argparse.ArgumentError(arg, "Argument should be a path to directory")
+
+
 class SocketConcatenator(object):
     def __init__(self, *files):
         self.files = files
@@ -165,7 +171,7 @@ class SocketConcatenator(object):
     def write(self, obj):
         for f in self.files:
             f.write(obj)
-            f.flush()
+        self.flush()
 
     def flush(self):
         for f in self.files:

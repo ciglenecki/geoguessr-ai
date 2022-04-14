@@ -2,28 +2,20 @@ from __future__ import annotations, division, print_function
 
 import os
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Tuple
 
-import geopandas as gpd
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import torch
 from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
 
+import csv_decorate
+from defaults import DEFAULT_LOAD_DATASET_IN_RAM
+from utils_dataset import DatasetSplitType
 from utils_functions import one_hot_encode
-from utils_geo import get_country_shape, get_grid, get_intersecting_polygons
 from utils_paths import PATH_DATA_RAW
-
-
-# TODO: implement polygons on the border; these are addional classes which are expliclty defined. These classes might clash with already exising classes (polygons). How? There might be a polygon which is close to the border and overlaps the explicitly defined polygon. Solution is to remove the intersection so that polygons don't overlap. Polygon on the border (the one that is explicitly defined) should have prioirty over getting more surface area.
-
-# TODO: outside of Croatia bound classification; prediction gives softmax of values; weighted sum ends up in Bosna, what do we do? Solution: find the closest point on the border
-
-# TODO: every polygoin in dataframe can also have additional column that is called center. It doesnt have to be center of the polygon, it can be the edge of the country if the polygon's center goes outside of country's bounds
-
-# TODO: use haversine_distances in a loss function. haversine_distances acts just like residual. It might be useful to square the haversine_distances to get similar formula to MSE
 
 
 class GeoguesserDataset(Dataset):
@@ -36,98 +28,99 @@ class GeoguesserDataset(Dataset):
 
     def __init__(
         self,
+        df: pd.DataFrame,
+        num_classes,
         dataset_dir: Path = PATH_DATA_RAW,
         image_transform: None | transforms.Compose = transforms.Compose([transforms.ToTensor()]),
         coordinate_transform: None | Callable = lambda x, y: np.array([x, y]).astype("float"),
+        load_dataset_in_ram=DEFAULT_LOAD_DATASET_IN_RAM,
+        dataset_type: DatasetSplitType = DatasetSplitType.TRAIN,
     ) -> None:
+        print("GeoguesserDataset init")
         super().__init__()
+        self.degrees = ["0", "90", "180", "270"]
         self.image_transform = image_transform
         self.coordinate_transform = coordinate_transform
-        self.path_images = Path(dataset_dir, "data")
-        self.uuids_with_image = sorted(os.listdir(self.path_images))
-        self.path_csv = Path(dataset_dir, "data.csv")
-        self.df_csv = pd.read_csv(self.path_csv, index_col=False)
-        self.df_csv = self.df_csv.loc[self.df_csv["uuid"].isin(self.uuids_with_image), :]
-        print(self.df_csv)
-        self.df_csv["label"] = np.nan
-        self.degrees = ["0", "90", "180", "270"]
-        self.num_classes = 0
-        """
-        os.walk is a generator and calling next will get the first result in the form of a 3-tuple (dirpath, dirnames, filenames). The [1] index returns only the dirnames from that tuple.
-        """
-        # self.uuids = sorted(next(os.walk(self.path_images))[1])
-        self.prepare_lat_lng()
+        self.path_images = Path(dataset_dir, dataset_type.value)
+        self.uuids = sorted(next(os.walk(self.path_images))[1])
+        self.df_csv = df
+        self.num_classes = num_classes
 
-    def prepare_lat_lng(self):
-        percentage_of_land_considered_a_block = 0
+        """ Build image cache """
+        self.load_dataset_in_ram = load_dataset_in_ram
+        self.image_cache = self._get_image_cache()
 
-        country_shape = get_country_shape("HR")
-        x_min, y_min, x_max, y_max = country_shape.total_bounds
-        grid_polygons = get_grid(x_min, y_min, x_max, y_max, spacing=0.2)
-
-        intersecting_polygons = get_intersecting_polygons(grid_polygons, country_shape.geometry, percentage_of_intersection_threshold=0)
-
-        df_geo_csv = gpd.GeoDataFrame(
-            self.df_csv,
-            geometry=gpd.points_from_xy(
-                self.df_csv.loc[:, "longitude"],
-                self.df_csv.loc[:, "latitude"],
-            ),
-        )
-
-        for i, polygon in enumerate(intersecting_polygons):
-            self.df_csv.loc[df_geo_csv.within(polygon), "label"] = i
-            # TODO: save polygons too; during the training process we will have to compare great-circle distance of the true polygon to the prediction; saving centroid of the polygon might be sufficient?
-
-        # TODO: here df_csv is filtered. Rows of the dataset (images) whose location is not known are filtered out.
-        # (label = 0 means that there we no polygons assigned to the picture). handle this better, more warnings etc.
-        self.df_csv = self.df_csv.loc[~self.df_csv["label"].isnull(), :]
-        self.num_classes = len(intersecting_polygons)
-        print("num_classes", self.num_classes)
-
-        intersecting_polygons_df = gpd.GeoDataFrame({"geometry": intersecting_polygons})
-        base = country_shape.plot(color="green")
-        intersecting_polygons_df.plot(ax=base, alpha=0.5, linewidth=0.2, edgecolor="red")
-        plt.show()
+    def _get_image_cache(self):
+        """Cache image paths or images itself so that the __getitem__ function doesn't perform this job"""
+        image_cache = {}
+        for uuid in self.uuids:
+            image_dir = Path(self.path_images, uuid)
+            image_filepaths = [Path(image_dir, "{}.jpg".format(degree)) for degree in self.degrees]
+            cache_item = [Image.open(image_path) for image_path in image_filepaths] if self.load_dataset_in_ram else image_filepaths
+            image_cache[uuid] = cache_item
+        return image_cache
 
     def name_without_extension(self, filename: Path | str):
         return Path(filename).stem
 
+    def filter_df_rows(self, df: pd.DataFrame):
+        """
+        Args:
+            df - dataframe
+        Returns:
+            Dataframe with rows for which the image exists
+        """
+
+        uuids_with_image = sorted(os.listdir(self.path_images))
+        row_mask = df["uuid"].isin(uuids_with_image)
+        return df.loc[row_mask, :]
+
+    def append_column_y(self, df: pd.DataFrame):
+        """
+        y_map is temporary dataframe that hold non-duplicated values of polygon_index. y is then created by aranging polygon_index. The issue is that polygon_index might be interupted discrete series. The new column is uninterupted {0, ..., num_classes}
+
+        Args:
+            df - dataframe
+        Returns:
+            Dataframe with new column y
+        """
+
+        self.y_map = df.filter(["polygon_index"]).drop_duplicates().sort_values("polygon_index")
+        self.y_map["y"] = np.arange(len(self.y_map))
+        df = df.merge(self.y_map, on="polygon_index")
+        return df
+
     def one_hot_encode_label(self, label: int):
         return one_hot_encode(label, self.num_classes)
 
-    def get_row_attributes(self, row: pd.Series):
-        return str(row["uuid"]), float(row["latitude"]), float(row["longitude"]), int(row["label"])
+    def _get_row_attributes(self, row: pd.Series) -> Tuple[str, float, float, int]:
+        return str(row["uuid"]), row["latitude"], row["longitude"], int(row["y"])
 
     def __len__(self):
-        return len(self.df_csv)
+        return len(self.uuids)
 
     def __getitem__(self, index: int):
-        """
-        Loads images via the index
-        Loads latitude and longitude via the csv and uuid
-        Applies transforms
-        """
         row = self.df_csv.iloc[index, :]
-        uuid, latitude, longitude, label = self.get_row_attributes(row)
-        image_dir = Path(self.path_images, uuid)
-        image_filepaths = list(map(lambda degree: Path(image_dir, "{}.jpg".format(degree)), self.degrees))
-        images = list(map(lambda x: Image.open(x), image_filepaths))
+        uuid, image_latitude, image_longitude, label = self._get_row_attributes(row)
+
+        images = self.image_cache[uuid]
+        if not self.load_dataset_in_ram:
+            images = [Image.open(image_path) for image_path in images]
+
         label = self.one_hot_encode_label(label)
 
         if self.image_transform is not None:
             transform = self.image_transform
-            images = list(map(lambda i: transform(i), images))
+            images = [transform(image) for image in images]
         if self.coordinate_transform is not None:
             transform = self.coordinate_transform
-            latitude, longitude = self.coordinate_transform(latitude, longitude)
+            image_latitude, image_longitude = self.coordinate_transform(image_latitude, image_longitude)
 
-        # TODO: implement multiimage support
-        return images[0], label
+        image_coords = torch.tensor([image_latitude, image_longitude])
+        return images, label, image_coords
 
 
 if __name__ == "__main__":
     print("This file shouldn't be called as a script unless used for debugging.")
     dataset = GeoguesserDataset()
-    dataset.prepare_lat_lng()
-    # print(dataset.__getitem__(2))
+    print(dataset.__getitem__(2))

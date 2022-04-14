@@ -5,25 +5,18 @@ from typing import Dict, Tuple
 
 import pytorch_lightning as pl
 
+from defaults import (DEAFULT_NUM_WORKERS,
+                      DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING,
+                      DEFAULT_BATCH_SIZE, DEFAULT_DATASET_SIZE,
+                      DEFAULT_FINETUNING_EPOCH_PERIOD, DEFAULT_IMAGE_SIZE,
+                      DEFAULT_LOAD_DATASET_IN_RAM, DEFAULT_LR, DEFAULT_MODEL,
+                      DEFAULT_PRETRAINED, DEFAULT_TEST_FRAC,
+                      DEFAULT_TRAIN_FRAC, DEFAULT_UNFREEZE_LAYERS_NUM,
+                      DEFAULT_VAL_FRAC, DEFAULT_WEIGHT_DECAY, LOG_EVERY_N)
 from model import allowed_models
-from utils_env import (
-    DEAFULT_NUM_WORKERS,
-    DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING,
-    DEFAULT_BATCH_SIZE,
-    DEFAULT_DATASET_SIZE,
-    DEFAULT_FINETUNING_EPOCH_PERIOD,
-    DEFAULT_IMAGE_SIZE,
-    DEFAULT_LR,
-    DEFAULT_MODEL,
-    DEFAULT_PRETRAINED,
-    DEFAULT_TEST_FRAC,
-    DEFAULT_TRAIN_FRAC,
-    DEFAULT_UNFREEZE_LAYERS_NUM,
-    DEFAULT_VAL_FRAC,
-    DEFAULT_WEIGHT_DECAY,
-    LOG_EVERY_N,
-)
-from utils_functions import is_between_0_1, is_positive_int, is_valid_image_size, is_valid_unfreeze_arg, is_valid_fractions_array
+from utils_functions import (is_between_0_1, is_positive_int,
+                             is_valid_fractions_array, is_valid_image_size,
+                             is_valid_unfreeze_arg)
 from utils_paths import PATH_DATA_RAW, PATH_REPORT
 
 ARGS_GROUP_NAME = "General arguments"
@@ -62,7 +55,7 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
     )
     user_group.add_argument(
         "-w",
-        "--wokers-num",
+        "--num-workers",
         metavar="int",
         default=DEAFULT_NUM_WORKERS,
         type=is_positive_int,
@@ -90,6 +83,12 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
         type=str,
         help="Dataset root directory",
         default=PATH_DATA_RAW,
+    )
+
+    user_group.add_argument(
+        "--cached-df",
+        type=str,
+        help="e.g. ata/raw.ignore/data__num_class_259__spacing_0.2.csv => Filepath to cached dataframe",
     )
 
     user_group.add_argument(
@@ -156,6 +155,12 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
         type=int,
         default=DEFAULT_BATCH_SIZE,
     )
+    user_group.add_argument(
+        "--load-in-ram",
+        action="store_true",
+        help="Load the dataset in RAM ~ 20GB",
+        default=DEFAULT_LOAD_DATASET_IN_RAM,
+    )
 
     args = parser.parse_args()
 
@@ -175,11 +180,12 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
         pl_args.limit_test_batches = args.dataset_frac
 
     if args.quick:
-        pl_args.limit_train_batches = 3
-        pl_args.limit_val_batches = 3
-        pl_args.limit_test_batches = 3
+        pl_args.limit_train_batches = 15
+        pl_args.limit_val_batches = 15
+        pl_args.limit_test_batches = 15
         pl_args.log_every_n_steps = 1
         args.image_size = 28
+        args.batch_size = 2
     return args, pl_args
 
 
