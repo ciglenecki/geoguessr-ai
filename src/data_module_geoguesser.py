@@ -58,6 +58,8 @@ class GeoguesserDataModule(pl.LightningDataModule):
         self.df = self._handle_dataframe(cached_df)
         self.df_class_info = self.df.loc[:, ["polygon_index", "y", "centroid_lat", "centroid_lng", "is_true_centroid"]].drop_duplicates()
         self.num_classes = len(self.df["y"].drop_duplicates())
+        assert self.num_classes == self.df["y"].max() + 1, "Wrong number of classes"  # Sanity check
+
         self.class_to_centroid_map = torch.tensor(self._get_class_to_centroid_list(self.num_classes, self.df_class_info))
 
         self.train_dataset = GeoguesserDataset(
@@ -88,7 +90,9 @@ class GeoguesserDataModule(pl.LightningDataModule):
         )
 
     def _handle_dataframe(self, cached_df: Path):
+
         """Load the dataframe, remove rows with no images, recount classes (y). The class count is same for all datasets!"""
+
         df = pd.read_csv(Path(cached_df)) if cached_df else csv_decorate.main(["--spacing", str(DEFAULT_SPACING), "--no-out"])
         df = df[df["uuid"].isna() == False]  # remove rows for which the image doesn't exist
         map_poly_index_to_y = df.filter(["polygon_index"]).drop_duplicates().sort_values("polygon_index")
@@ -97,7 +101,9 @@ class GeoguesserDataModule(pl.LightningDataModule):
         return df
 
     def _get_class_to_centroid_list(self, num_classes, df_class_info):
-        """Itterate over the information of each valid polygon/class and collect it's centroids"""
+
+        """Itterate over the information of each valid polygon/class and return it's centroids"""
+
         _class_to_centroid_map = []
         for class_idx in range(num_classes):
             row = df_class_info.loc[df_class_info["y"] == class_idx].head(1)  # ensure that only one row is taken
@@ -114,6 +120,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
         pass
 
     def setup(self, stage: Optional[str] = None):
+
         # TODO: check if there are any same index in some of the 3 indicies
         dataset_train_indices = self.df.index[self.df["uuid"].isin(self.train_dataset.uuids)].to_list()  # type: ignore [indices can be converted to list]
         dataset_val_indices = self.df.index[self.df["uuid"].isin(self.val_dataset.uuids)].to_list()  # type: ignore [indices can be converted to list]
