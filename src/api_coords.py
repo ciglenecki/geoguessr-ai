@@ -3,10 +3,10 @@ import asyncio
 import os
 import sys
 from pathlib import Path
+from time import sleep
 
 import aiohttp
 import pandas as pd
-import requests
 from asgiref import sync
 from tqdm import tqdm
 
@@ -15,12 +15,8 @@ from utils_paths import PATH_DATA_SAMPLER
 import hashlib
 import hmac
 import base64
-import urllib.parse as urlpars
-import json
-from yarl import URL
 import urllib.parse as urlparse
-from urllib.parse import urlencode
-import urllib.parse
+import uuid
 
 
 def parse_args(args):
@@ -63,7 +59,7 @@ def parse_args(args):
         "--batch",
         type=int,
         help="Number of requests that will be sent in batches",
-        default=1000,
+        default=20000,
     )
     args = parser.parse_args(args)
     return args
@@ -71,7 +67,8 @@ def parse_args(args):
 
 def get_json_batch(url, params):
     async def get_all(url, params):
-        async with aiohttp.ClientSession(trust_env=True) as session:
+        timeout = aiohttp.ClientTimeout(total=600)
+        async with aiohttp.ClientSession(trust_env=True, timeout=timeout, read_bufsize=2**25) as session:
 
             async def fetch(url, params):
                 async with session.get(url, params=params) as response:
@@ -116,13 +113,13 @@ def get_params_json(api_key, lat, lng, radius, url):
 
 
 def add_columns_if_they_dont_exist(df: pd.DataFrame, cols):
-    for new_col in ["row_idx", "status", "radius", "true_lat", "true_lng", "panorama_id"]:
+    for new_col in ["row_idx", "status", "radius", "true_lat", "true_lng", "panorama_id", "uuid"]:
         if new_col not in df:
             df[new_col] = None
     return df
 
 
-def get_rows_without_resolved_status(df: pd.DataFrame):
+def get_rows_unresolved_status(df: pd.DataFrame):
     return df.loc[df["status"].isna(), :]
 
 
@@ -186,11 +183,16 @@ def main(args):
 
     df = pd.read_csv(csv_path, index_col=[0])
     df = add_columns_if_they_dont_exist(df, ["row_idx", "status", "radius", "true_lat", "true_lng", "panorama_id"])
-    df = get_rows_without_resolved_status(df)
+
+    for row in df[df["uuid"].isna(), :]:
+        row
+        df.loc[df["Name"] == name, "uuid"] = uuid.uuid4()
+
     if args.start_from_end:
         df = flip_df(df)
 
-    itterator = tqdm(chunker(df, batch_size), desc="Waiting for the first itteration to finish...", total=len(df) // batch_size)
+    df_unresolved = get_rows_unresolved_status(df)
+    itterator = tqdm(chunker(df_unresolved, batch_size), desc="Waiting for the first itteration to finish...", total=len(df) // batch_size)
     for rows in itterator:
         indices = rows.index
         start_idx, end_idx = indices[0], indices[-1]
@@ -202,13 +204,16 @@ def main(args):
         rows_batch = [extract_features_from_json(json) for json in response_json_batch]
         df_batch = pd.DataFrame(rows_batch)
         df_batch["row_idx"] = indices
+
         df_batch.set_index(indices, inplace=True)
         df.update(df_batch)
+
         safely_save_df(df, out)
 
         num_ok_status = len(df.loc[df["status"] == "OK", :])
         num_zero_results_status = len(df.loc[df["status"] == "ZERO_RESULTS", :])
         itterator.set_description("Last saved index: {}-{}, OK: ({}), ZERO ({})".format(start_idx, end_idx, num_ok_status, num_zero_results_status))
+        sleep(60)
 
 
 if __name__ == "__main__":
