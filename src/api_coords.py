@@ -113,7 +113,7 @@ def get_params_json(api_key, lat, lng, radius, url):
 
 
 def add_columns_if_they_dont_exist(df: pd.DataFrame, cols):
-    for new_col in ["row_idx", "status", "radius", "true_lat", "true_lng", "panorama_id", "uuid"]:
+    for new_col in cols:
         if new_col not in df:
             df[new_col] = None
     return df
@@ -182,11 +182,10 @@ def main(args):
     print("Saving to file:", str(out))
 
     df = pd.read_csv(csv_path, index_col=[0])
-    df = add_columns_if_they_dont_exist(df, ["row_idx", "status", "radius", "true_lat", "true_lng", "panorama_id"])
+    df = add_columns_if_they_dont_exist(df, ["row_idx", "status", "radius", "true_lat", "true_lng", "panorama_id", "uuid"])
 
-    for row in df[df["uuid"].isna(), :]:
-        row
-        df.loc[df["Name"] == name, "uuid"] = uuid.uuid4()
+    no_uuid_rows = df["uuid"].isna()
+    df.loc[no_uuid_rows, "uuid"] = [uuid.uuid4() for _ in range(len(df.loc[no_uuid_rows, :].index))]
 
     if args.start_from_end:
         df = flip_df(df)
