@@ -1,5 +1,6 @@
 from __future__ import annotations, division
 
+from itertools import combinations
 from pathlib import Path
 from typing import Optional
 
@@ -10,13 +11,16 @@ import torch
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
 from torchvision import transforms
-from itertools import combinations
 
+import preprocess_csv_decorate as preprocess_csv_decorate
 from dataset_geoguesser import GeoguesserDataset
-from defaults import DEAFULT_DROP_LAST, DEAFULT_NUM_WORKERS, DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING, DEFAULT_BATCH_SIZE, DEFAULT_LOAD_DATASET_IN_RAM, DEFAULT_SPACING, DEFAULT_TEST_FRAC, DEFAULT_TRAIN_FRAC, DEFAULT_VAL_FRAC
+from defaults import (DEAFULT_DROP_LAST, DEAFULT_NUM_WORKERS,
+                      DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING,
+                      DEFAULT_BATCH_SIZE, DEFAULT_LOAD_DATASET_IN_RAM,
+                      DEFAULT_SPACING, DEFAULT_TEST_FRAC, DEFAULT_TRAIN_FRAC,
+                      DEFAULT_VAL_FRAC)
 from utils_dataset import DatasetSplitType
 from utils_paths import PATH_DATA_RAW
-import preprocess_csv_decorate as preprocess_csv_decorate
 
 
 class InvalidSizes(Exception):

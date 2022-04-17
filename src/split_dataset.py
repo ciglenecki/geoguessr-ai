@@ -6,16 +6,17 @@ Reproducability is achieved by using the `sorted` function once uuids are listed
 """
 
 import argparse
+import distutils.dir_util
 import os
 import sys
 from pathlib import Path
-import distutils.dir_util
 
 import numpy as np
 from tqdm import tqdm
 
 from defaults import DEFAULT_TEST_FRAC, DEFAULT_TRAIN_FRAC, DEFAULT_VAL_FRAC
-from utils_functions import is_valid_dir, is_valid_fractions_array, split_by_ratio
+from utils_functions import (is_valid_dir, is_valid_fractions_array,
+                             split_by_ratio)
 from utils_paths import PATH_DATA_RAW, PATH_DATA_RAW_IMAGES
 
 

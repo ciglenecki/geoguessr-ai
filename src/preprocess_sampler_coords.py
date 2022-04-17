@@ -11,7 +11,6 @@ from tqdm import tqdm
 from utils_functions import is_valid_dir
 from utils_geo import get_country_shape
 from utils_paths import PATH_DATA_SAMPLER, PATH_WORLD_BORDERS
-import sys
 
 np.random.seed(0)
 

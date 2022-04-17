@@ -7,11 +7,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-from defaults import DEFAULT_SPACING
 
+from defaults import DEFAULT_SPACING
 from utils_functions import is_valid_dir
-from utils_geo import ClippedCentroid, get_clipped_centroids, get_country_shape, get_grid, get_intersecting_polygons
-from utils_paths import PATH_DATA_CSV_DECORATED, PATH_DATA_RAW, PATH_FIGURE, PATH_WORLD_BORDERS
+from utils_geo import (ClippedCentroid, get_clipped_centroids,
+                       get_country_shape, get_grid, get_intersecting_polygons)
+from utils_paths import (PATH_DATA_CSV_DECORATED, PATH_DATA_RAW, PATH_FIGURE,
+                         PATH_WORLD_BORDERS)
 
 
 def parse_args(args):

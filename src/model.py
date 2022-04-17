@@ -10,7 +10,8 @@ from pytorch_lightning.loggers import TensorBoardLogger
 from sklearn.metrics.pairwise import haversine_distances
 from torch import nn
 from torchvision.models.efficientnet import EfficientNet
-from torchvision.models.efficientnet import model_urls as efficientnet_model_urls
+from torchvision.models.efficientnet import \
+    model_urls as efficientnet_model_urls
 from torchvision.models.resnet import model_urls as resnet_model_urls
 
 from data_module_geoguesser import GeoguesserDataModule
