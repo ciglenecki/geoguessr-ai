@@ -1,14 +1,10 @@
 import argparse
 import asyncio
-import csv
 import os
 import sys
 from pathlib import Path
-from urllib import response
 
 import aiohttp
-import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 import requests
 from asgiref import sync
