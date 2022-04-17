@@ -12,6 +12,15 @@ from tqdm import tqdm
 
 from utils_functions import get_timestamp
 from utils_paths import PATH_DATA_SAMPLER
+import hashlib
+import hmac
+import base64
+import urllib.parse as urlpars
+import json
+from yarl import URL
+import urllib.parse as urlparse
+from urllib.parse import urlencode
+import urllib.parse
 
 
 def parse_args(args):
@@ -70,17 +79,40 @@ def get_json_batch(url, params):
 
             return await asyncio.gather(*[fetch(url, params) for params in params])
 
-    return sync.async_to_sync(get_all)(url, params)
+    print("Getting batch...")
+    result = sync.async_to_sync(get_all)(url, params)
+    print("Batch got...")
+    return result
 
 
-def get_params_json(api_key, lat, lng, radius):
-    return {
-        "key": api_key,
-        "location": "{}, {}".format(lat, lng),
+def get_sigature_param(url, payload):
+    url_raw = url + "&".join(["{}={}".format(k, v) for k, v in payload.items()])
+    url = urlparse.urlparse(url_raw)
+
+    url_to_sign = url.path + "?" + url.query
+    secret = "6bxHPeMyhlDnddGACzrmsqi2Lsk="
+    decoded_key = base64.urlsafe_b64decode(secret)
+
+    # Create a signature using the private key and the URL-encoded
+    # string using HMAC SHA1. This signature will be binary.
+    signature = hmac.new(decoded_key, str.encode(url_to_sign), hashlib.sha1)
+
+    # Encode the binary signature into base64 for use within a URL
+    encoded_signature = base64.urlsafe_b64encode(signature.digest())
+    return encoded_signature.decode()
+
+
+def get_params_json(api_key, lat, lng, radius, url):
+    payload = {
+        "location": "{},{}".format(lat, lng),
         "radius": radius,
         "return_error_code": "true",
         "source": "outdoor",
+        "key": api_key,
     }
+    signature = get_sigature_param(url, payload)
+    payload["signature"] = signature
+    return payload
 
 
 def add_columns_if_they_dont_exist(df: pd.DataFrame, cols):
@@ -96,13 +128,6 @@ def get_rows_without_resolved_status(df: pd.DataFrame):
 
 def flip_df(df: pd.DataFrame):
     return df.iloc[::-1]
-
-
-# def get_metadata(lat, lng, api_key, radius):
-#     meta_base = "https://maps.googleapis.com/maps/api/streetview/metadata?"
-#     meta_params = get_params_json(api_key, lat, lng, radius)
-#     meta_response = requests.get(meta_base, params=meta_params)
-#     return meta_response.json()
 
 
 def extract_features_from_json(json):
@@ -132,6 +157,7 @@ def chunker(seq, size):
 
 
 def safely_save_df(df: pd.DataFrame, filepath: Path):
+    print("Saving file...", filepath)
     path_tmp = Path(str(filepath) + ".tmp")
     path_bak = Path(str(filepath) + ".bak")
     df.to_csv(path_tmp, mode="w+", index=True, header=True)
@@ -170,7 +196,7 @@ def main(args):
         start_idx, end_idx = indices[0], indices[-1]
 
         lats, lngs = rows["latitude"], rows["longitude"]
-        params = [get_params_json(args.key, lat, lng, radius) for lat, lng in zip(lats, lngs)]
+        params = [get_params_json(args.key, lat, lng, radius, url) for lat, lng in zip(lats, lngs)]
         response_json_batch = get_json_batch(url, params)
 
         rows_batch = [extract_features_from_json(json) for json in response_json_batch]
