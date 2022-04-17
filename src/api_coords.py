@@ -73,7 +73,7 @@ def handle_json_response(json):
 def main(args):
     args = parse_args(args)
 
-    batch_size = 10
+    batch_size = 1000
     timestamp = get_timestamp()
     radius = args.radius
     out = args.out
