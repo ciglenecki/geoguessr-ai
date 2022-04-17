@@ -73,7 +73,7 @@ def handle_json_response(json):
 def main(args):
     args = parse_args(args)
 
-    batch_size = 1000
+    batch_size = 10000
     timestamp = get_timestamp()
     radius = args.radius
     out = args.out
@@ -100,7 +100,7 @@ def main(args):
             """Safely save csv to file"""
             path_tmp = Path(str(out) + ".tmp")
             path_bak = Path(str(out) + ".bak")
-            df.to_csv(path_tmp, mode="w+", index=True, header=not os.path.isfile(out))
+            df.to_csv(path_tmp, mode="w+", index=True, header=True)
 
             if os.path.isfile(out):
                 os.rename(out, path_bak)
@@ -109,7 +109,7 @@ def main(args):
             if os.path.isfile(path_bak):
                 os.remove(path_bak)
 
-            itterator.set_description(str(log_status_dict))
+            itterator.set_description("Last saved index: {}, Stats {}".format(row_idx, str(log_status_dict)))
 
         lat, lng = row["latitude"], row["longitude"]
 
