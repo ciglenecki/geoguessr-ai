@@ -50,13 +50,19 @@ def parse_args(args):
         action="store_true",
     )
 
+    parser.add_argument(
+        "--batch",
+        type=int,
+        help="Number of requests that will be sent in batches",
+        default=1000,
+    )
     args = parser.parse_args(args)
     return args
 
 
 def get_json_batch(url, params):
     async def get_all(url, params):
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(trust_env=True) as session:
 
             async def fetch(url, params):
                 async with session.get(url, params=params) as response:
@@ -75,6 +81,21 @@ def get_params_json(api_key, lat, lng, radius):
         "return_error_code": "true",
         "source": "outdoor",
     }
+
+
+def add_columns_if_they_dont_exist(df: pd.DataFrame, cols):
+    for new_col in ["row_idx", "status", "radius", "true_lat", "true_lng", "panorama_id"]:
+        if new_col not in df:
+            df[new_col] = None
+    return df
+
+
+def get_rows_without_resolved_status(df: pd.DataFrame):
+    return df.loc[df["status"].isna(), :]
+
+
+def flip_df(df: pd.DataFrame):
+    return df.iloc[::-1]
 
 
 # def get_metadata(lat, lng, api_key, radius):
@@ -110,32 +131,40 @@ def chunker(seq, size):
         yield seq[start:end]
 
 
+def safely_save_df(df: pd.DataFrame, filepath: Path):
+    path_tmp = Path(str(filepath) + ".tmp")
+    path_bak = Path(str(filepath) + ".bak")
+    df.to_csv(path_tmp, mode="w+", index=True, header=True)
+
+    if os.path.isfile(filepath):
+        os.rename(filepath, path_bak)
+    os.rename(path_tmp, filepath)
+
+    if os.path.isfile(path_bak):
+        os.remove(path_bak)
+
+
 def main(args):
     args = parse_args(args)
     url = "https://maps.googleapis.com/maps/api/streetview/metadata?"
-    batch_size = 500
-
     timestamp = get_timestamp()
-    radius = args.radius
-    override = args.override
+    batch_size, radius, override, csv_path = args.batch, args.radius, args.override, args.csv
 
-    path_dir = Path(args.csv).parents[0]
-    base_name = Path(args.csv).stem
+    path_dir = Path(csv_path).parents[0]
+    base_name = Path(csv_path).stem
     out = Path(path_dir, base_name + "_modified_" + timestamp + ".csv")
     if override:
-        out = Path(args.csv)
+        out = Path(csv_path)
+
     print("Saving to file:", str(out))
 
-    df = pd.read_csv(args.csv, index_col=[0])
-    for new_col in ["row_idx", "status", "radius", "true_lat", "true_lng", "panorama_id"]:
-        if new_col not in df:
-            df[new_col] = None
-    df = df.loc[df["status"].isna(), :]
+    df = pd.read_csv(csv_path, index_col=[0])
+    df = add_columns_if_they_dont_exist(df, ["row_idx", "status", "radius", "true_lat", "true_lng", "panorama_id"])
+    df = get_rows_without_resolved_status(df)
     if args.start_from_end:
-        df = df.iloc[::-1]
+        df = flip_df(df)
 
     itterator = tqdm(chunker(df, batch_size), desc="Waiting for the first itteration to finish...", total=len(df) // batch_size)
-
     for rows in itterator:
         indices = rows.index
         start_idx, end_idx = indices[0], indices[-1]
@@ -144,22 +173,12 @@ def main(args):
         params = [get_params_json(args.key, lat, lng, radius) for lat, lng in zip(lats, lngs)]
         response_json_batch = get_json_batch(url, params)
 
-        list_of_features = [extract_features_from_json(json) for json in response_json_batch]
-        df_batch = pd.DataFrame(list_of_features, columns=["status", "true_lat", "true_lng", "panorama_id"])
+        rows_batch = [extract_features_from_json(json) for json in response_json_batch]
+        df_batch = pd.DataFrame(rows_batch)
         df_batch["row_idx"] = indices
         df_batch.set_index(indices, inplace=True)
         df.update(df_batch)
-
-        path_tmp = Path(str(out) + ".tmp")
-        path_bak = Path(str(out) + ".bak")
-        df.to_csv(path_tmp, mode="w+", index=True, header=True)
-
-        if os.path.isfile(out):
-            os.rename(out, path_bak)
-        os.rename(path_tmp, out)
-
-        if os.path.isfile(path_bak):
-            os.remove(path_bak)
+        safely_save_df(df, out)
 
         num_ok_status = len(df.loc[df["status"] == "OK", :])
         num_zero_results_status = len(df.loc[df["status"] == "ZERO_RESULTS", :])
