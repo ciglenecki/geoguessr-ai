@@ -1,6 +1,7 @@
 from __future__ import annotations, division, print_function
 
 from typing import Any, List
+import random
 
 import numpy as np
 import pytorch_lightning as pl
@@ -10,8 +11,7 @@ from pytorch_lightning.loggers import TensorBoardLogger
 from sklearn.metrics.pairwise import haversine_distances
 from torch import nn
 from torchvision.models.efficientnet import EfficientNet
-from torchvision.models.efficientnet import \
-    model_urls as efficientnet_model_urls
+from torchvision.models.efficientnet import model_urls as efficientnet_model_urls
 from torchvision.models.resnet import model_urls as resnet_model_urls
 
 from data_module_geoguesser import GeoguesserDataModule
@@ -73,6 +73,7 @@ class LitModel(pl.LightningModule):
         self.weight_decay = weight_decay
         self.batch_size = batch_size
         self.image_size = image_size
+        self.num_classes = num_classes
 
         backbone = torch.hub.load("pytorch/vision:v0.12.0", model_name, pretrained=pretrained)
         self.backbone = model_remove_fc(backbone)
@@ -223,6 +224,31 @@ class LitModel(pl.LightningModule):
                 "name": None,
             },
         }
+
+
+class LitSingleModel(LitModel):
+    def __init__(self, *args: Any, **kwargs: Any):
+        super(LitSingleModel, self).__init__(*args, **kwargs)
+        self.fc = nn.Linear(self._get_last_fc_in_channels(), self.num_classes)
+
+    def _get_last_fc_in_channels(self) -> Any:
+        """
+        Returns:
+            number of input channels for the last fc layer (number of variables of the second dimension of the flatten layer). Fake image is created, passed through the backbone and flattened (while perseving batches).
+        """
+        num_channels = 3
+        with torch.no_grad():
+            image = torch.rand(self.batch_size, num_channels, self.image_size, self.image_size)
+            out_backbone = self.backbone(image)
+            flattened_output = torch.flatten(out_backbone, 1)  # shape (batch_size x some_number)
+        return flattened_output.shape[1]
+
+    def forward(self, image_list, *args, **kwargs) -> Any:
+        image = random.choice(image_list)
+        outs_backbone = self.backbone(image)
+        out_flatten = torch.flatten(outs_backbone, 1)
+        out = self.fc(out_flatten)
+        return out
 
 
 if __name__ == "__main__":
