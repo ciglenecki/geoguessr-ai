@@ -28,6 +28,8 @@ hyperparameter_metrics_init = {
     "val_acc_epoch": 0,
     "test_loss_epoch": 100000,
     "test_acc_epoch": 0,
+    "haver_dist": 100000,
+    "trainable_params_num": 0,
 }
 
 
@@ -62,6 +64,7 @@ class LitModel(pl.LightningModule):
     loggers: List[TensorBoardLogger]
 
     def __init__(self, data_module: GeoguesserDataModule, num_classes: int, model_name, pretrained, learning_rate, weight_decay, batch_size, image_size, context_dict={}, **kwargs: Any):
+        print("LitModel init")
         super().__init__()
 
         self.data_module = data_module
@@ -228,6 +231,7 @@ class LitModel(pl.LightningModule):
 
 class LitSingleModel(LitModel):
     def __init__(self, *args: Any, **kwargs: Any):
+        print("LitSingleModel init")
         super(LitSingleModel, self).__init__(*args, **kwargs)
         self.fc = nn.Linear(self._get_last_fc_in_channels(), self.num_classes)
 
