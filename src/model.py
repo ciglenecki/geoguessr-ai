@@ -179,14 +179,21 @@ class LitModel(pl.LightningModule):
         pass
 
     def test_step(self, batch, batch_idx):
-        image_list, y, _ = batch
+        image_list, y, image_true_coords = batch
         y_pred = self(image_list)
+
+        y_pred_idx = torch.argmax(y_pred, dim=1).detach()
+        coord_pred = self.class_to_centroid_map[y_pred_idx]
+
+        haver_dist = np.mean(haversine_distances(coord_pred.cpu(), image_true_coords.cpu()))
+
         loss = F.cross_entropy(y_pred, y)
         acc = multi_acc(y_pred, y)
         data_dict = {
             "test_loss": loss.detach(),
             "test_acc": acc,
             "loss": loss,
+            "haver_dist": haver_dist,
         }
         self.log_dict(data_dict, on_step=True, on_epoch=True, logger=True, prog_bar=True)
         return data_dict
