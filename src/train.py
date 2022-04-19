@@ -9,6 +9,7 @@ from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from pytorch_lightning.callbacks.progress.tqdm_progress import TQDMProgressBar
 from torchvision import transforms
+from torchvision.transforms import AutoAugmentPolicy
 
 from args_train import parse_args_train
 from callback_finetuning_last_n_layers import BackboneFinetuningLastLayers
@@ -45,9 +46,9 @@ if __name__ == "__main__":
     load_dataset_in_ram = args.load_in_ram
     use_single_images = args.use_single_images
 
-    mean, std = calculate_norm_std(self.image_cache)
+    mean, std = calculate_norm_std(dataset_dir)
 
-    self.image_transform = transforms.Compose(
+    image_transform_train = transforms.Compose(
         [
             transforms.RandomHorizontalFlip(),
             transforms.AutoAugment(policy=AutoAugmentPolicy.IMAGENET),
@@ -55,7 +56,6 @@ if __name__ == "__main__":
             transforms.Normalize(mean=mean, std=std),
         ]
     )
-    # transform_labels = lambda x: np.array(x).astype("float")
 
     data_module = GeoguesserDataModule(
         cached_df=cached_df,
