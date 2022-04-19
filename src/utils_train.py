@@ -4,7 +4,7 @@ import torch
 def multi_acc(y_pred_log, y_test):
     """
     Args:
-        y_pred: softmaxed prediciton from the model
+        y_pred_log: softmaxed prediciton from the model
         y_test: true value
 
     Returns:
@@ -24,7 +24,7 @@ def multi_acc(y_pred_log, y_test):
 def topk_accuracy(y_pred_log, y_test, k=3):
     """
     Args:
-        y_pred: softmaxed prediciton from the model
+        y_pred_log: softmaxed prediciton from the model
         y_test: true value
 
     Returns:

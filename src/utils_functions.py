@@ -57,7 +57,8 @@ def split_by_ratio(array: np.ndarray, *ratios, use_whole_array=False) -> List[np
 
 
 def get_train_test_indices(dataset: Dataset, test_size, dataset_frac=1.0, shuffle=True):
-    dataset_size = floor(len(dataset) * dataset_frac)  # type: ignore # - dataseta has length only __len__ is implemented
+    dataset_size = floor(
+        len(dataset) * dataset_frac)  # type: ignore # - dataseta has length only __len__ is implemented
     dataset_indices = np.arange(dataset_size)
 
     if shuffle:
@@ -98,11 +99,11 @@ def one_hot_encode(index: int, length: int):
 
 
 def np_set_default_printoptions():
-    np.set_printoptions(edgeitems=3, infstr="inf", linewidth=75, nanstr="nan", precision=8, suppress=False, threshold=1000, formatter=None)
+    np.set_printoptions(edgeitems=3, infstr="inf", linewidth=75, nanstr="nan", precision=8, suppress=False,
+                        threshold=1000, formatter=None)
 
 
 def imshow(img, y_true, y_pred=None):
-
     with torch.no_grad():
         np.set_printoptions(formatter={"float": lambda x: "{0:0.3f}".format(x)})
 

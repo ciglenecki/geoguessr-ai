@@ -3,7 +3,6 @@ from __future__ import annotations, division, print_function
 from pathlib import Path
 from pprint import pprint
 
-import numpy as np
 import pytorch_lightning as pl
 from pytorch_lightning import loggers as pl_loggers
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
@@ -16,6 +15,7 @@ from callback_finetuning_last_n_layers import BackboneFinetuningLastLayers
 from data_module_geoguesser import GeoguesserDataModule
 from defaults import DEFAULT_EARLY_STOPPING_EPOCH_FREQ
 from model import LitModel, LitSingleModel, OnTrainEpochStartLogCallback
+from calculate_norm_std import calculate_norm_std
 from utils_functions import get_timestamp, stdout_to_file
 from utils_paths import PATH_REPORT
 

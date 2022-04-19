@@ -20,3 +20,6 @@ pyshp #shapefiles, country
 geopandas
 shapely
 pygeos
+scikit-learn
+aiohttp
+asgiref

@@ -4,7 +4,6 @@ from pathlib import Path
 
 import geopandas as gpd
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
