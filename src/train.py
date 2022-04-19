@@ -16,7 +16,7 @@ from callback_finetuning_last_n_layers import BackboneFinetuningLastLayers
 from data_module_geoguesser import GeoguesserDataModule
 from defaults import DEFAULT_EARLY_STOPPING_EPOCH_FREQ
 from model import LitModel, LitSingleModel, OnTrainEpochStartLogCallback
-from utils_functions import get_timestamp, stdout_to_file
+from utils_functions import add_prefix_to_keys, get_timestamp, is_primitive, stdout_to_file
 from utils_paths import PATH_REPORT
 
 if __name__ == "__main__":
@@ -48,10 +48,9 @@ if __name__ == "__main__":
     image_transform_train = image_transform_val = transforms.Compose(
         [
             transforms.Resize(image_size),
-            # transforms.RandomHorizontalFlip(),
             transforms.AutoAugment(policy=transforms.AutoAugmentPolicy.IMAGENET),
             transforms.ToTensor(),
-            transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+            transforms.Normalize(mean=[0.4968, 0.5138, 0.5026], std=[0.1981, 0.1921, 0.2300]),
         ]
     )
     transform_labels = lambda x: np.array(x).astype("float")
@@ -70,11 +69,19 @@ if __name__ == "__main__":
     )
     data_module.setup()
 
+    log_dictionary = {
+        **add_prefix_to_keys(vars(args), "user_args/"),
+        **add_prefix_to_keys(vars(pl_args), "lightning_args/"),
+        "train_size": len(data_module.train_dataloader()),
+        "val_size": len(data_module.val_dataloader()),
+        "test_size": len(data_module.test_dataloader()),
+    }
+
     for model_name in model_names:
         # The EarlyStopping callback runs at the end of every validation epoch, which, under the default
         # configuration, happen after every training epoch.
         callback_early_stopping = EarlyStopping(
-            monitor="val_loss",
+            monitor="val/loss",
             patience=DEFAULT_EARLY_STOPPING_EPOCH_FREQ,
             verbose=True,
         )
@@ -98,7 +105,8 @@ if __name__ == "__main__":
                 )
             )
 
-        model = LitModel(
+        model_constructor = LitSingleModel if use_single_images else LitModel
+        model = model_constructor(
             data_module=data_module,
             num_classes=data_module.train_dataset.num_classes,
             model_name=model_names[0],
@@ -107,26 +115,16 @@ if __name__ == "__main__":
             weight_decay=weight_decay,
             batch_size=batch_size,
             image_size=image_size,
-            context_dict={**vars(args), **vars(pl_args)},
         )
-        if use_single_images:
-            model = LitSingleModel(
-                data_module=data_module,
-                num_classes=data_module.train_dataset.num_classes,
-                model_name=model_names[0],
-                pretrained=pretrained,
-                learning_rate=learning_rate,
-                weight_decay=weight_decay,
-                batch_size=batch_size,
-                image_size=image_size,
-                context_dict={**vars(args), **vars(pl_args)},
-            )
 
+        # Enables a placeholder metric with key `hp_metric` when `log_hyperparams` is called without a metric (otherwise calls to log_hyperparams without a metric are ignored).
         tb_logger = pl_loggers.TensorBoardLogger(
             save_dir=str(PATH_REPORT),
             name="{}-{}".format(timestamp, model_name),
-            default_hp_metric=False,
+            default_hp_metric=True,
         )
+
+        tb_logger.log_hyperparams(log_dictionary)
 
         trainer: pl.Trainer = pl.Trainer.from_argparse_args(
             pl_args,

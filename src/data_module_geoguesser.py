@@ -2,7 +2,7 @@ from __future__ import annotations, division
 
 from itertools import combinations
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -14,11 +14,7 @@ from torchvision import transforms
 
 import preprocess_csv_decorate as preprocess_csv_decorate
 from dataset_geoguesser import GeoguesserDataset
-from defaults import (DEAFULT_DROP_LAST, DEAFULT_NUM_WORKERS,
-                      DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING,
-                      DEFAULT_BATCH_SIZE, DEFAULT_LOAD_DATASET_IN_RAM,
-                      DEFAULT_SPACING, DEFAULT_TEST_FRAC, DEFAULT_TRAIN_FRAC,
-                      DEFAULT_VAL_FRAC)
+from defaults import DEAFULT_DROP_LAST, DEAFULT_NUM_WORKERS, DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING, DEFAULT_BATCH_SIZE, DEFAULT_LOAD_DATASET_IN_RAM, DEFAULT_SPACING, DEFAULT_TEST_FRAC, DEFAULT_TRAIN_FRAC, DEFAULT_VAL_FRAC
 from utils_dataset import DatasetSplitType
 from utils_paths import PATH_DATA_RAW
 
@@ -61,11 +57,9 @@ class GeoguesserDataModule(pl.LightningDataModule):
 
         """ Dataframe creation, numclasses handling and coord hashing"""
         self.df = self._handle_dataframe(cached_df)
-        self.df_class_info = self.df.loc[:, ["polygon_index", "y", "centroid_lat", "centroid_lng", "is_true_centroid"]].drop_duplicates()
         self.num_classes = len(self.df["y"].drop_duplicates())
         assert self.num_classes == self.df["y"].max() + 1, "Wrong number of classes"  # Sanity check
-
-        self.class_to_centroid_map = torch.tensor(self._get_class_to_centroid_list(self.num_classes, self.df_class_info))
+        self.class_to_centroid_map = torch.tensor(self._get_class_to_centroid_list(self.num_classes))
 
         self.train_dataset = GeoguesserDataset(
             df=self.df,
@@ -94,9 +88,17 @@ class GeoguesserDataModule(pl.LightningDataModule):
             dataset_type=DatasetSplitType.TEST,
         )
 
-    def _handle_dataframe(self, cached_df: Path):
+    def _handle_dataframe(self, cached_df: Union[Path, None]):
 
-        """Load the dataframe, remove rows with no images, recount classes (y). The class count is same for all datasets!"""
+        """
+        Args:
+            cached_df: path to the cached dataframe e.g. data/csv_decorated/data__spacing_0.2__num_class_231.csv
+
+        - load the dataframe (cached or created in runtime)
+        - remove rows with no images
+        - recount classes (y) because there might be polygons with no images assigned to them
+            - note: the class count is same for all datasets
+        """
 
         df = pd.read_csv(Path(cached_df)) if cached_df else preprocess_csv_decorate.main(["--spacing", str(DEFAULT_SPACING), "--no-out"])
         df = df[df["uuid"].isna() == False]  # remove rows for which the image doesn't exist
@@ -105,10 +107,15 @@ class GeoguesserDataModule(pl.LightningDataModule):
         df = df.merge(map_poly_index_to_y, on="polygon_index")
         return df
 
-    def _get_class_to_centroid_list(self, num_classes, df_class_info):
+    def _get_class_to_centroid_list(self, num_classes: int):
 
-        """Itterate over the information of each valid polygon/class and return it's centroids"""
+        """
+        Args:
+            num_classes: number of classes that were recounted ("y" column)
+        Itterate over the information of each valid polygon/class and return it's centroids
+        """
 
+        df_class_info = self.df.loc[:, ["polygon_index", "y", "centroid_lat", "centroid_lng", "is_true_centroid"]].drop_duplicates()
         _class_to_centroid_map = []
         for class_idx in range(num_classes):
             row = df_class_info.loc[df_class_info["y"] == class_idx].head(1)  # ensure that only one row is taken

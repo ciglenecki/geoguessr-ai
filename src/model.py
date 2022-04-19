@@ -21,16 +21,19 @@ from utils_train import multi_acc
 
 allowed_models = list(resnet_model_urls.keys()) + list(efficientnet_model_urls.keys())
 
-hyperparameter_metrics_init = {
-    "train_loss_epoch": 100000,
-    "train_acc_epoch": 0,
-    "val_loss_epoch": 100000,
-    "val_acc_epoch": 0,
-    "test_loss_epoch": 100000,
-    "test_acc_epoch": 0,
-    "haver_dist": 100000,
-    "trainable_params_num": 0,
-}
+# hyperparameter_metrics_init = {
+#     "train_loss_epoch": 100000,
+#     "train_acc_epoch": 0,
+#     "val_loss_epoch": 100000,
+#     "val_acc_epoch": 0,
+#     "test_loss_epoch": 100000,
+#     "test_acc_epoch": 0,
+#     "haver_dist": 100000,
+#     "trainable_params_num": 0,
+# }
+# if self.logger:
+#         for logger in self.loggers:
+#             pass
 
 
 class OnTrainEpochStartLogCallback(pl.Callback):
@@ -50,7 +53,7 @@ class OnTrainEpochStartLogCallback(pl.Callback):
 
 class LitModel(pl.LightningModule):
     """
-    A LightningModule organizes your PyTorch code into 6 sections:
+    A LightningModule organizes PyTorch code into 6 sections:
     1. Model and computations (init).
     2. Train Loop (training_step)
     3. Validation Loop (validation_step)
@@ -63,7 +66,7 @@ class LitModel(pl.LightningModule):
 
     loggers: List[TensorBoardLogger]
 
-    def __init__(self, data_module: GeoguesserDataModule, num_classes: int, model_name, pretrained, learning_rate, weight_decay, batch_size, image_size, context_dict={}, **kwargs: Any):
+    def __init__(self, data_module: GeoguesserDataModule, num_classes: int, model_name, pretrained, learning_rate, weight_decay, batch_size, image_size, **kwargs):
         print("LitModel init")
         super().__init__()
 
@@ -83,12 +86,6 @@ class LitModel(pl.LightningModule):
         self.fc = nn.Linear(self._get_last_fc_in_channels(), num_classes)
 
         self.save_hyperparameters()
-        self.save_hyperparameters(
-            {
-                **context_dict,
-                **{"model_name": self.backbone.__class__.__name__},
-            }
-        )
 
     def _get_last_fc_in_channels(self) -> Any:
         """
@@ -114,11 +111,6 @@ class LitModel(pl.LightningModule):
         out = self.fc(out_flatten)
         return out
 
-    def on_train_start(self) -> None:
-        if self.logger:
-            for logger in self.loggers:
-                logger.log_hyperparams(self.hparams, hyperparameter_metrics_init)
-
     def training_step(self, batch, batch_idx):
         image_list, y, _ = batch
         y_pred = self(image_list)
@@ -127,25 +119,25 @@ class LitModel(pl.LightningModule):
         acc = multi_acc(y_pred, y)
 
         data_dict = {
-            "train_loss": loss.detach(),
-            "train_acc": acc,
-            "loss": loss,
+            "loss": loss,  # the 'loss' key needs to be present
+            "train/loss": loss,
+            "train/acc": acc,
         }
-        self.log("train_loss", loss.detach(), on_step=True, on_epoch=True, logger=True, prog_bar=True)
-        self.log_dict(data_dict, on_step=True, on_epoch=True, logger=True, prog_bar=True)
+        log_dict = data_dict.copy()
+        log_dict.pop("loss", None)
+        self.log_dict(log_dict, on_step=True, on_epoch=True, logger=True, prog_bar=True)
         return data_dict
 
     def training_epoch_end(self, outs):
-        loss = sum(map(lambda x: x["train_loss"], outs)) / len(outs)
-        acc = sum(map(lambda x: x["train_acc"], outs)) / len(outs)
-        data_dict = {
-            "train_loss_epoch": loss,
-            "train_acc_epoch": acc,
-            "trainable_params_num": self.get_num_of_trainable_params(),
-            "step": self.current_epoch,
+        loss = sum(map(lambda x: x["train/loss"], outs)) / len(outs)
+        acc = sum(map(lambda x: x["train/acc"], outs)) / len(outs)
+        log_dict = {
+            "train/loss_epoch": loss,
+            "train/acc_epoch": acc,
+            "step": self.current_epoch,  # explicitly set the x axis
         }
-        self.log_dict(data_dict)
-        pass
+
+        self.log_dict(log_dict)
 
     def validation_step(self, batch, batch_idx):
         image_list, y_true, image_true_coords = batch
@@ -159,24 +151,25 @@ class LitModel(pl.LightningModule):
         loss = F.cross_entropy(y_pred, y_true)
         acc = multi_acc(y_pred, y_true)
         data_dict = {
-            "loss": loss,
-            "val_loss": loss.detach(),
-            "val_acc": acc,
-            "haver_dist": haver_dist,
+            "loss": loss,  # the 'loss' key needs to be present
+            "val/loss": loss,
+            "val/acc": acc,
+            "val/haversine_distance": haver_dist,
         }
-        self.log_dict(data_dict, on_step=True, on_epoch=True, logger=True, prog_bar=True)
+        log_dict = data_dict.copy()
+        log_dict.pop("loss", None)
+        self.log_dict(log_dict, on_step=True, on_epoch=True, logger=True, prog_bar=True)
         return data_dict
 
     def validation_epoch_end(self, outs):
-        loss = sum(map(lambda x: x["val_loss"], outs)) / len(outs)
-        acc = sum(map(lambda x: x["val_acc"], outs)) / len(outs)
-        data_dict = {
-            "val_loss_epoch": loss,
-            "val_acc_epoch": acc,
+        loss = sum(map(lambda x: x["val/loss"], outs)) / len(outs)
+        acc = sum(map(lambda x: x["val/acc"], outs)) / len(outs)
+        log_dict = {
+            "val/loss_epoch": loss,
+            "val/acc_epoch": acc,
             "step": self.current_epoch,
         }
-        self.log_dict(data_dict)
-        pass
+        self.log_dict(log_dict)
 
     def test_step(self, batch, batch_idx):
         image_list, y, image_true_coords = batch
@@ -190,24 +183,25 @@ class LitModel(pl.LightningModule):
         loss = F.cross_entropy(y_pred, y)
         acc = multi_acc(y_pred, y)
         data_dict = {
-            "test_loss": loss.detach(),
-            "test_acc": acc,
-            "loss": loss,
-            "haver_dist": haver_dist,
+            "loss": loss,  # the 'loss' key needs to be present
+            "test/loss": loss,
+            "test/acc": acc,
+            "test/haversine_distance": haver_dist,
         }
-        self.log_dict(data_dict, on_step=True, on_epoch=True, logger=True, prog_bar=True)
+        log_dict = data_dict.copy()
+        log_dict.pop("loss", None)
+        self.log_dict(log_dict, on_step=True, on_epoch=True, logger=True, prog_bar=True)
         return data_dict
 
     def test_epoch_end(self, outs):
-        loss = sum(map(lambda x: x["test_loss"], outs)) / len(outs)
-        acc = sum(map(lambda x: x["test_acc"], outs)) / len(outs)
-        data_dict = {
-            "test_loss_epoch": loss,
-            "test_acc_epoch": acc,
+        loss = sum(map(lambda x: x["test/loss"], outs)) / len(outs)
+        acc = sum(map(lambda x: x["test/acc"], outs)) / len(outs)
+        log_dict = {
+            "test/loss_epoch": loss,
+            "test/acc_epoch": acc,
             "step": self.current_epoch,
         }
-        self.log_dict(data_dict)
-        pass
+        self.log_dict(log_dict)
 
     def configure_optimizers(self):
 
@@ -226,7 +220,7 @@ class LitModel(pl.LightningModule):
                 "scheduler": scheduler,
                 # The unit of the scheduler's step size, could also be 'step', 'epoch' updates the scheduler on epoch end whereas 'step', updates it after a optimizer update
                 "interval": "epoch",
-                "monitor": "val_loss_epoch",
+                "monitor": "val/loss_epoch",
                 # How many epochs/steps should pass between calls to `scheduler.step()`.1 corresponds to updating the learning  rate after every epoch/step.
                 # If "monitor" references validation metrics, then "frequency" should be set to a multiple of "trainer.check_val_every_n_epoch".
                 "frequency": 1,

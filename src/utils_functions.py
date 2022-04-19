@@ -190,8 +190,12 @@ def stdout_to_file(file: Path):
     sys.stdout = SocketConcatenator(sys.stdout, f)
 
 
-def dict_append_hp(dict: dict):
-    return {"hp/" + k: v for k, v in dict.items()}
+def add_prefix_to_keys(dict: dict, prefix):
+    return {prefix + k: v for k, v in dict.items()}
+
+
+def is_primitive(obj):
+    return not hasattr(obj, "__dict__") and type(obj) is not list
 
 
 if __name__ == "__main__":
