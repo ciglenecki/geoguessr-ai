@@ -119,6 +119,7 @@ def imshow(img, y_true, y_pred=None):
 def is_valid_fractions_array(array):
     if len(array) != 3 or sum(array) != 1:
         raise argparse.ArgumentError(array, "There has to be 3 fractions (train, val, test) that sum to 1")
+    return array
 
 
 def is_between_0_1(x):
@@ -157,11 +158,13 @@ def is_valid_unfreeze_arg(arg):
         return is_positive_int(arg)  # is_positive_int's raise will be caught by the except
     except:
         raise argparse.ArgumentTypeError("%s has to be positive int or 'all'" % arg)
+    return args
 
 
 def is_valid_dir(arg):
     if not os.path.isdir(arg):
         raise argparse.ArgumentError(arg, "Argument should be a path to directory")
+    return arg
 
 
 class SocketConcatenator(object):

@@ -1,5 +1,6 @@
 from __future__ import annotations, division
 
+from itertools import combinations
 from pathlib import Path
 from typing import Optional
 
@@ -10,13 +11,16 @@ import torch
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
 from torchvision import transforms
-from itertools import combinations
 
-from dataset import GeoguesserDataset
-from defaults import DEAFULT_DROP_LAST, DEAFULT_NUM_WORKERS, DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING, DEFAULT_BATCH_SIZE, DEFAULT_LOAD_DATASET_IN_RAM, DEFAULT_SPACING, DEFAULT_TEST_FRAC, DEFAULT_TRAIN_FRAC, DEFAULT_VAL_FRAC
+import preprocess_csv_decorate as preprocess_csv_decorate
+from dataset_geoguesser import GeoguesserDataset
+from defaults import (DEAFULT_DROP_LAST, DEAFULT_NUM_WORKERS,
+                      DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING,
+                      DEFAULT_BATCH_SIZE, DEFAULT_LOAD_DATASET_IN_RAM,
+                      DEFAULT_SPACING, DEFAULT_TEST_FRAC, DEFAULT_TRAIN_FRAC,
+                      DEFAULT_VAL_FRAC)
 from utils_dataset import DatasetSplitType
 from utils_paths import PATH_DATA_RAW
-import csv_decorate
 
 
 class InvalidSizes(Exception):
@@ -94,7 +98,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
 
         """Load the dataframe, remove rows with no images, recount classes (y). The class count is same for all datasets!"""
 
-        df = pd.read_csv(Path(cached_df)) if cached_df else csv_decorate.main(["--spacing", str(DEFAULT_SPACING), "--no-out"])
+        df = pd.read_csv(Path(cached_df)) if cached_df else preprocess_csv_decorate.main(["--spacing", str(DEFAULT_SPACING), "--no-out"])
         df = df[df["uuid"].isna() == False]  # remove rows for which the image doesn't exist
         map_poly_index_to_y = df.filter(["polygon_index"]).drop_duplicates().sort_values("polygon_index")
         map_poly_index_to_y["y"] = np.arange(len(map_poly_index_to_y))  # cols: polygon_index, y

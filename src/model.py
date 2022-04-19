@@ -1,6 +1,7 @@
 from __future__ import annotations, division, print_function
 
 from typing import Any, List
+import random
 
 import numpy as np
 import pytorch_lightning as pl
@@ -27,6 +28,8 @@ hyperparameter_metrics_init = {
     "val_acc_epoch": 0,
     "test_loss_epoch": 100000,
     "test_acc_epoch": 0,
+    "haver_dist": 100000,
+    "trainable_params_num": 0,
 }
 
 
@@ -61,6 +64,7 @@ class LitModel(pl.LightningModule):
     loggers: List[TensorBoardLogger]
 
     def __init__(self, data_module: GeoguesserDataModule, num_classes: int, model_name, pretrained, learning_rate, weight_decay, batch_size, image_size, context_dict={}, **kwargs: Any):
+        print("LitModel init")
         super().__init__()
 
         self.data_module = data_module
@@ -72,6 +76,7 @@ class LitModel(pl.LightningModule):
         self.weight_decay = weight_decay
         self.batch_size = batch_size
         self.image_size = image_size
+        self.num_classes = num_classes
 
         backbone = torch.hub.load("pytorch/vision:v0.12.0", model_name, pretrained=pretrained)
         self.backbone = model_remove_fc(backbone)
@@ -174,14 +179,21 @@ class LitModel(pl.LightningModule):
         pass
 
     def test_step(self, batch, batch_idx):
-        image_list, y, _ = batch
+        image_list, y, image_true_coords = batch
         y_pred = self(image_list)
+
+        y_pred_idx = torch.argmax(y_pred, dim=1).detach()
+        coord_pred = self.class_to_centroid_map[y_pred_idx]
+
+        haver_dist = np.mean(haversine_distances(coord_pred.cpu(), image_true_coords.cpu()))
+
         loss = F.cross_entropy(y_pred, y)
         acc = multi_acc(y_pred, y)
         data_dict = {
             "test_loss": loss.detach(),
             "test_acc": acc,
             "loss": loss,
+            "haver_dist": haver_dist,
         }
         self.log_dict(data_dict, on_step=True, on_epoch=True, logger=True, prog_bar=True)
         return data_dict
@@ -222,6 +234,32 @@ class LitModel(pl.LightningModule):
                 "name": None,
             },
         }
+
+
+class LitSingleModel(LitModel):
+    def __init__(self, *args: Any, **kwargs: Any):
+        print("LitSingleModel init")
+        super(LitSingleModel, self).__init__(*args, **kwargs)
+        self.fc = nn.Linear(self._get_last_fc_in_channels(), self.num_classes)
+
+    def _get_last_fc_in_channels(self) -> Any:
+        """
+        Returns:
+            number of input channels for the last fc layer (number of variables of the second dimension of the flatten layer). Fake image is created, passed through the backbone and flattened (while perseving batches).
+        """
+        num_channels = 3
+        with torch.no_grad():
+            image = torch.rand(self.batch_size, num_channels, self.image_size, self.image_size)
+            out_backbone = self.backbone(image)
+            flattened_output = torch.flatten(out_backbone, 1)  # shape (batch_size x some_number)
+        return flattened_output.shape[1]
+
+    def forward(self, image_list, *args, **kwargs) -> Any:
+        image = random.choice(image_list)
+        outs_backbone = self.backbone(image)
+        out_flatten = torch.flatten(outs_backbone, 1)
+        out = self.fc(out_flatten)
+        return out
 
 
 if __name__ == "__main__":
