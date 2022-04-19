@@ -20,10 +20,10 @@ from utils_paths import PATH_DATA_RAW
 
 class GeoguesserDataset(Dataset):
     """
-    Pytorch Dataset class which defines how elements are fetched from the soruce (directory)
+    Pytorch Dataset class which defines how elements are fetched from the source (directory)
 
     1. Holds pointers to the data (images and coordinates)
-    2. Fetches them lazly when __getitem__ is called
+    2. Fetches them lazily when __getitem__ is called
     """
 
     def __init__(

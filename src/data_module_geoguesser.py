@@ -130,9 +130,9 @@ class GeoguesserDataModule(pl.LightningDataModule):
 
     def setup(self, stage: Optional[str] = None):
 
-        dataset_train_indices = self.df.index[self.df["uuid"].isin(self.train_dataset.uuids)].to_list()  # type: ignore [indices can be converted to list]
-        dataset_val_indices = self.df.index[self.df["uuid"].isin(self.val_dataset.uuids)].to_list()  # type: ignore [indices can be converted to list]
-        dataset_test_indices = self.df.index[self.df["uuid"].isin(self.test_dataset.uuids)].to_list()  # type: ignore [indices can be converted to list]
+        dataset_train_indices = self.df.index[self.df["uuid"].isin(self.train_dataset.uuids)].to_list()  # type: ignore # [indices can be converted to list]
+        dataset_val_indices = self.df.index[self.df["uuid"].isin(self.val_dataset.uuids)].to_list()  # type: ignore # [indices can be converted to list]
+        dataset_test_indices = self.df.index[self.df["uuid"].isin(self.test_dataset.uuids)].to_list()  # type: ignore # [indices can be converted to list]
         self._sanity_check_indices(dataset_train_indices, dataset_val_indices, dataset_test_indices)
 
         if self.shuffle_before_splitting:
