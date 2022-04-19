@@ -122,6 +122,7 @@ if __name__ == "__main__":
             save_dir=str(PATH_REPORT),
             name="{}-{}".format(timestamp, model_name),
             default_hp_metric=True,
+            log_graph=True,
         )
 
         tb_logger.log_hyperparams(log_dictionary)

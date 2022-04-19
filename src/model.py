@@ -85,7 +85,15 @@ class LitModel(pl.LightningModule):
         self.backbone = model_remove_fc(backbone)
         self.fc = nn.Linear(self._get_last_fc_in_channels(), num_classes)
 
+        self._set_example_input_array()
+
         self.save_hyperparameters()
+
+    def _set_example_input_array(self):
+        # iteration over stack and list is the same
+        num_channels = 3
+        self.example_input_array = [torch.rand(self.batch_size, num_channels, self.image_size, self.image_size)] * 4
+        self.example_input_array = torch.stack(self.example_input_array)
 
     def _get_last_fc_in_channels(self) -> Any:
         """
