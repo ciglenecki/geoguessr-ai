@@ -2,7 +2,7 @@ from __future__ import annotations, division, print_function
 
 import os
 from pathlib import Path
-from typing import Callable, Tuple
+from typing import Callable, List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -10,11 +10,12 @@ import torch
 from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
+from glob import glob
 
 import preprocess_csv_decorate as preprocess_csv_decorate
 from defaults import DEFAULT_LOAD_DATASET_IN_RAM
 from utils_dataset import DatasetSplitType
-from utils_functions import one_hot_encode
+from utils_functions import flatten, one_hot_encode, timeit
 from utils_paths import PATH_DATA_RAW
 
 
@@ -30,7 +31,7 @@ class GeoguesserDataset(Dataset):
         self,
         df: pd.DataFrame,
         num_classes,
-        dataset_dir: Path = PATH_DATA_RAW,
+        dataset_dirs: List[Path] = [PATH_DATA_RAW],
         image_transform: None | transforms.Compose = transforms.Compose([transforms.ToTensor()]),
         coordinate_transform: None | Callable = lambda x, y: np.array([x, y]).astype("float"),
         load_dataset_in_ram=DEFAULT_LOAD_DATASET_IN_RAM,
@@ -41,8 +42,9 @@ class GeoguesserDataset(Dataset):
         self.degrees = ["0", "90", "180", "270"]
         self.image_transform = image_transform
         self.coordinate_transform = coordinate_transform
-        self.path_images = Path(dataset_dir, dataset_type.value)
-        self.uuids = sorted(next(os.walk(self.path_images))[1])
+
+        self.uuid_dir_paths = flatten([glob(str(Path(dataset_dir, "images", dataset_type.value, "*"))) for dataset_dir in dataset_dirs])
+        self.uuids = [Path(uuid_dir_path).stem for uuid_dir_path in self.uuid_dir_paths]
         self.df_csv = df
         self.num_classes = num_classes
 
@@ -50,30 +52,23 @@ class GeoguesserDataset(Dataset):
         self.load_dataset_in_ram = load_dataset_in_ram
         self.image_cache = self._get_image_cache()
 
+        self._sanity_check_images_dataframe()
+
+    def _sanity_check_images_dataframe(self):
+        size_rows_with_images = len(self.df_csv.loc[self.df_csv["uuid"].isin(self.uuids), :])
+        assert size_rows_with_images == len(self.uuids), "Dataframe doesn't contain uuids for all images!"
+
     def _get_image_cache(self):
         """Cache image paths or images itself so that the __getitem__ function doesn't perform this job"""
         image_cache = {}
-        for uuid in self.uuids:
-            image_dir = Path(self.path_images, uuid)
-            image_filepaths = [Path(image_dir, "{}.jpg".format(degree)) for degree in self.degrees]
+        for uuid, uuid_dir_path in zip(self.uuids, self.uuid_dir_paths):
+            image_filepaths = [Path(uuid_dir_path, "{}.jpg".format(degree)) for degree in self.degrees]
             cache_item = [Image.open(image_path) for image_path in image_filepaths] if self.load_dataset_in_ram else image_filepaths
             image_cache[uuid] = cache_item
         return image_cache
 
     def name_without_extension(self, filename: Path | str):
         return Path(filename).stem
-
-    def filter_df_rows(self, df: pd.DataFrame):
-        """
-        Args:
-            df - dataframe
-        Returns:
-            Dataframe with rows for which the image exists
-        """
-
-        uuids_with_image = sorted(os.listdir(self.path_images))
-        row_mask = df["uuid"].isin(uuids_with_image)
-        return df.loc[row_mask, :]
 
     def append_column_y(self, df: pd.DataFrame):
         """
@@ -99,6 +94,7 @@ class GeoguesserDataset(Dataset):
     def __len__(self):
         return len(self.uuids)
 
+    @timeit
     def __getitem__(self, index: int):
         row = self.df_csv.iloc[index, :]
         uuid, image_latitude, image_longitude, label = self._get_row_attributes(row)

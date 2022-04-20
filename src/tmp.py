@@ -4,6 +4,9 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torchvision.models.resnet import ResNet
+import pandas as pd
+import os
+from glob import glob
 
 torch.autograd.set_detect_anomaly(True)
 torch.set_printoptions(threshold=10_000)
@@ -176,7 +179,20 @@ def model_cat_vs_multi_forward():
 #     output.backward()
 
 
+def check_rows():
+    df = pd.read_csv("data/complete/data.csv")
+    uuids_raw = [os.path.basename(path) for path in glob("data/raw/*/*")]
+    uuids_external = os.listdir("data/external/data")
+    uuids = uuids_raw + uuids_external
+    print([uuid for uuid in uuids if type(uuid) is not str])
+
+    print(uuids_raw[0], uuids_external[0])
+    df_with_uuids = df.loc[df["uuid"].isin(uuids), :]
+    print(len(df), len(df_with_uuids))
+
+
 if __name__ == "__main__":
     # test()
     # mini_tensor()
-    model_cat_vs_multi_forward()
+    # model_cat_vs_multi_forward()
+    check_rows()

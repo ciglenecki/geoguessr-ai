@@ -24,7 +24,7 @@ from defaults import (
     LOG_EVERY_N,
 )
 from model import allowed_models
-from utils_functions import is_between_0_1, is_positive_int, is_valid_fractions_array, is_valid_image_size, is_valid_unfreeze_arg
+from utils_functions import is_between_0_1, is_positive_int, is_valid_dir, is_valid_fractions_array, is_valid_image_size, is_valid_unfreeze_arg
 from utils_paths import PATH_DATA_RAW, PATH_REPORT
 
 ARGS_GROUP_NAME = "General arguments"
@@ -86,11 +86,12 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
         help="Learning rate",
     )
     user_group.add_argument(
-        "--dataset-dir",
+        "--dataset-dirs",
         metavar="dir",
-        type=str,
+        nargs="+",
+        type=is_valid_dir,
         help="Dataset root directory",
-        default=PATH_DATA_RAW,
+        # default=PATH_DATA_RAW,
     )
 
     user_group.add_argument(

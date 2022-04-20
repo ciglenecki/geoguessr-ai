@@ -65,8 +65,8 @@ def uniform_2d_generator(lat_lng_min, lat_lng_max, batch_size):
 def reproject_dataframe(df, crs):
     print("Reprojecting the dataframe...")
     df = df.to_crs(crs)
-    df["longitude"] = df.geometry.apply(lambda p: p.x)
-    df["latitude"] = df.geometry.apply(lambda p: p.y)
+    df["sample_longitude"] = df.geometry.apply(lambda p: p.x)
+    df["sample_latitude"] = df.geometry.apply(lambda p: p.y)
     return df
 
 
@@ -96,8 +96,8 @@ def main(args):
 
     final_df = gpd.GeoDataFrame()
     for rand_coords in tqdm(uniform_2d_generator(lat_lng_min, lat_lng_max, batch_size)):
-        df_batch = pd.DataFrame(rand_coords, columns=["latitude", "longitude"])
-        points_geometry = gpd.points_from_xy(df_batch.loc[:, "longitude"], df_batch.loc[:, "latitude"])
+        df_batch = pd.DataFrame(rand_coords, columns=["sample_latitude", "sample_longitude"])
+        points_geometry = gpd.points_from_xy(df_batch.loc[:, "sample_longitude"], df_batch.loc[:, "sample_latitude"])
         df_batch_csv = gpd.GeoDataFrame(df_batch, geometry=points_geometry, crs=croatia_crs)  # type: ignore [geopandas doesnt recognize args]
         df_batch_points_in_country = gpd.sjoin(df_batch_csv, country_shape, predicate="within").set_crs(croatia_crs)
         final_df = gpd.GeoDataFrame(pd.concat([final_df, df_batch_points_in_country]), crs=croatia_crs)
@@ -115,7 +115,7 @@ def main(args):
     basename = "coords_sample__n_{}".format(num_of_coords)
     if not no_df_out:
         print("Saving to csv...")
-        final_df_clean = final_df.loc[:, ["longitude", "latitude"]]
+        final_df_clean = final_df.loc[:, ["sample_longitude", "sample_latitude"]]
         final_df_clean = final_df_clean.sample(frac=1).reset_index(drop=True)  # Shuffle rows and reassign indices
         csv_path = Path(out_dir, basename + ".csv")
         final_df_clean.to_csv(csv_path, index_label=False)

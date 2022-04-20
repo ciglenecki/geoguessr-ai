@@ -10,26 +10,22 @@ from tqdm import tqdm
 
 from defaults import DEFAULT_SPACING
 from utils_functions import is_valid_dir
-from utils_geo import (ClippedCentroid, get_clipped_centroids,
-                       get_country_shape, get_grid, get_intersecting_polygons)
-from utils_paths import (PATH_DATA_CSV_DECORATED, PATH_DATA_RAW, PATH_FIGURE,
-                         PATH_WORLD_BORDERS)
+from utils_geo import ClippedCentroid, get_clipped_centroids, get_country_shape, get_grid, get_intersecting_polygons
+from utils_paths import PATH_DATA_RAW, PATH_FIGURE, PATH_WORLD_BORDERS
 
 
 def parse_args(args):
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--csv",
-        default=str(Path(PATH_DATA_RAW, "data.csv")),
-        type=str,
-        help="Path to dataframe you want to enrich",
+        help="Dataframe you want to enrich",
     )
+
     parser.add_argument(
         "--out",
         metavar="dir",
         type=is_valid_dir,
         help="Directory where the enriched dataframe will be saved",
-        default=PATH_DATA_CSV_DECORATED,
     )
 
     parser.add_argument(
@@ -71,16 +67,21 @@ def append_polygons_without_data(df: pd.DataFrame, df_label_polygon_map: pd.Data
     return df
 
 
-def main(args):
+def main(args, df_object=None):
     args = parse_args(args)
     path_csv = args.csv
-    out_dir_csv = args.out
+
+    if args.out is None:
+        out_dir_csv = Path(path_csv).parents[0] if path_csv else None
+    elif args.out:
+        out_dir_csv = args.out
+
     spacing = args.spacing
     out_dir_fig = args.out_fig
     fig_format = args.fig_format
     no_out = args.no_out
 
-    df = pd.read_csv(path_csv, index_col=False)
+    df = pd.read_csv(path_csv, index_col=False) if path_csv else df_object
     df_geo_csv = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.loc[:, "longitude"], df.loc[:, "latitude"]))
     df.drop("geometry", axis=1, inplace=True)  # info: GeoDataFrame somehow adds "geometry" column onto df
 

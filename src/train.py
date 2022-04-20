@@ -39,7 +39,7 @@ if __name__ == "__main__":
     weight_decay = args.weight_decay
     shuffle_before_splitting = args.shuffle_before_splitting
     train_frac, val_frac, test_frac = args.split_ratios
-    dataset_dir = args.dataset_dir
+    dataset_dirs = args.dataset_dirs
     batch_size = args.batch_size
     cached_df = args.cached_df
     load_dataset_in_ram = args.load_in_ram
@@ -57,7 +57,7 @@ if __name__ == "__main__":
 
     data_module = GeoguesserDataModule(
         cached_df=cached_df,
-        dataset_dir=dataset_dir,
+        dataset_dirs=dataset_dirs,
         batch_size=batch_size,
         train_frac=train_frac,
         val_frac=val_frac,
@@ -129,7 +129,7 @@ if __name__ == "__main__":
 
         trainer: pl.Trainer = pl.Trainer.from_argparse_args(
             pl_args,
-            logger=[tb_logger, tb_logger],
+            logger=[tb_logger],
             default_root_dir=PATH_REPORT,
             callbacks=callbacks,
         )

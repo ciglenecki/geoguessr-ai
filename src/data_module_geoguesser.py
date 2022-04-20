@@ -2,7 +2,7 @@ from __future__ import annotations, division
 
 from itertools import combinations
 from pathlib import Path
-from typing import Optional, Union
+from typing import List, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -12,7 +12,8 @@ from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
 from torchvision import transforms
 
-import preprocess_csv_decorate as preprocess_csv_decorate
+import preprocess_csv_decorate
+import preprocess_merge_df
 from dataset_geoguesser import GeoguesserDataset
 from defaults import DEAFULT_DROP_LAST, DEAFULT_NUM_WORKERS, DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING, DEFAULT_BATCH_SIZE, DEFAULT_LOAD_DATASET_IN_RAM, DEFAULT_SPACING, DEFAULT_TEST_FRAC, DEFAULT_TRAIN_FRAC, DEFAULT_VAL_FRAC
 from utils_dataset import DatasetSplitType
@@ -27,7 +28,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
     def __init__(
         self,
         cached_df: Path,
-        dataset_dir: Path = PATH_DATA_RAW,
+        dataset_dirs: List[Path] = [PATH_DATA_RAW],
         batch_size: int = DEFAULT_BATCH_SIZE,
         train_frac=DEFAULT_TRAIN_FRAC,
         val_frac=DEFAULT_VAL_FRAC,
@@ -43,7 +44,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
 
         self._validate_sizes(train_frac, val_frac, test_frac)
 
-        self.dataset_dir = dataset_dir
+        self.dataset_dirs = dataset_dirs
         self.batch_size = batch_size
 
         self.train_frac = train_frac
@@ -64,7 +65,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
         self.train_dataset = GeoguesserDataset(
             df=self.df,
             num_classes=self.num_classes,
-            dataset_dir=self.dataset_dir,
+            dataset_dirs=self.dataset_dirs,
             image_transform=self.image_transform,
             load_dataset_in_ram=load_dataset_in_ram,
             dataset_type=DatasetSplitType.TRAIN,
@@ -73,7 +74,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
         self.val_dataset = GeoguesserDataset(
             df=self.df,
             num_classes=self.num_classes,
-            dataset_dir=self.dataset_dir,
+            dataset_dirs=self.dataset_dirs,
             image_transform=self.image_transform,
             load_dataset_in_ram=load_dataset_in_ram,
             dataset_type=DatasetSplitType.VAL,
@@ -82,7 +83,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
         self.test_dataset = GeoguesserDataset(
             df=self.df,
             num_classes=self.num_classes,
-            dataset_dir=self.dataset_dir,
+            dataset_dirs=self.dataset_dirs,
             image_transform=self.image_transform,
             load_dataset_in_ram=load_dataset_in_ram,
             dataset_type=DatasetSplitType.TEST,
@@ -100,7 +101,13 @@ class GeoguesserDataModule(pl.LightningDataModule):
             - note: the class count is same for all datasets
         """
 
-        df = pd.read_csv(Path(cached_df)) if cached_df else preprocess_csv_decorate.main(["--spacing", str(DEFAULT_SPACING), "--no-out"])
+        if cached_df:
+            df = pd.read_csv(Path(cached_df))
+        else:
+            df_paths = [str(Path(dataset_dir, "data.csv")) for dataset_dir in self.dataset_dirs]
+            df_merged = preprocess_merge_df.main(["--csv", *df_paths, "--no-out"])
+            df = preprocess_csv_decorate.main(["--spacing", str(DEFAULT_SPACING), "--no-out"], df_merged)
+
         df = df[df["uuid"].isna() == False]  # remove rows for which the image doesn't exist
         map_poly_index_to_y = df.filter(["polygon_index"]).drop_duplicates().sort_values("polygon_index")
         map_poly_index_to_y["y"] = np.arange(len(map_poly_index_to_y))  # cols: polygon_index, y
@@ -119,8 +126,8 @@ class GeoguesserDataModule(pl.LightningDataModule):
         _class_to_centroid_map = []
         for class_idx in range(num_classes):
             row = df_class_info.loc[df_class_info["y"] == class_idx].head(1)  # ensure that only one row is taken
-            true_lat, true_lng = row["centroid_lat"].values[0], row["centroid_lng"].values[0]  # values -> ndarray with 1 dim
-            point = [true_lat, true_lng]
+            polygon_lat, polygon_lng = row["centroid_lat"].values[0], row["centroid_lng"].values[0]  # values -> ndarray with 1 dim
+            point = [polygon_lat, polygon_lng]
             _class_to_centroid_map.append(point)
         return _class_to_centroid_map
 
@@ -138,6 +145,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
         set_ind.update(dataset_val_indices)
         set_ind.update(dataset_test_indices)
         assert len(set_ind) == (len(dataset_train_indices) + len(dataset_val_indices) + len(dataset_test_indices)), "Some indices might contain non-unqiue values"
+        assert len(dataset_train_indices) > 0 and len(dataset_val_indices) > 0 and len(dataset_test_indices) > 0, "Some indices have no elements"
 
     def setup(self, stage: Optional[str] = None):
 

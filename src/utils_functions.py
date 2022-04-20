@@ -5,7 +5,7 @@ from datetime import datetime
 from math import floor
 from pathlib import Path
 from typing import List, Tuple, TypeVar, Union
-
+import time
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
@@ -196,6 +196,22 @@ def add_prefix_to_keys(dict: dict, prefix):
 
 def is_primitive(obj):
     return not hasattr(obj, "__dict__") and type(obj) is not list
+
+
+def flatten(t):
+    return [item for sublist in t for item in sublist]
+
+
+def timeit(func):
+    def timed(*args, **kwargs):
+        print("START", func.__qualname__)
+        ts = time.time()
+        result = func(*args, **kwargs)
+        te = time.time()
+        print("END", func.__qualname__, "time:", round((te - ts) * 1000, 1), "ms")
+        return result
+
+    return timed
 
 
 if __name__ == "__main__":

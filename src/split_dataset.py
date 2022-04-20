@@ -15,16 +15,14 @@ import numpy as np
 from tqdm import tqdm
 
 from defaults import DEFAULT_TEST_FRAC, DEFAULT_TRAIN_FRAC, DEFAULT_VAL_FRAC
-from utils_functions import (is_valid_dir, is_valid_fractions_array,
-                             split_by_ratio)
-from utils_paths import PATH_DATA_RAW, PATH_DATA_RAW_IMAGES
+from utils_functions import is_valid_dir, is_valid_fractions_array, split_by_ratio
 
 
 def parse_args(args):
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--dataset-dir",
-        default=PATH_DATA_RAW_IMAGES,
+        required=True,
         type=is_valid_dir,
         help="Path to the original dataset `data` directory.",
     )
@@ -32,7 +30,6 @@ def parse_args(args):
         "--out",
         metavar="dir",
         help="Directory where train/val/test directories will be created.",
-        default=PATH_DATA_RAW,
     )
 
     parser.add_argument(
@@ -56,7 +53,7 @@ def create_train_val_test_dirs(out_dir: Path):
 def main(args):
     args = parse_args(args)
     dataset_dir = args.dataset_dir
-    out_dir = args.out
+    out_dir = args.dataset_dir if args.out is None else args.out
     split_ratios = args.split_ratios
 
     uuids = sorted(next(os.walk(dataset_dir))[1])

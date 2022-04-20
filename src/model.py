@@ -16,6 +16,7 @@ from torchvision.models.resnet import model_urls as resnet_model_urls
 
 from data_module_geoguesser import GeoguesserDataModule
 from defaults import DEFAULT_EARLY_STOPPING_EPOCH_FREQ
+from utils_functions import timeit
 from utils_model import model_remove_fc
 from utils_train import multi_acc
 
@@ -66,9 +67,8 @@ class LitModel(pl.LightningModule):
 
     loggers: List[TensorBoardLogger]
 
-    def __init__(self, data_module: GeoguesserDataModule, num_classes: int, model_name, pretrained, learning_rate, weight_decay, batch_size, image_size, **kwargs):
-        print("LitModel init")
-        super().__init__()
+    def __init__(self, data_module: GeoguesserDataModule, num_classes: int, model_name, pretrained, learning_rate, weight_decay, batch_size, image_size):
+        super(LitModel, self).__init__()
 
         self.data_module = data_module
 
@@ -86,7 +86,6 @@ class LitModel(pl.LightningModule):
         self.fc = nn.Linear(self._get_last_fc_in_channels(), num_classes)
 
         self._set_example_input_array()
-
         self.save_hyperparameters()
 
     def _set_example_input_array(self):
@@ -120,6 +119,7 @@ class LitModel(pl.LightningModule):
         return out
 
     def training_step(self, batch, batch_idx):
+        print("training step")
         image_list, y, _ = batch
         y_pred = self(image_list)
 

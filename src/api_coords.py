@@ -158,16 +158,16 @@ def extract_features_from_json(json):
     if status == "OK":
         return {
             "status": status,
-            "true_lat": json["location"]["lat"],
-            "true_lng": json["location"]["lng"],
+            "latitude": json["location"]["lat"],
+            "longitude": json["location"]["lng"],
             "panorama_id": json["pano_id"],
         }
     if status != "OK" and status != "ZERO_RESULTS":
         print("Unexpected response", json)
     return {
         "status": status,
-        "true_lat": None,
-        "true_lng": None,
+        "latitude": None,
+        "longitude": None,
         "panorama_id": None,
     }
 
@@ -212,7 +212,7 @@ def main(args):
     print("Saving to file:", str(out))
 
     df = pd.read_csv(csv_path, index_col=[0])  # index_col - column which defines how rows are indexed (e.g. when `df.loc` is called)
-    df = add_columns_if_they_dont_exist(df, ["row_idx", "status", "radius", "true_lat", "true_lng", "panorama_id", "uuid"])
+    df = add_columns_if_they_dont_exist(df, ["row_idx", "status", "radius", "latitude", "longitude", "panorama_id", "uuid"])
     df = upsert_uuids(df)
     df = flip_df(df) if args.start_from_end else df
 
@@ -225,7 +225,7 @@ def main(args):
         indices = rows.index
         start_idx, end_idx = indices[0], indices[-1]
 
-        lats, lngs = rows["latitude"], rows["longitude"]
+        lats, lngs = rows["sample_latitude"], rows["sample_longitude"]
         params = [get_params_json(args.key, lat, lng, radius, url) for lat, lng in zip(lats, lngs)]
         response_json_batch = get_json_batch(url, params)
 
