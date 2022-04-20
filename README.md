@@ -14,6 +14,8 @@
 
 ## 📝 Todo
 
+- [] IMPORTANT: Weighted sum Haversine classification - Whats the current situation? We are making classifications and calling argmax to hard-classify image to a class. Centroid of this class is then used as a prediction. Why are we not taking the weighted sum (softmax probs and centroids) ? 
+
 - [] Sanity image check - open some images during the training to see if they make sense
 
 - [] Regression - Create a haversine loss functions by using torch tensor operations (you can't use sklearn). Then, replace the existing loss function. Haversine distance is similar to a residual. It might be useful to square the Haversine distance to get similar formula to MSE.
