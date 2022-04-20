@@ -18,9 +18,11 @@ def main(args):
     df = pd.concat(dfs)
     df = df.loc[:, ["uuid", "latitude", "longitude"]]
 
-    if not args.no_out:
-        print("Saving df ({}) to {}".format(len(df), args.out))
-        df.to_csv(args.out)
+    if args.no_out:
+        return df
+
+    print("Saving df ({}) to {}".format(len(df), args.out))
+    df.to_csv(args.out)
     return df
 
 

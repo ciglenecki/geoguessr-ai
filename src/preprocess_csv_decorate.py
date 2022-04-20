@@ -67,21 +67,29 @@ def append_polygons_without_data(df: pd.DataFrame, df_label_polygon_map: pd.Data
     return df
 
 
+def _handle_arguments(args, df_object):
+    path_csv = args.csv
+    no_out = args.no_out
+    out = args.out
+    out_dir_csv = out
+
+    if df_object is None and path_csv is None:
+        raise argparse.ArgumentError(args, "Provide one of the following: --csv path.csv or df_object via main function")
+
+    if not no_out:
+        if out is None:
+            if path_csv is None:
+                raise argparse.ArgumentError(args, "You want to save the datarame but you didn't provide the output path")
+            out_dir_csv = Path(path_csv).parents[0]
+    return path_csv, no_out, out_dir_csv
+
+
 def main(args, df_object=None):
     args = parse_args(args)
-    path_csv = args.csv
+    path_csv, no_out, out_dir_csv = _handle_arguments(args, df_object)
+    spacing, out_dir_fig, fig_format = args.spacing, args.out_fig, args.fig_format
 
-    if args.out is None:
-        out_dir_csv = Path(path_csv).parents[0] if path_csv else None
-    elif args.out:
-        out_dir_csv = args.out
-
-    spacing = args.spacing
-    out_dir_fig = args.out_fig
-    fig_format = args.fig_format
-    no_out = args.no_out
-
-    df = pd.read_csv(path_csv, index_col=False) if path_csv else df_object
+    df = df_object if type(df_object) is pd.DataFrame else pd.read_csv(path_csv, index_col=False)
     df_geo_csv = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.loc[:, "longitude"], df.loc[:, "latitude"]))
     df.drop("geometry", axis=1, inplace=True)  # info: GeoDataFrame somehow adds "geometry" column onto df
 
