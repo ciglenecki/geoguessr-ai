@@ -34,7 +34,7 @@ def parse_args(args):
         help="Spacing that will be used to create a grid of polygons.",
         default=DEFAULT_SPACING,
     )
-    
+
     parser.add_argument(
         "--out-fig",
         metavar="dir",
@@ -42,7 +42,7 @@ def parse_args(args):
         help="Directory where the figure will be saved",
         default=PATH_FIGURE,
     )
-    
+
     parser.add_argument(
         "--fig-format",
         type=str,
@@ -50,7 +50,7 @@ def parse_args(args):
         help="Supported file formats for matplotlib savefig",
         default="png",
     )
-    
+
     parser.add_argument(
         "--no-out",
         action="store_true",
@@ -66,7 +66,7 @@ def append_polygons_without_data(df: pd.DataFrame, df_label_polygon_map: pd.Data
     df_labels_with_images = df["polygon_index"].dropna().unique()
 
     df_polygons_without_images = df_label_polygon_map.drop(df_labels_with_images)
-    df = df.append(df_polygons_without_images)
+    df = pd.concat([df, df_polygons_without_images])
     return df
 
 
