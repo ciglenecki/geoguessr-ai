@@ -28,8 +28,8 @@ class GeoguesserDataModule(pl.LightningDataModule):
     def __init__(
         self,
         cached_df: Path,
-        dataset_dirs: List[Path] = [PATH_DATA_RAW],
-        batch_size: int = DEFAULT_BATCH_SIZE,
+        dataset_dirs: List[Path],
+        batch_size: int,
         train_frac=DEFAULT_TRAIN_FRAC,
         val_frac=DEFAULT_VAL_FRAC,
         test_frac=DEFAULT_TEST_FRAC,

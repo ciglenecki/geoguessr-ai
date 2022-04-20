@@ -119,7 +119,6 @@ class LitModel(pl.LightningModule):
         return out
 
     def training_step(self, batch, batch_idx):
-        print("training step")
         image_list, y, _ = batch
         y_pred = self(image_list)
 

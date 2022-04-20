@@ -31,7 +31,7 @@ class GeoguesserDataset(Dataset):
         self,
         df: pd.DataFrame,
         num_classes,
-        dataset_dirs: List[Path] = [PATH_DATA_RAW],
+        dataset_dirs: List[Path],
         image_transform: None | transforms.Compose = transforms.Compose([transforms.ToTensor()]),
         coordinate_transform: None | Callable = lambda x, y: np.array([x, y]).astype("float"),
         load_dataset_in_ram=DEFAULT_LOAD_DATASET_IN_RAM,
@@ -94,7 +94,6 @@ class GeoguesserDataset(Dataset):
     def __len__(self):
         return len(self.uuids)
 
-    @timeit
     def __getitem__(self, index: int):
         row = self.df_csv.iloc[index, :]
         uuid, image_latitude, image_longitude, label = self._get_row_attributes(row)

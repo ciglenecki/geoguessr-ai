@@ -34,6 +34,7 @@ def parse_args(args):
         help="Spacing that will be used to create a grid of polygons.",
         default=DEFAULT_SPACING,
     )
+    
     parser.add_argument(
         "--out-fig",
         metavar="dir",
@@ -41,6 +42,7 @@ def parse_args(args):
         help="Directory where the figure will be saved",
         default=PATH_FIGURE,
     )
+    
     parser.add_argument(
         "--fig-format",
         type=str,
@@ -48,6 +50,7 @@ def parse_args(args):
         help="Supported file formats for matplotlib savefig",
         default="png",
     )
+    
     parser.add_argument(
         "--no-out",
         action="store_true",
