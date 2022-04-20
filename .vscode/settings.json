@@ -1,9 +1,9 @@
 {
-	"files.exclude": {
-		"venv/**": true
-	},
-	"files.watcherExclude": {
-		"**/venv": true,
-		"venv/**": true
-	},
+	// "files.exclude": {
+	// 	"venv/**": true
+	// },
+	// "files.watcherExclude": {
+	// 	"**/venv": true,
+	// 	"venv/**": true
+	// },
 }

@@ -96,9 +96,9 @@ def main(args):
 
     final_df = gpd.GeoDataFrame()
     for rand_coords in tqdm(uniform_2d_generator(lat_lng_min, lat_lng_max, batch_size)):
-        df_batch = pd.DataFrame(rand_coords, columns=["sample_latitude", "sample_longitude"])
-        points_geometry = gpd.points_from_xy(df_batch.loc[:, "sample_longitude"], df_batch.loc[:, "sample_latitude"])
-        df_batch_csv = gpd.GeoDataFrame(df_batch, geometry=points_geometry, crs=croatia_crs)  # type: ignore [geopandas doesnt recognize args]
+        df_batch = pd.DataFrame(rand_coords, columns=["latitude", "longitude"])
+        points_geometry = gpd.points_from_xy(df_batch.loc[:, "longitude"], df_batch.loc[:, "latitude"])
+        df_batch_csv = gpd.GeoDataFrame(df_batch, geometry=points_geometry, crs=croatia_crs)  # type: ignore #[geopandas doesnt recognize args]
         df_batch_points_in_country = gpd.sjoin(df_batch_csv, country_shape, predicate="within").set_crs(croatia_crs)
         final_df = gpd.GeoDataFrame(pd.concat([final_df, df_batch_points_in_country]), crs=croatia_crs)
 

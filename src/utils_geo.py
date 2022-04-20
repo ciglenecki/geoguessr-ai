@@ -10,8 +10,6 @@ from shapely.geometry.point import Point
 from shapely.ops import nearest_points
 from tqdm import tqdm
 
-from utils_paths import PATH_WORLD_BORDERS
-
 
 class ClippedCentroid:
     point: Point
@@ -43,7 +41,7 @@ def get_country_shape(world_shape: gpd.GeoDataFrame, iso2: str) -> gpd.GeoDataFr
     country_shape = world_shape[world_shape["ISO2"] == iso2]
     country_shape = country_shape.explode(ignore_index=False)
     country_shape = country_shape.droplevel(0)  # we don't need country index on level 0, we work with a single country
-    return country_shape  # type: ignore [can't recognize type because of modifications]
+    return country_shape  # type: ignore #[can't recognize type because of modifications]
 
 
 def get_intersecting_polygons(grid: List[Polygon], base_shape: List[Polygon], percentage_of_intersection_threshold=0):

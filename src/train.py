@@ -3,13 +3,13 @@ from __future__ import annotations, division, print_function
 from pathlib import Path
 from pprint import pprint
 
-import numpy as np
 import pytorch_lightning as pl
 from pytorch_lightning import loggers as pl_loggers
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from pytorch_lightning.callbacks.progress.tqdm_progress import TQDMProgressBar
 from torchvision import transforms
+from torchvision.transforms import AutoAugmentPolicy
 
 from args_train import parse_args_train
 from callback_finetuning_last_n_layers import BackboneFinetuningLastLayers
@@ -17,6 +17,7 @@ from data_module_geoguesser import GeoguesserDataModule
 from defaults import DEFAULT_EARLY_STOPPING_EPOCH_FREQ
 from model import LitModel, LitSingleModel, OnTrainEpochStartLogCallback
 from utils_functions import add_prefix_to_keys, get_timestamp, is_primitive, stdout_to_file
+from calculate_norm_std import calculate_norm_std
 from utils_paths import PATH_REPORT
 
 if __name__ == "__main__":
@@ -45,15 +46,16 @@ if __name__ == "__main__":
     load_dataset_in_ram = args.load_in_ram
     use_single_images = args.use_single_images
 
-    image_transform_train = image_transform_val = transforms.Compose(
+    mean, std = calculate_norm_std(dataset_dirs)
+
+    image_transform_train = transforms.Compose(
         [
             transforms.Resize(image_size),
-            transforms.AutoAugment(policy=transforms.AutoAugmentPolicy.IMAGENET),
+            transforms.AutoAugment(policy=AutoAugmentPolicy.IMAGENET),
             transforms.ToTensor(),
-            transforms.Normalize(mean=[0.4968, 0.5138, 0.5026], std=[0.1981, 0.1921, 0.2300]),
+            transforms.Normalize(mean=mean, std=std),
         ]
     )
-    transform_labels = lambda x: np.array(x).astype("float")
 
     data_module = GeoguesserDataModule(
         cached_df=cached_df,
