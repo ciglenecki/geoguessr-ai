@@ -3,7 +3,7 @@
 /data/**/*.jpg
 /data/**/*.zip
 !data/raw_example/**
-!data/coord_sampler/**
+
 
 
 .directory
