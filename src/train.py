@@ -88,6 +88,7 @@ if __name__ == "__main__":
         callback_checkpoint = ModelCheckpoint(
             monitor="val/haversine_distance",
             filename=model_name + "__haversine_{val/haversine_distance:.4f}__val_acc_{val/acc:.2f}__val_loss_{val/loss:.2f}",
+            auto_insert_metric_name=False,
         )
         bar_refresh_rate = int(len(data_module.train_dataloader()) / pl_args.log_every_n_steps)
 
