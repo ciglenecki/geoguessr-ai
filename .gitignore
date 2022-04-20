@@ -2,9 +2,8 @@
 /data/**/*.png
 /data/**/*.jpg
 /data/**/*.zip
+data/**/*.csv
 !data/raw_example/**
-
-
 
 .directory
 
