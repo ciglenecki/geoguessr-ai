@@ -15,26 +15,11 @@ from torchvision.models.efficientnet import model_urls as efficientnet_model_url
 from torchvision.models.resnet import model_urls as resnet_model_urls
 
 from data_module_geoguesser import GeoguesserDataModule
-from defaults import DEFAULT_EARLY_STOPPING_EPOCH_FREQ
-from utils_functions import timeit
+from defaults import DEFAULT_EARLY_STOPPING_EPOCH_FREQ, DEFAULT_TORCHVISION_VERSION
 from utils_model import model_remove_fc
 from utils_train import multi_acc
 
 allowed_models = list(resnet_model_urls.keys()) + list(efficientnet_model_urls.keys())
-
-# hyperparameter_metrics_init = {
-#     "train_loss_epoch": 100000,
-#     "train_acc_epoch": 0,
-#     "val_loss_epoch": 100000,
-#     "val_acc_epoch": 0,
-#     "test_loss_epoch": 100000,
-#     "test_acc_epoch": 0,
-#     "haver_dist": 100000,
-#     "trainable_params_num": 0,
-# }
-# if self.logger:
-#         for logger in self.loggers:
-#             pass
 
 
 class OnTrainEpochStartLogCallback(pl.Callback):
@@ -70,18 +55,14 @@ class LitModel(pl.LightningModule):
     def __init__(self, data_module: GeoguesserDataModule, num_classes: int, model_name, pretrained, learning_rate, weight_decay, batch_size, image_size):
         super(LitModel, self).__init__()
 
-        self.data_module = data_module
-
-        self.df = data_module.df
         self.class_to_centroid_map = data_module.class_to_centroid_map
-
         self.learning_rate = learning_rate
         self.weight_decay = weight_decay
         self.batch_size = batch_size
         self.image_size = image_size
         self.num_classes = num_classes
 
-        backbone = torch.hub.load("pytorch/vision:v0.12.0", model_name, pretrained=pretrained)
+        backbone = torch.hub.load(DEFAULT_TORCHVISION_VERSION, model_name, pretrained=pretrained)
         self.backbone = model_remove_fc(backbone)
         self.fc = nn.Linear(self._get_last_fc_in_channels(), num_classes)
 
@@ -89,10 +70,10 @@ class LitModel(pl.LightningModule):
         self.save_hyperparameters()
 
     def _set_example_input_array(self):
-        # iteration over stack and list is the same
         num_channels = 3
-        self.example_input_array = [torch.rand(self.batch_size, num_channels, self.image_size, self.image_size)] * 4
-        self.example_input_array = torch.stack(self.example_input_array)
+        num_of_image_sides = 4
+        list_of_images = [torch.rand(self.batch_size, num_channels, self.image_size, self.image_size)] * num_of_image_sides
+        self.example_input_array = torch.stack(list_of_images)
 
     def _get_last_fc_in_channels(self) -> Any:
         """

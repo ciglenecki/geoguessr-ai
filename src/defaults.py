@@ -33,5 +33,6 @@ DEFAULT_EARLY_STOPPING_EPOCH_FREQ = 20
 
 DEFAULT_WEIGHT_DECAY = 0
 
+DEFAULT_TORCHVISION_VERSION = "pytorch/vision:v0.12.0"
 if __name__ == "__main__":
     pass

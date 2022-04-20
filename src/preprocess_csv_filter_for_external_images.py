@@ -1,6 +1,6 @@
 from pathlib import Path
 import pandas as pd
-from utils_paths import PATH_DATA, PATH_DATA_EXTERNAL, PATH_DATA_RAW, PATH_DATA_SAMPLER
+from utils_paths import PATH_DATA_EXTERNAL, PATH_DATA_SAMPLER
 import os
 import argparse
 from utils_functions import is_valid_dir

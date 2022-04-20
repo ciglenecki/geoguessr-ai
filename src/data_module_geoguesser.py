@@ -12,8 +12,8 @@ from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
 from torchvision import transforms
 
-import preprocess_csv_decorate
-import preprocess_merge_df
+import preprocess_csv_create_classes
+import preprocess_csv_concat
 from dataset_geoguesser import GeoguesserDataset
 from defaults import DEAFULT_DROP_LAST, DEAFULT_NUM_WORKERS, DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING, DEFAULT_BATCH_SIZE, DEFAULT_LOAD_DATASET_IN_RAM, DEFAULT_SPACING, DEFAULT_TEST_FRAC, DEFAULT_TRAIN_FRAC, DEFAULT_VAL_FRAC
 from utils_dataset import DatasetSplitType
@@ -105,8 +105,8 @@ class GeoguesserDataModule(pl.LightningDataModule):
             df = pd.read_csv(Path(cached_df))
         else:
             df_paths = [str(Path(dataset_dir, "data.csv")) for dataset_dir in self.dataset_dirs]
-            df_merged = preprocess_merge_df.main(["--csv", *df_paths, "--no-out"])
-            df = preprocess_csv_decorate.main(["--spacing", str(DEFAULT_SPACING), "--no-out"], df_merged)
+            df_merged = preprocess_csv_concat.main(["--csv", *df_paths, "--no-out"])
+            df = preprocess_csv_create_classes.main(["--spacing", str(DEFAULT_SPACING), "--no-out"], df_merged)
 
         df = df[df["uuid"].isna() == False]  # remove rows for which the image doesn't exist
         map_poly_index_to_y = df.filter(["polygon_index"]).drop_duplicates().sort_values("polygon_index")

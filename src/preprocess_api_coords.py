@@ -39,7 +39,13 @@ def parse_args(args):
     parser.add_argument(
         "--key",
         type=str,
-        help="Google Cloud API Key",
+        help="Google Cloud API Key https://console.cloud.google.com/google/maps-apis/credentials?project=lumen-data-science",
+        required=True,
+    )
+    parser.add_argument(
+        "--signature",
+        type=str,
+        help="Signature for sigining requests https://console.cloud.google.com/google/maps-apis/credentials?project=lumen-data-science",
         required=True,
     )
 
@@ -93,7 +99,7 @@ def get_json_batch(url, params_list: List[Dict[str, Any]]):
     return result
 
 
-def get_signature_param(url, payload):
+def get_signature_param(url, payload, signature):
     """
     explained here: https://developers.google.com/maps/documentation/streetview/digital-signature#python
     """
@@ -116,7 +122,7 @@ def get_signature_param(url, payload):
     return encoded_signature.decode()
 
 
-def get_params_json(api_key, lat, lng, radius, url):
+def get_params_json(api_key, signature, lat, lng, radius, url):
     """Constructs the json object (params) used for the get request"""
 
     payload = {
@@ -126,7 +132,7 @@ def get_params_json(api_key, lat, lng, radius, url):
         "source": "outdoor",
         "key": api_key,
     }
-    signature = get_signature_param(url, payload)
+    signature = get_signature_param(url, payload, signature)
     payload["signature"] = signature
     return payload
 
@@ -201,7 +207,7 @@ def main(args):
     GOOGLE_RATE_LIMIT_SECONDS = 60  # 25000 requests in 60 seconds
     url = "https://maps.googleapis.com/maps/api/streetview/metadata?"
     timestamp = get_timestamp()
-    batch_size, radius, override, csv_path = args.batch, args.radius, args.override, args.csv
+    batch_size, radius, override, csv_path, signature, key = args.batch, args.radius, args.override, args.csv, args.signature, args.key
 
     path_dir = Path(csv_path).parents[0]
     base_name = Path(csv_path).stem
@@ -226,7 +232,7 @@ def main(args):
         start_idx, end_idx = indices[0], indices[-1]
 
         lats, lngs = rows["sample_latitude"], rows["sample_longitude"]
-        params = [get_params_json(args.key, lat, lng, radius, url) for lat, lng in zip(lats, lngs)]
+        params = [get_params_json(key, signature, lat, lng, radius, url) for lat, lng in zip(lats, lngs)]
         response_json_batch = get_json_batch(url, params)
 
         rows_batch = [extract_features_from_json(json) for json in response_json_batch]

@@ -12,7 +12,7 @@ from torch.utils.data import Dataset
 from torchvision import transforms
 from glob import glob
 
-import preprocess_csv_decorate as preprocess_csv_decorate
+import preprocess_csv_create_classes as preprocess_csv_create_classes
 from defaults import DEFAULT_LOAD_DATASET_IN_RAM
 from utils_dataset import DatasetSplitType
 from utils_functions import flatten, one_hot_encode, timeit
