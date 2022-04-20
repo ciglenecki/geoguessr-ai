@@ -7,7 +7,7 @@
 
 .directory
 
-.idea
+.idea/
 *.ckpt
 *ignoreme*
 reports/22*
