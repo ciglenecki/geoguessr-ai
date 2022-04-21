@@ -1,8 +1,11 @@
 import os
+from glob import glob
 from pathlib import Path
 import torch
 from PIL import Image
 from torchvision.transforms import transforms
+
+from utils_functions import flatten
 from utils_dataset import DatasetSplitType
 
 
@@ -11,7 +14,8 @@ def calculate_norm_std(dataset_dirs):
 
     for dataset_dir in dataset_dirs:
         path_images = Path(dataset_dir, "images", DatasetSplitType.TRAIN.value)
-        uuids = sorted(next(os.walk(path_images))[1])
+        uuid_dir_paths = flatten([glob(str(Path(dataset_dir, "images", DatasetSplitType.TRAIN.value, "*"))) for dataset_dir in dataset_dirs])
+        uuids = [Path(uuid_dir_path).stem for uuid_dir_path in uuid_dir_paths]
         degrees = ["0", "90", "180", "270"]
         transform = transforms.ToTensor()
 
