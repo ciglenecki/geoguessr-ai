@@ -10,13 +10,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from torch.utils.data import Dataset
-
+import random
+import string
 
 class InvalidRatios(Exception):
     pass
 
 
 T = TypeVar("T")
+
 
 
 def name_without_extension(filename: Union[Path, str]):
@@ -202,6 +204,24 @@ def is_primitive(obj):
 def flatten(t):
     return [item for sublist in t for item in sublist]
 
+nato_alphabet =  {
+        'A': 'Alpha',  'B': 'Bravo',   'C': 'Charlie',
+        'D': 'Delta',  'E': 'Echo',    'F': 'Foxtrot',
+        'G': 'Golf',   'H': 'Hotel',   'I': 'India',
+        'J': 'Juliett','K': 'Kilo',    'L': 'Lima',
+        'M': 'Mike',   'N': 'November','O': 'Oscar',
+        'P': 'Papa',   'Q': 'Quebec',  'R': 'Romeo',
+        'S': 'Sierra', 'T': 'Tango',   'U': 'Uniform',
+        'V': 'Victor', 'W': 'Whiskey', 'X': 'X-ray',
+        'Y': 'Yankee', 'Z': 'Zulu'}
+
+def random_codeword():
+    """
+    Return e.g.:
+        Alpha_13, Zulu_39, X-ray_95
+    """
+    random_letter = random.choice(string.ascii_uppercase)
+    return "{}_{}".format(nato_alphabet[random_letter], random.randint(10,99))
 
 def timeit(func):
     def timed(*args, **kwargs):

@@ -1,0 +1,250 @@
+-50,17.212319343566797,46.11898835647922,False
+-51,17.58914368113986,45.93408354627673,False
+-52,18.715553000000114,45.913605000000075,False
+-53,16.292507000000114,46.53081500000013,False
+-54,16.661110000000008,46.465553000000114,False
+diff --git a/reports/figures/data_fig__spacing_0.8__num_class_26.png b/reports/figures/data_fig__spacing_0.8__num_class_26.png
+new file mode 100644
+index 0000000..b072cbd
+Binary files /dev/null and b/reports/figures/data_fig__spacing_0.8__num_class_26.png differ
+diff --git a/src/args_train.py b/src/args_train.py
+index 95f3c5e..dbae55e 100644
+--- a/src/args_train.py
++++ b/src/args_train.py
+@@ -45,6 +45,12 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
+         type=is_valid_fractions_array,
+         help="Fractions of train, validation and test that will be used to split the dataset",
+     )
++    user_group.add_argument(
++        "--regression",
++        action="store_true",
++        default=False,
++        help="Select regression model for training",
++    )
+     user_group.add_argument(
+         "-s",
+         "--dataset-frac",
+diff --git a/src/calculate_norm_std.py b/src/calculate_norm_std.py
+index cb12d17..958cc40 100644
+--- a/src/calculate_norm_std.py
++++ b/src/calculate_norm_std.py
+@@ -12,26 +12,16 @@ from utils_functions import flatten
+ from utils_dataset import DatasetSplitType
+ 
+ 
+-def calculate_norm_std(dataset_dirs, df_path):
++def calculate_norm_std(dataset_dirs):
+     channels_sum, channels_squared_sum, num_batches = 0, 0, 0
+ 
+-    df = pd.read_csv(Path(df_path))
+-    df = df[df["uuid"].isna() == False]  # remove rows for which the image doesn't exist
+-    map_poly_index_to_y = df.filter(["polygon_index"]).drop_duplicates().sort_values("polygon_index")
+-    map_poly_index_to_y["y"] = np.arange(len(map_poly_index_to_y))  # cols: polygon_index, y
+-    df = df.merge(map_poly_index_to_y, on="polygon_index")
+-
+-    lat_mean = df['latitude'].mean()
+-    lng_mean = df['longitude'].mean()
+-    lat_std = df['latitude'].std()
+-    lng_std = df['longitude'].std()
+-
++    degrees = ["0", "90", "180", "270"]
++    transform = transforms.ToTensor()
++    
+     for dataset_dir in dataset_dirs:
+         path_images = Path(dataset_dir, "images", DatasetSplitType.TRAIN.value)
+-        uuid_dir_paths = flatten([glob(str(Path(dataset_dir, "images", DatasetSplitType.TRAIN.value, "*"))) for dataset_dir in dataset_dirs])
++        uuid_dir_paths = glob(str(Path(path_images, "*")))
+         uuids = [Path(uuid_dir_path).stem for uuid_dir_path in uuid_dir_paths]
+-        degrees = ["0", "90", "180", "270"]
+-        transform = transforms.ToTensor()
+ 
+         for uuid in uuids:
+             image_dir = Path(path_images, uuid)
+@@ -46,4 +36,4 @@ def calculate_norm_std(dataset_dirs, df_path):
+     std = (channels_squared_sum / num_batches - mean**2) ** 0.5
+     print("Train dataset mean: " + str(mean))
+     print("Train dataset std: " + str(std))
+-    return mean, std, [lat_mean, lng_mean, lat_std, lng_std]
++    return mean, std
+diff --git a/src/data_module_geoguesser.py b/src/data_module_geoguesser.py
+index 777f58d..b8f7aec 100644
+--- a/src/data_module_geoguesser.py
++++ b/src/data_module_geoguesser.py
+@@ -30,7 +30,6 @@ class GeoguesserDataModule(pl.LightningDataModule):
+             cached_df: Path,
+             dataset_dirs: List[Path],
+             batch_size: int,
+-            coords_transform: None | Callable,
+             train_frac=DEFAULT_TRAIN_FRAC,
+             val_frac=DEFAULT_VAL_FRAC,
+             test_frac=DEFAULT_TEST_FRAC,
+@@ -47,7 +46,6 @@ class GeoguesserDataModule(pl.LightningDataModule):
+ 
+         self.dataset_dirs = dataset_dirs
+         self.batch_size = batch_size
+-        self.coords_transform = coords_transform
+ 
+         self.train_frac = train_frac
+         self.val_frac = val_frac
+@@ -60,8 +58,15 @@ class GeoguesserDataModule(pl.LightningDataModule):
+ 
+         """ Dataframe creation, numclasses handling and coord hashing"""
+         self.df = self._handle_dataframe(cached_df)
++        lat_mean = self.df['latitude'].mean()
++        lng_mean = self.df['longitude'].mean()
++        lat_std = self.df['latitude'].std()
++        lng_std = self.df['longitude'].std()
++        self.coords_transform = lambda lat, lng, lat_mean=lat_mean, lng_mean=lng_mean, lat_std=lat_std, lng_std=lng_std: ((lat - lat_mean) / lat_std, (lng - lng_mean) / lng_std)
++
+         self.num_classes = len(self.df["y"].drop_duplicates())
+         assert self.num_classes == self.df["y"].max() + 1, "Wrong number of classes"  # Sanity check
++        
+         self.class_to_centroid_map = torch.tensor(self._get_class_to_centroid_list(self.num_classes))
+ 
+         self.train_dataset = GeoguesserDataset(
+diff --git a/src/model.py b/src/model.py
+index a072d93..7ca596c 100644
+--- a/src/model.py
++++ b/src/model.py
+@@ -16,6 +16,7 @@ from torchvision.models.resnet import model_urls as resnet_model_urls
+ 
+ from data_module_geoguesser import GeoguesserDataModule
+ from defaults import DEFAULT_EARLY_STOPPING_EPOCH_FREQ, DEFAULT_TORCHVISION_VERSION
++from utils_functions import timeit
+ from utils_model import lat_lng_weighted_mean, model_remove_fc
+ from utils_train import multi_acc
+ 
+@@ -54,8 +55,8 @@ class LitModel(pl.LightningModule):
+ 
+     def __init__(self, data_module: GeoguesserDataModule, num_classes: int, model_name, pretrained, learning_rate, weight_decay, batch_size, image_size):
+         super(LitModel, self).__init__()
++        self.register_buffer("class_to_centroid_map", data_module.class_to_centroid_map.clone().detach()) # set self.class_to_centroid_map on gpu
+ 
+-        self.class_to_centroid_map = data_module.class_to_centroid_map
+         self.learning_rate = learning_rate
+         self.weight_decay = weight_decay
+         self.batch_size = batch_size
+@@ -67,7 +68,8 @@ class LitModel(pl.LightningModule):
+         self.fc = nn.Linear(self._get_last_fc_in_channels(), num_classes)
+ 
+         self._set_example_input_array()
+-        self.save_hyperparameters()
++        self.save_hyperparameters(ignore=["data_module"])
++
+ 
+     def _set_example_input_array(self):
+         num_channels = 3
+@@ -130,12 +132,12 @@ class LitModel(pl.LightningModule):
+     def validation_step(self, batch, batch_idx):
+         image_list, y_true, image_true_coords = batch
+         y_pred = self(image_list)
+-        
+         coord_pred = lat_lng_weighted_mean(y_pred,  self.class_to_centroid_map, top_k=5)
+         # y_pred_idx = torch.argmax(y_pred, dim=1).detach()
+         # coord_pred = self.class_to_centroid_map[y_pred_idx]
+-
++        print(image_true_coords)
+         haver_dist = np.mean(haversine_distances(coord_pred.cpu(), image_true_coords.cpu()))
++        print(haver_dist)
+ 
+         loss = F.cross_entropy(y_pred, y_true)
+         acc = multi_acc(y_pred, y_true)
+@@ -164,8 +166,10 @@ class LitModel(pl.LightningModule):
+         image_list, y, image_true_coords = batch
+         y_pred = self(image_list)
+ 
+-        y_pred_idx = torch.argmax(y_pred, dim=1).detach()
+-        coord_pred = self.class_to_centroid_map[y_pred_idx]
++        coord_pred = lat_lng_weighted_mean(y_pred,  self.class_to_centroid_map, top_k=5)
++
++        # y_pred_idx = torch.argmax(y_pred, dim=1).detach()
++        # coord_pred = self.class_to_centroid_map[y_pred_idx]
+ 
+         haver_dist = np.mean(haversine_distances(coord_pred.cpu(), image_true_coords.cpu()))
+ 
+diff --git a/src/preprocess_csv_concat.py b/src/preprocess_csv_concat.py
+index f938fdc..b54e32c 100644
+--- a/src/preprocess_csv_concat.py
++++ b/src/preprocess_csv_concat.py
+@@ -15,7 +15,7 @@ def parse_args(args):
+ def main(args):
+     args = parse_args(args)
+     dfs = [pd.read_csv(csv_path) for csv_path in args.csv]
+-    df = pd.concat(dfs)
++    df = pd.concat(dfs,ignore_index=True)
+     df = df.loc[:, ["uuid", "latitude", "longitude"]]
+ 
+     if args.no_out:
+diff --git a/src/preprocess_csv_create_classes.py b/src/preprocess_csv_create_classes.py
+index 0f530f5..ce11d85 100644
+--- a/src/preprocess_csv_create_classes.py
++++ b/src/preprocess_csv_create_classes.py
+@@ -118,14 +118,14 @@ def main(args, df_object=None):
+ 
+         if row_mask.any():  # image existis inside this polygon
+             df.loc[row_mask, "polygon_index"] = polygon_idx
+-            df.loc[row_mask, "centroid_lat"] = centroid.point.x
+-            df.loc[row_mask, "centroid_lng"] = centroid.point.y
++            df.loc[row_mask, "centroid_lng"] = centroid.point.x
++            df.loc[row_mask, "centroid_lat"] = centroid.point.y
+             df.loc[row_mask, "is_true_centroid"] = centroid.is_true_centroid
+             polys_with_data.append(polygon)
+ 
+         polygon_dict["polygon_index"].append(polygon_idx)
+-        polygon_dict["centroid_lat"].append(centroid.point.x)
+-        polygon_dict["centroid_lng"].append(centroid.point.y)
++        polygon_dict["centroid_lng"].append(centroid.point.x)
++        polygon_dict["centroid_lat"].append(centroid.point.y)
+         polygon_dict["is_true_centroid"].append(centroid.is_true_centroid)
+ 
+     df_label_polygon_map = pd.DataFrame.from_dict(polygon_dict)
+diff --git a/src/train.py b/src/train.py
+index ef6ed06..0ac7544 100644
+--- a/src/train.py
++++ b/src/train.py
+@@ -45,8 +45,9 @@ if __name__ == "__main__":
+     cached_df = args.cached_df
+     load_dataset_in_ram = args.load_in_ram
+     use_single_images = args.use_single_images
++    is_regression = args.regression
+ 
+-    mean, std, lat_lng_stats = calculate_norm_std(dataset_dirs, cached_df)
++    mean, std = calculate_norm_std(dataset_dirs)
+     # mean, std = [0.5006, 0.5116, 0.4869], [0.1966, 0.1951, 0.2355]
+ 
+     image_transform_train = transforms.Compose(
+@@ -58,13 +59,10 @@ if __name__ == "__main__":
+         ]
+     )
+ 
+-    coords_transform = lambda lat, lng, lat_mean=lat_lng_stats[0], lng_mean=lat_lng_stats[1], lat_std=lat_lng_stats[2], lng_std=lat_lng_stats[3]: ((lat - lat_mean) / lat_std, (lng - lng_mean) / lng_std)
+-
+     data_module = GeoguesserDataModule(
+         cached_df=cached_df,
+         dataset_dirs=dataset_dirs,
+         batch_size=batch_size,
+-        coords_transform=coords_transform,
+         train_frac=train_frac,
+         val_frac=val_frac,
+         test_frac=test_frac,
+@@ -115,7 +113,7 @@ if __name__ == "__main__":
+                 )
+             )
+ 
+-        model_constructor = LitSingleModel if use_single_images else LitModelReg
++        model_constructor = LitSingleModel if use_single_images else (LitModelReg if is_regression else LitModel)
+         model = model_constructor(
+             data_module=data_module,
+             num_classes=data_module.train_dataset.num_classes,
+diff --git a/src/utils_model.py b/src/utils_model.py
+index 007096f..71edbb8 100644
+--- a/src/utils_model.py
++++ b/src/utils_model.py
+@@ -59,6 +59,7 @@ def lat_lng_weighted_mean(y_pred, class_map, top_k):
+     preds = preds.repeat(*ones, 2) # [[[0.2, 0.2], [0.2, 0.2] [0.6, 0.6]], [[0.4, 0.4]...
+     
+     picked_coords = class_map[indices] # mask with indices, new column is added where data is concated. Pick only the first row [0] and drop the rest with squeeze
++    print(picked_coords)
+     scaled_coords = picked_coords * preds
+     weighted_sum = torch.sum(scaled_coords,dim=-2).squeeze()
+     return weighted_sum
