@@ -133,11 +133,8 @@ class LitModel(pl.LightningModule):
         image_list, y_true, image_true_coords = batch
         y_pred = self(image_list)
         coord_pred = lat_lng_weighted_mean(y_pred,  self.class_to_centroid_map, top_k=5)
-        # y_pred_idx = torch.argmax(y_pred, dim=1).detach()
-        # coord_pred = self.class_to_centroid_map[y_pred_idx]
-        # print(image_true_coords)
+        
         haver_dist = np.mean(haversine_distances(coord_pred.cpu(), image_true_coords.cpu()))
-        # print(haver_dist)
 
         loss = F.cross_entropy(y_pred, y_true)
         acc = multi_acc(y_pred, y_true)
@@ -167,10 +164,6 @@ class LitModel(pl.LightningModule):
         y_pred = self(image_list)
 
         coord_pred = lat_lng_weighted_mean(y_pred,  self.class_to_centroid_map, top_k=5)
-
-        # y_pred_idx = torch.argmax(y_pred, dim=1).detach()
-        # coord_pred = self.class_to_centroid_map[y_pred_idx]
-
         haver_dist = np.mean(haversine_distances(coord_pred.cpu(), image_true_coords.cpu()))
 
         loss = F.cross_entropy(y_pred, y)
@@ -224,30 +217,17 @@ class LitModel(pl.LightningModule):
 
 
 class LitModelReg(pl.LightningModule):
-    """
-    A LightningModule organizes PyTorch code into 6 sections:
-    1. Model and computations (init).
-    2. Train Loop (training_step)
-    3. Validation Loop (validation_step)
-    4. Test Loop (test_step)
-    5. Prediction Loop (predict_step)
-    6. Optimizers and LR Schedulers (configure_optimizers)
-
-    LightningModule can itself be used as a model object. This is because `forward` function is exposed and can be used. Then, instead of using self.backbone(x) we can write self(x). See: https://pytorch-lightning.readthedocs.io/en/latest/common/lightning_module.html#starter-example
-    """
-
+    
     loggers: List[TensorBoardLogger]
 
     def __init__(self, data_module: GeoguesserDataModule, num_classes: int, model_name, pretrained, learning_rate,
                  weight_decay, batch_size, image_size):
         super(LitModelReg, self).__init__()
 
-        self.class_to_centroid_map = data_module.class_to_centroid_map
         self.learning_rate = learning_rate
         self.weight_decay = weight_decay
         self.batch_size = batch_size
         self.image_size = image_size
-        self.num_classes = num_classes
 
         backbone = torch.hub.load(DEFAULT_TORCHVISION_VERSION, model_name, pretrained=pretrained)
         self.backbone = model_remove_fc(backbone)
@@ -286,19 +266,17 @@ class LitModelReg(pl.LightningModule):
         out_backbone_cat = torch.cat(outs_backbone, dim=1)
         out_flatten = torch.flatten(out_backbone_cat, 1)
         out = self.fc(out_flatten)
-        return out.double()
+        return out
 
     def training_step(self, batch, batch_idx):
-        image_list, y, image_true_coords = batch
+        image_list, _, image_true_coords = batch
         y_pred = self(image_list)
 
         loss = F.mse_loss(y_pred, image_true_coords)
-        acc = multi_acc(y_pred, image_true_coords)
 
         data_dict = {
             "loss": loss,  # the 'loss' key needs to be present
             "train/loss": loss,
-            "train/acc": acc,
         }
         log_dict = data_dict.copy()
         log_dict.pop("loss", None)
@@ -307,31 +285,21 @@ class LitModelReg(pl.LightningModule):
 
     def training_epoch_end(self, outs):
         loss = sum(map(lambda x: x["train/loss"], outs)) / len(outs)
-        acc = sum(map(lambda x: x["train/acc"], outs)) / len(outs)
         log_dict = {
             "train/loss_epoch": loss,
-            "train/acc_epoch": acc,
             "step": self.current_epoch,  # explicitly set the x axis
         }
-
         self.log_dict(log_dict)
 
     def validation_step(self, batch, batch_idx):
-        image_list, y_true, image_true_coords = batch
+        image_list, _, image_true_coords = batch
         y_pred = self(image_list)
-
-        # coord_pred = lat_lng_weighted_mean(y_pred, self.class_to_centroid_map, top_k=5)
-        # y_pred_idx = torch.argmax(y_pred, dim=1).detach()
-        # coord_pred = self.class_to_centroid_map[y_pred_idx]
-
         haver_dist = np.mean(haversine_distances(y_pred.cpu(), image_true_coords.cpu()))
 
         loss = F.mse_loss(y_pred, image_true_coords)
-        acc = multi_acc(y_pred, image_true_coords)
         data_dict = {
             "loss": loss,  # the 'loss' key needs to be present
             "val/loss": loss,
-            "val/acc": acc,
             "val/haversine_distance": haver_dist,
         }
         log_dict = data_dict.copy()
@@ -341,29 +309,21 @@ class LitModelReg(pl.LightningModule):
 
     def validation_epoch_end(self, outs):
         loss = sum(map(lambda x: x["val/loss"], outs)) / len(outs)
-        acc = sum(map(lambda x: x["val/acc"], outs)) / len(outs)
         log_dict = {
             "val/loss_epoch": loss,
-            "val/acc_epoch": acc,
             "step": self.current_epoch,
         }
         self.log_dict(log_dict)
 
     def test_step(self, batch, batch_idx):
-        image_list, y, image_true_coords = batch
+        image_list, _, image_true_coords = batch
         y_pred = self(image_list)
-
-        # y_pred_idx = torch.argmax(y_pred, dim=1).detach()
-        # coord_pred = self.class_to_centroid_map[y_pred_idx]
-
         haver_dist = np.mean(haversine_distances(y_pred.cpu(), image_true_coords.cpu()))
 
         loss = F.mse_loss(y_pred, image_true_coords)
-        acc = multi_acc(y_pred, image_true_coords)
         data_dict = {
             "loss": loss,  # the 'loss' key needs to be present
             "test/loss": loss,
-            "test/acc": acc,
             "test/haversine_distance": haver_dist,
         }
         log_dict = data_dict.copy()
@@ -373,10 +333,8 @@ class LitModelReg(pl.LightningModule):
 
     def test_epoch_end(self, outs):
         loss = sum(map(lambda x: x["test/loss"], outs)) / len(outs)
-        acc = sum(map(lambda x: x["test/acc"], outs)) / len(outs)
         log_dict = {
             "test/loss_epoch": loss,
-            "test/acc_epoch": acc,
             "step": self.current_epoch,
         }
         self.log_dict(log_dict)

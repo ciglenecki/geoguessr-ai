@@ -199,12 +199,3 @@ class GeoguesserDataModule(pl.LightningDataModule):
 
 if __name__ == "__main__":
     pass
-
-# if __name__ == "__main__":
-#     print("This file shouldn't be called as a script unless used for debugging.")
-#     module = GeoguesserDataModule()
-#     module.setup()
-#     train_loader = module.train_dataloader()
-#     for i in train_loader:
-#         print(i)
-#         break
