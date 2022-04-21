@@ -62,6 +62,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
         self.df = self._handle_dataframe(cached_df)
         self.num_classes = len(self.df["y"].drop_duplicates())
         assert self.num_classes == self.df["y"].max() + 1, "Wrong number of classes"  # Sanity check
+        
         self.class_to_centroid_map = torch.tensor(self._get_class_to_centroid_list(self.num_classes))
 
         self.train_dataset = GeoguesserDataset(

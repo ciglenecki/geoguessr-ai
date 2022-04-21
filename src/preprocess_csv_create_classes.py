@@ -118,14 +118,14 @@ def main(args, df_object=None):
 
         if row_mask.any():  # image existis inside this polygon
             df.loc[row_mask, "polygon_index"] = polygon_idx
-            df.loc[row_mask, "centroid_lat"] = centroid.point.x
-            df.loc[row_mask, "centroid_lng"] = centroid.point.y
+            df.loc[row_mask, "centroid_lng"] = centroid.point.x
+            df.loc[row_mask, "centroid_lat"] = centroid.point.y
             df.loc[row_mask, "is_true_centroid"] = centroid.is_true_centroid
             polys_with_data.append(polygon)
 
         polygon_dict["polygon_index"].append(polygon_idx)
-        polygon_dict["centroid_lat"].append(centroid.point.x)
-        polygon_dict["centroid_lng"].append(centroid.point.y)
+        polygon_dict["centroid_lng"].append(centroid.point.x)
+        polygon_dict["centroid_lat"].append(centroid.point.y)
         polygon_dict["is_true_centroid"].append(centroid.is_true_centroid)
 
     df_label_polygon_map = pd.DataFrame.from_dict(polygon_dict)

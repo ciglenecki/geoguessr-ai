@@ -16,6 +16,7 @@ from torchvision.models.resnet import model_urls as resnet_model_urls
 
 from data_module_geoguesser import GeoguesserDataModule
 from defaults import DEFAULT_EARLY_STOPPING_EPOCH_FREQ, DEFAULT_TORCHVISION_VERSION
+from utils_functions import timeit
 from utils_model import lat_lng_weighted_mean, model_remove_fc
 from utils_train import multi_acc
 
@@ -54,8 +55,8 @@ class LitModel(pl.LightningModule):
 
     def __init__(self, data_module: GeoguesserDataModule, num_classes: int, model_name, pretrained, learning_rate, weight_decay, batch_size, image_size):
         super(LitModel, self).__init__()
+        self.register_buffer("class_to_centroid_map", data_module.class_to_centroid_map.clone().detach()) # set self.class_to_centroid_map on gpu
 
-        self.class_to_centroid_map = data_module.class_to_centroid_map
         self.learning_rate = learning_rate
         self.weight_decay = weight_decay
         self.batch_size = batch_size
@@ -67,7 +68,8 @@ class LitModel(pl.LightningModule):
         self.fc = nn.Linear(self._get_last_fc_in_channels(), num_classes)
 
         self._set_example_input_array()
-        self.save_hyperparameters()
+        self.save_hyperparameters(ignore=["data_module"])
+
 
     def _set_example_input_array(self):
         num_channels = 3
@@ -130,12 +132,12 @@ class LitModel(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         image_list, y_true, image_true_coords = batch
         y_pred = self(image_list)
-        
         coord_pred = lat_lng_weighted_mean(y_pred,  self.class_to_centroid_map, top_k=5)
         # y_pred_idx = torch.argmax(y_pred, dim=1).detach()
         # coord_pred = self.class_to_centroid_map[y_pred_idx]
-
+        print(image_true_coords)
         haver_dist = np.mean(haversine_distances(coord_pred.cpu(), image_true_coords.cpu()))
+        print(haver_dist)
 
         loss = F.cross_entropy(y_pred, y_true)
         acc = multi_acc(y_pred, y_true)
@@ -164,8 +166,10 @@ class LitModel(pl.LightningModule):
         image_list, y, image_true_coords = batch
         y_pred = self(image_list)
 
-        y_pred_idx = torch.argmax(y_pred, dim=1).detach()
-        coord_pred = self.class_to_centroid_map[y_pred_idx]
+        coord_pred = lat_lng_weighted_mean(y_pred,  self.class_to_centroid_map, top_k=5)
+
+        # y_pred_idx = torch.argmax(y_pred, dim=1).detach()
+        # coord_pred = self.class_to_centroid_map[y_pred_idx]
 
         haver_dist = np.mean(haversine_distances(coord_pred.cpu(), image_true_coords.cpu()))
 
