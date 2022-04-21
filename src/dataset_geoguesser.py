@@ -30,7 +30,7 @@ class GeoguesserDataset(Dataset):
         num_classes,
         dataset_dirs: List[Path],
         image_transform: None | transforms.Compose = transforms.Compose([transforms.ToTensor()]),
-        coordinate_transform: None | Callable = lambda x, y: np.array([x, y]).astype("float"),
+        coordinate_transform: None | Callable = lambda lat_mean, y: np.array([x, y]).astype("float"),
         load_dataset_in_ram=DEFAULT_LOAD_DATASET_IN_RAM,
         dataset_type: DatasetSplitType = DatasetSplitType.TRAIN,
     ) -> None:
@@ -106,7 +106,7 @@ class GeoguesserDataset(Dataset):
             images = [transform(image) for image in images]
         if self.coordinate_transform is not None:
             transform = self.coordinate_transform
-            image_latitude, image_longitude = self.coordinate_transform(image_latitude, image_longitude)
+            image_latitude, image_longitude = transform(image_latitude, image_longitude)
 
         image_coords = torch.tensor([image_latitude, image_longitude])
         return images, label, image_coords
