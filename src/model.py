@@ -135,8 +135,9 @@ class LitModel(pl.LightningModule):
         coord_pred = lat_lng_weighted_mean(y_pred,  self.class_to_centroid_map, top_k=5)
         # y_pred_idx = torch.argmax(y_pred, dim=1).detach()
         # coord_pred = self.class_to_centroid_map[y_pred_idx]
-
+        print(image_true_coords)
         haver_dist = np.mean(haversine_distances(coord_pred.cpu(), image_true_coords.cpu()))
+        print(haver_dist)
 
         loss = F.cross_entropy(y_pred, y_true)
         acc = multi_acc(y_pred, y_true)
