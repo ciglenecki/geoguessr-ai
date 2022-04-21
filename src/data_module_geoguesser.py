@@ -33,7 +33,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
             train_frac=DEFAULT_TRAIN_FRAC,
             val_frac=DEFAULT_VAL_FRAC,
             test_frac=DEFAULT_TEST_FRAC,
-            image_transform: None | transforms.Compose = transforms.Compose([transforms.ToTensor()]),
+            image_transform: transforms.Compose = transforms.Compose([transforms.ToTensor()]),
             num_workers=DEAFULT_NUM_WORKERS,
             drop_last=DEAFULT_DROP_LAST,
             shuffle_before_splitting=DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING,
@@ -62,7 +62,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
         lng_mean = self.df['longitude'].mean()
         lat_std = self.df['latitude'].std()
         lng_std = self.df['longitude'].std()
-        self.coords_transform = lambda lat, lng, lat_mean=lat_mean, lng_mean=lng_mean, lat_std=lat_std, lng_std=lng_std: ((lat - lat_mean) / lat_std, (lng - lng_mean) / lng_std)
+        self.coords_transform = lambda lat, lng, lat_mean=lat_mean, lng_mean=lng_mean, lat_std=lat_std, lng_std=lng_std: torch.tensor([(lat - lat_mean) / lat_std, (lng - lng_mean) / lng_std]).float()
 
         self.num_classes = len(self.df["y"].drop_duplicates())
         assert self.num_classes == self.df["y"].max() + 1, "Wrong number of classes"  # Sanity check
