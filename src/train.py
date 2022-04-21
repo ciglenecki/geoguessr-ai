@@ -45,6 +45,7 @@ if __name__ == "__main__":
     cached_df = args.cached_df
     load_dataset_in_ram = args.load_in_ram
     use_single_images = args.use_single_images
+    is_regression = args.regression
 
     mean, std, lat_lng_stats = calculate_norm_std(dataset_dirs, cached_df)
     # mean, std = [0.5006, 0.5116, 0.4869], [0.1966, 0.1951, 0.2355]
@@ -115,7 +116,7 @@ if __name__ == "__main__":
                 )
             )
 
-        model_constructor = LitSingleModel if use_single_images else LitModelReg
+        model_constructor = LitSingleModel if use_single_images else (LitModelReg if is_regression else LitModel)
         model = model_constructor(
             data_module=data_module,
             num_classes=data_module.train_dataset.num_classes,

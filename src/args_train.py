@@ -46,6 +46,12 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
         help="Fractions of train, validation and test that will be used to split the dataset",
     )
     user_group.add_argument(
+        "--regression",
+        action="store_true",
+        default=False,
+        help="Select regression model for training",
+    )
+    user_group.add_argument(
         "-s",
         "--dataset-frac",
         metavar="float",
