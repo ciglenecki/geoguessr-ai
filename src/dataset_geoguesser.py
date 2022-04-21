@@ -1,6 +1,6 @@
 from __future__ import annotations, division, print_function
 
-import os
+from glob import glob
 from pathlib import Path
 from typing import Callable, List, Tuple
 
@@ -10,13 +10,10 @@ import torch
 from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
-from glob import glob
 
-import preprocess_csv_create_classes as preprocess_csv_create_classes
 from defaults import DEFAULT_LOAD_DATASET_IN_RAM
 from utils_dataset import DatasetSplitType
-from utils_functions import flatten, one_hot_encode, timeit
-from utils_paths import PATH_DATA_RAW
+from utils_functions import flatten, one_hot_encode
 
 
 class GeoguesserDataset(Dataset):

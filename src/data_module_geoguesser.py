@@ -12,12 +12,12 @@ from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
 from torchvision import transforms
 
-import preprocess_csv_create_classes
 import preprocess_csv_concat
+import preprocess_csv_create_classes
 from dataset_geoguesser import GeoguesserDataset
-from defaults import DEAFULT_DROP_LAST, DEAFULT_NUM_WORKERS, DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING, DEFAULT_BATCH_SIZE, DEFAULT_LOAD_DATASET_IN_RAM, DEFAULT_SPACING, DEFAULT_TEST_FRAC, DEFAULT_TRAIN_FRAC, DEFAULT_VAL_FRAC
+from defaults import DEAFULT_DROP_LAST, DEAFULT_NUM_WORKERS, DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING, \
+    DEFAULT_LOAD_DATASET_IN_RAM, DEFAULT_SPACING, DEFAULT_TEST_FRAC, DEFAULT_TRAIN_FRAC, DEFAULT_VAL_FRAC
 from utils_dataset import DatasetSplitType
-from utils_paths import PATH_DATA_RAW
 
 
 class InvalidSizes(Exception):
