@@ -92,7 +92,7 @@ class LitModel(pl.LightningModule):
 
     def get_num_of_trainable_params(self):
         return sum(param.numel() for param in self.parameters() if param.requires_grad)
-    @timeit
+
     def forward(self, image_list, *args, **kwargs) -> Any:
         outs_backbone = [self.backbone(image) for image in image_list]
         out_backbone_cat = torch.cat(outs_backbone, dim=1)
