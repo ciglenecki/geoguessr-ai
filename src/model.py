@@ -55,8 +55,8 @@ class LitModel(pl.LightningModule):
 
     def __init__(self, data_module: GeoguesserDataModule, num_classes: int, model_name, pretrained, learning_rate, weight_decay, batch_size, image_size):
         super(LitModel, self).__init__()
+        self.register_buffer("class_to_centroid_map", data_module.class_to_centroid_map.clone().detach()) # set self.class_to_centroid_map on gpu
 
-        self.register_buffer("class_to_centroid_map", data_module.class_to_centroid_map.clone().detach())
         self.learning_rate = learning_rate
         self.weight_decay = weight_decay
         self.batch_size = batch_size
@@ -68,7 +68,7 @@ class LitModel(pl.LightningModule):
         self.fc = nn.Linear(self._get_last_fc_in_channels(), num_classes)
 
         self._set_example_input_array()
-        self.save_hyperparameters()
+        self.save_hyperparameters(ignore=["data_module"])
 
 
     def _set_example_input_array(self):
