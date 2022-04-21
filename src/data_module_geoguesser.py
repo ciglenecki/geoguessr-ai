@@ -62,7 +62,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
         assert self.num_classes == self.df["y"].max() + 1, "Wrong number of classes"  # Sanity check
         
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        self.class_to_centroid_map = torch.Tensor(self._get_class_to_centroid_list(self.num_classes), device=device)# good 
+        self.class_to_centroid_map = torch.tensor(self._get_class_to_centroid_list(self.num_classes), device=device)# good 
 
         self.train_dataset = GeoguesserDataset(
             df=self.df,
