@@ -251,7 +251,7 @@ class LitModelReg(pl.LightningModule):
 
         backbone = torch.hub.load(DEFAULT_TORCHVISION_VERSION, model_name, pretrained=pretrained)
         self.backbone = model_remove_fc(backbone)
-        self.fc = nn.Linear(self._get_last_fc_in_channels(), batch_size)
+        self.fc = nn.Linear(self._get_last_fc_in_channels(), 2)
 
         self._set_example_input_array()
         self.save_hyperparameters()
