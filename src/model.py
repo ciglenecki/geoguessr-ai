@@ -56,7 +56,7 @@ class LitModel(pl.LightningModule):
     def __init__(self, data_module: GeoguesserDataModule, num_classes: int, model_name, pretrained, learning_rate, weight_decay, batch_size, image_size):
         super(LitModel, self).__init__()
 
-        self.class_to_centroid_map = data_module.class_to_centroid_map
+        self.class_to_centroid_map = torch.tensor(data_module.class_to_centroid_map, device=self.device)
         self.learning_rate = learning_rate
         self.weight_decay = weight_decay
         self.batch_size = batch_size
