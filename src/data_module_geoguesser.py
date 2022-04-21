@@ -30,7 +30,6 @@ class GeoguesserDataModule(pl.LightningDataModule):
             cached_df: Path,
             dataset_dirs: List[Path],
             batch_size: int,
-            coords_transform: None | Callable,
             train_frac=DEFAULT_TRAIN_FRAC,
             val_frac=DEFAULT_VAL_FRAC,
             test_frac=DEFAULT_TEST_FRAC,
@@ -47,7 +46,6 @@ class GeoguesserDataModule(pl.LightningDataModule):
 
         self.dataset_dirs = dataset_dirs
         self.batch_size = batch_size
-        self.coords_transform = coords_transform
 
         self.train_frac = train_frac
         self.val_frac = val_frac
@@ -60,6 +58,12 @@ class GeoguesserDataModule(pl.LightningDataModule):
 
         """ Dataframe creation, numclasses handling and coord hashing"""
         self.df = self._handle_dataframe(cached_df)
+        lat_mean = self.df['latitude'].mean()
+        lng_mean = self.df['longitude'].mean()
+        lat_std = self.df['latitude'].std()
+        lng_std = self.df['longitude'].std()
+        self.coords_transform = lambda lat, lng, lat_mean=lat_mean, lng_mean=lng_mean, lat_std=lat_std, lng_std=lng_std: ((lat - lat_mean) / lat_std, (lng - lng_mean) / lng_std)
+
         self.num_classes = len(self.df["y"].drop_duplicates())
         assert self.num_classes == self.df["y"].max() + 1, "Wrong number of classes"  # Sanity check
         

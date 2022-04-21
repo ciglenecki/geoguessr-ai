@@ -47,7 +47,7 @@ if __name__ == "__main__":
     use_single_images = args.use_single_images
     is_regression = args.regression
 
-    mean, std, lat_lng_stats = calculate_norm_std(dataset_dirs, cached_df)
+    mean, std = calculate_norm_std(dataset_dirs, cached_df)
     # mean, std = [0.5006, 0.5116, 0.4869], [0.1966, 0.1951, 0.2355]
 
     image_transform_train = transforms.Compose(
@@ -59,13 +59,10 @@ if __name__ == "__main__":
         ]
     )
 
-    coords_transform = lambda lat, lng, lat_mean=lat_lng_stats[0], lng_mean=lat_lng_stats[1], lat_std=lat_lng_stats[2], lng_std=lat_lng_stats[3]: ((lat - lat_mean) / lat_std, (lng - lng_mean) / lng_std)
-
     data_module = GeoguesserDataModule(
         cached_df=cached_df,
         dataset_dirs=dataset_dirs,
         batch_size=batch_size,
-        coords_transform=coords_transform,
         train_frac=train_frac,
         val_frac=val_frac,
         test_frac=test_frac,
