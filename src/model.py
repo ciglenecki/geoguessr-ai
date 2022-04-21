@@ -16,6 +16,7 @@ from torchvision.models.resnet import model_urls as resnet_model_urls
 
 from data_module_geoguesser import GeoguesserDataModule
 from defaults import DEFAULT_EARLY_STOPPING_EPOCH_FREQ, DEFAULT_TORCHVISION_VERSION
+from utils_functions import timeit
 from utils_model import lat_lng_weighted_mean, model_remove_fc
 from utils_train import multi_acc
 
@@ -91,7 +92,7 @@ class LitModel(pl.LightningModule):
 
     def get_num_of_trainable_params(self):
         return sum(param.numel() for param in self.parameters() if param.requires_grad)
-
+    @timeit
     def forward(self, image_list, *args, **kwargs) -> Any:
         outs_backbone = [self.backbone(image) for image in image_list]
         out_backbone_cat = torch.cat(outs_backbone, dim=1)
