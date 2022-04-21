@@ -15,7 +15,7 @@ from args_train import parse_args_train
 from callback_finetuning_last_n_layers import BackboneFinetuningLastLayers
 from data_module_geoguesser import GeoguesserDataModule
 from defaults import DEFAULT_EARLY_STOPPING_EPOCH_FREQ
-from model import LitModel, LitSingleModel, OnTrainEpochStartLogCallback
+from model import LitModel, LitSingleModel, OnTrainEpochStartLogCallback, LitModelReg
 from utils_functions import add_prefix_to_keys, get_timestamp, is_primitive, stdout_to_file
 from calculate_norm_std import calculate_norm_std
 from utils_paths import PATH_REPORT
@@ -112,7 +112,7 @@ if __name__ == "__main__":
                 )
             )
 
-        model_constructor = LitSingleModel if use_single_images else LitModel
+        model_constructor = LitSingleModel if use_single_images else LitModelReg
         model = model_constructor(
             data_module=data_module,
             num_classes=data_module.train_dataset.num_classes,

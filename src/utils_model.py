@@ -63,6 +63,7 @@ def lat_lng_weighted_mean(y_pred, class_map, top_k):
     weighted_sum = torch.sum(scaled_coords,dim=-2).squeeze()
     return weighted_sum
 
+
 class Identity(nn.Module):
     def __init__(self):
         super(Identity, self).__init__()
