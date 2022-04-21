@@ -12,15 +12,16 @@ from utils_functions import flatten
 from utils_dataset import DatasetSplitType
 
 
-def calculate_norm_std(dataset_dirs, df_path):
+def calculate_norm_std(dataset_dirs):
     channels_sum, channels_squared_sum, num_batches = 0, 0, 0
 
+    degrees = ["0", "90", "180", "270"]
+    transform = transforms.ToTensor()
+    
     for dataset_dir in dataset_dirs:
         path_images = Path(dataset_dir, "images", DatasetSplitType.TRAIN.value)
-        uuid_dir_paths = flatten([glob(str(Path(dataset_dir, "images", DatasetSplitType.TRAIN.value, "*"))) for dataset_dir in dataset_dirs])
+        uuid_dir_paths = glob(str(Path(path_images, "*")))
         uuids = [Path(uuid_dir_path).stem for uuid_dir_path in uuid_dir_paths]
-        degrees = ["0", "90", "180", "270"]
-        transform = transforms.ToTensor()
 
         for uuid in uuids:
             image_dir = Path(path_images, uuid)

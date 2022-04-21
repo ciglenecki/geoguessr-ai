@@ -47,7 +47,7 @@ if __name__ == "__main__":
     use_single_images = args.use_single_images
     is_regression = args.regression
 
-    mean, std = calculate_norm_std(dataset_dirs, cached_df)
+    mean, std = calculate_norm_std(dataset_dirs)
     # mean, std = [0.5006, 0.5116, 0.4869], [0.1966, 0.1951, 0.2355]
 
     image_transform_train = transforms.Compose(
