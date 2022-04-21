@@ -25,14 +25,14 @@ class GeoguesserDataset(Dataset):
     """
 
     def __init__(
-        self,
-        df: pd.DataFrame,
-        num_classes,
-        dataset_dirs: List[Path],
-        image_transform: None | transforms.Compose = transforms.Compose([transforms.ToTensor()]),
-        coordinate_transform: None | Callable = lambda lat_mean, y: np.array([x, y]).astype("float"),
-        load_dataset_in_ram=DEFAULT_LOAD_DATASET_IN_RAM,
-        dataset_type: DatasetSplitType = DatasetSplitType.TRAIN,
+            self,
+            df: pd.DataFrame,
+            num_classes,
+            dataset_dirs: List[Path],
+            coordinate_transform: None | Callable,
+            image_transform: None | transforms.Compose = transforms.Compose([transforms.ToTensor()]),
+            load_dataset_in_ram=DEFAULT_LOAD_DATASET_IN_RAM,
+            dataset_type: DatasetSplitType = DatasetSplitType.TRAIN,
     ) -> None:
         print("GeoguesserDataset init")
         super().__init__()
@@ -40,7 +40,8 @@ class GeoguesserDataset(Dataset):
         self.image_transform = image_transform
         self.coordinate_transform = coordinate_transform
 
-        self.uuid_dir_paths = flatten([glob(str(Path(dataset_dir, "images", dataset_type.value, "*"))) for dataset_dir in dataset_dirs])
+        self.uuid_dir_paths = flatten(
+            [glob(str(Path(dataset_dir, "images", dataset_type.value, "*"))) for dataset_dir in dataset_dirs])
         self.uuids = [Path(uuid_dir_path).stem for uuid_dir_path in self.uuid_dir_paths]
         self.df_csv = df
         self.num_classes = num_classes
@@ -60,7 +61,8 @@ class GeoguesserDataset(Dataset):
         image_cache = {}
         for uuid, uuid_dir_path in zip(self.uuids, self.uuid_dir_paths):
             image_filepaths = [Path(uuid_dir_path, "{}.jpg".format(degree)) for degree in self.degrees]
-            cache_item = [Image.open(image_path) for image_path in image_filepaths] if self.load_dataset_in_ram else image_filepaths
+            cache_item = [Image.open(image_path) for image_path in
+                          image_filepaths] if self.load_dataset_in_ram else image_filepaths
             image_cache[uuid] = cache_item
         return image_cache
 

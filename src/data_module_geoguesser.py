@@ -2,7 +2,7 @@ from __future__ import annotations, division
 
 from itertools import combinations
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Callable
 
 import numpy as np
 import pandas as pd
@@ -26,18 +26,19 @@ class InvalidSizes(Exception):
 
 class GeoguesserDataModule(pl.LightningDataModule):
     def __init__(
-        self,
-        cached_df: Path,
-        dataset_dirs: List[Path],
-        batch_size: int,
-        train_frac=DEFAULT_TRAIN_FRAC,
-        val_frac=DEFAULT_VAL_FRAC,
-        test_frac=DEFAULT_TEST_FRAC,
-        image_transform: None | transforms.Compose = transforms.Compose([transforms.ToTensor()]),
-        num_workers=DEAFULT_NUM_WORKERS,
-        drop_last=DEAFULT_DROP_LAST,
-        shuffle_before_splitting=DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING,
-        load_dataset_in_ram=DEFAULT_LOAD_DATASET_IN_RAM,
+            self,
+            cached_df: Path,
+            dataset_dirs: List[Path],
+            batch_size: int,
+            coords_transform: None | Callable,
+            train_frac=DEFAULT_TRAIN_FRAC,
+            val_frac=DEFAULT_VAL_FRAC,
+            test_frac=DEFAULT_TEST_FRAC,
+            image_transform: None | transforms.Compose = transforms.Compose([transforms.ToTensor()]),
+            num_workers=DEAFULT_NUM_WORKERS,
+            drop_last=DEAFULT_DROP_LAST,
+            shuffle_before_splitting=DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING,
+            load_dataset_in_ram=DEFAULT_LOAD_DATASET_IN_RAM,
     ) -> None:
         super().__init__()
         print("GeoguesserDataModule init")
@@ -46,6 +47,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
 
         self.dataset_dirs = dataset_dirs
         self.batch_size = batch_size
+        self.coords_transform = coords_transform
 
         self.train_frac = train_frac
         self.val_frac = val_frac
@@ -69,6 +71,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
             image_transform=self.image_transform,
             load_dataset_in_ram=load_dataset_in_ram,
             dataset_type=DatasetSplitType.TRAIN,
+            coordinate_transform=self.coords_transform
         )
 
         self.val_dataset = GeoguesserDataset(
@@ -78,6 +81,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
             image_transform=self.image_transform,
             load_dataset_in_ram=load_dataset_in_ram,
             dataset_type=DatasetSplitType.VAL,
+            coordinate_transform=self.coords_transform
         )
 
         self.test_dataset = GeoguesserDataset(
@@ -87,6 +91,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
             image_transform=self.image_transform,
             load_dataset_in_ram=load_dataset_in_ram,
             dataset_type=DatasetSplitType.TEST,
+            coordinate_transform=self.coords_transform
         )
 
     def _handle_dataframe(self, cached_df: Union[Path, None]):
@@ -122,11 +127,13 @@ class GeoguesserDataModule(pl.LightningDataModule):
         Itterate over the information of each valid polygon/class and return it's centroids
         """
 
-        df_class_info = self.df.loc[:, ["polygon_index", "y", "centroid_lat", "centroid_lng", "is_true_centroid"]].drop_duplicates()
+        df_class_info = self.df.loc[:,
+                        ["polygon_index", "y", "centroid_lat", "centroid_lng", "is_true_centroid"]].drop_duplicates()
         _class_to_centroid_map = []
         for class_idx in range(num_classes):
             row = df_class_info.loc[df_class_info["y"] == class_idx].head(1)  # ensure that only one row is taken
-            polygon_lat, polygon_lng = row["centroid_lat"].values[0], row["centroid_lng"].values[0]  # values -> ndarray with 1 dim
+            polygon_lat, polygon_lng = row["centroid_lat"].values[0], row["centroid_lng"].values[
+                0]  # values -> ndarray with 1 dim
             point = [polygon_lat, polygon_lng]
             _class_to_centroid_map.append(point)
         return _class_to_centroid_map
@@ -138,20 +145,26 @@ class GeoguesserDataModule(pl.LightningDataModule):
     def prepare_data(self) -> None:
         pass
 
-    def _sanity_check_indices(self, dataset_train_indices: np.ndarray, dataset_val_indices: np.ndarray, dataset_test_indices: np.ndarray):
+    def _sanity_check_indices(self, dataset_train_indices: np.ndarray, dataset_val_indices: np.ndarray,
+                              dataset_test_indices: np.ndarray):
         for ind_a, ind_b in combinations([dataset_train_indices, dataset_val_indices, dataset_test_indices], 2):
             assert len(np.intersect1d(ind_a, ind_b)) == 0, "Some indices share an index"
         set_ind = set(dataset_train_indices)
         set_ind.update(dataset_val_indices)
         set_ind.update(dataset_test_indices)
-        assert len(set_ind) == (len(dataset_train_indices) + len(dataset_val_indices) + len(dataset_test_indices)), "Some indices might contain non-unqiue values"
-        assert len(dataset_train_indices) > 0 and len(dataset_val_indices) > 0 and len(dataset_test_indices) > 0, "Some indices have no elements"
+        assert len(set_ind) == (len(dataset_train_indices) + len(dataset_val_indices) + len(
+            dataset_test_indices)), "Some indices might contain non-unqiue values"
+        assert len(dataset_train_indices) > 0 and len(dataset_val_indices) > 0 and len(
+            dataset_test_indices) > 0, "Some indices have no elements"
 
     def setup(self, stage: Optional[str] = None):
 
-        dataset_train_indices = self.df.index[self.df["uuid"].isin(self.train_dataset.uuids)].to_list()  # type: ignore # [indices can be converted to list]
-        dataset_val_indices = self.df.index[self.df["uuid"].isin(self.val_dataset.uuids)].to_list()  # type: ignore # [indices can be converted to list]
-        dataset_test_indices = self.df.index[self.df["uuid"].isin(self.test_dataset.uuids)].to_list()  # type: ignore # [indices can be converted to list]
+        dataset_train_indices = self.df.index[self.df["uuid"].isin(
+            self.train_dataset.uuids)].to_list()  # type: ignore # [indices can be converted to list]
+        dataset_val_indices = self.df.index[
+            self.df["uuid"].isin(self.val_dataset.uuids)].to_list()  # type: ignore # [indices can be converted to list]
+        dataset_test_indices = self.df.index[self.df["uuid"].isin(
+            self.test_dataset.uuids)].to_list()  # type: ignore # [indices can be converted to list]
         self._sanity_check_indices(dataset_train_indices, dataset_val_indices, dataset_test_indices)
 
         if self.shuffle_before_splitting:
@@ -167,13 +180,16 @@ class GeoguesserDataModule(pl.LightningDataModule):
         self.test_sampler = SubsetRandomSampler(dataset_test_indices)
 
     def train_dataloader(self):
-        return DataLoader(self.train_dataset, batch_size=self.batch_size, num_workers=self.num_workers, sampler=self.train_sampler, drop_last=self.drop_last, shuffle=False)
+        return DataLoader(self.train_dataset, batch_size=self.batch_size, num_workers=self.num_workers,
+                          sampler=self.train_sampler, drop_last=self.drop_last, shuffle=False)
 
     def val_dataloader(self):
-        return DataLoader(self.val_dataset, batch_size=self.batch_size, num_workers=self.num_workers, sampler=self.val_sampler, drop_last=self.drop_last, shuffle=False)
+        return DataLoader(self.val_dataset, batch_size=self.batch_size, num_workers=self.num_workers,
+                          sampler=self.val_sampler, drop_last=self.drop_last, shuffle=False)
 
     def test_dataloader(self):
-        return DataLoader(self.test_dataset, batch_size=self.batch_size, num_workers=self.num_workers, sampler=self.test_sampler, drop_last=self.drop_last, shuffle=False)
+        return DataLoader(self.test_dataset, batch_size=self.batch_size, num_workers=self.num_workers,
+                          sampler=self.test_sampler, drop_last=self.drop_last, shuffle=False)
 
 
 if __name__ == "__main__":
