@@ -46,7 +46,8 @@ if __name__ == "__main__":
     load_dataset_in_ram = args.load_in_ram
     use_single_images = args.use_single_images
 
-    mean, std = calculate_norm_std(dataset_dirs)
+    # mean, std = calculate_norm_std(dataset_dirs)
+    mean, std = [0.5006, 0.5116, 0.4869], [0.1966, 0.1951, 0.2355]
 
     image_transform_train = transforms.Compose(
         [

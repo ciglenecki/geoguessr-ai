@@ -1,6 +1,8 @@
 from __future__ import annotations, division, print_function
 
+import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torchvision.models.efficientnet import EfficientNet
 from torchvision.models.resnet import ResNet
 
@@ -48,6 +50,18 @@ def freeze_but_last_n_blocks(model, leave_last_n):
     print("{} freezing ({}/{}) layers".format(model_name, len(model_blocks) - leave_last_n, len(model_blocks)))
     return model
 
+
+def lat_lng_weighted_mean(y_pred, class_map, top_k):
+    preds, indices = torch.topk(F.softmax(y_pred), k = top_k)
+    preds = preds / torch.sum(preds,dim=1,keepdim=True) # sum to 1 again
+    preds = preds.unsqueeze(dim=-1) # [[0.2, 0.2, 0.6], [0.4, 0.5, 0.1]]
+    ones = [1] * len(preds.shape)
+    preds = preds.repeat(*ones, 2) # [[[0.2, 0.2], [0.2, 0.2] [0.6, 0.6]], [[0.4, 0.4]...
+    
+    picked_coords = class_map[indices] # mask with indices, new column is added where data is concated. Pick only the first row [0] and drop the rest with squeeze
+    scaled_coords = picked_coords * preds
+    weighted_sum = torch.sum(scaled_coords,dim=-2).squeeze()
+    return weighted_sum
 
 class Identity(nn.Module):
     def __init__(self):

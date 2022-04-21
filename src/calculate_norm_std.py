@@ -10,7 +10,7 @@ def calculate_norm_std(dataset_dirs):
     channels_sum, channels_squared_sum, num_batches = 0, 0, 0
 
     for dataset_dir in dataset_dirs:
-        path_images = Path(dataset_dir, DatasetSplitType.TRAIN.value)
+        path_images = Path(dataset_dir, "images", DatasetSplitType.TRAIN.value)
         uuids = sorted(next(os.walk(path_images))[1])
         degrees = ["0", "90", "180", "270"]
         transform = transforms.ToTensor()

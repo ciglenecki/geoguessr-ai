@@ -3,13 +3,15 @@ import random
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+
 from torchvision.models.resnet import ResNet
 import pandas as pd
 import os
 from glob import glob
 
 torch.autograd.set_detect_anomaly(True)
-torch.set_printoptions(threshold=10_000)
+torch.set_printoptions(threshold=10_000,sci_mode=False)
 
 SEED = 20
 
@@ -189,10 +191,33 @@ def check_rows():
     print(uuids_raw[0], uuids_external[0])
     df_with_uuids = df.loc[df["uuid"].isin(uuids), :]
     print(len(df), len(df_with_uuids))
+    
+def softmax_coords():
+    batch_size = 5
+    num_class = 3
+    num_data = 3
+    
+    class_map = (torch.rand(num_class, 2) * 100) + 40
+    log_preds = torch.Tensor([[3,2,1], [3,1,2], [0,3,0], [1,1,1], [0,1,1]]) + torch.rand(batch_size, num_data) * 2
+    preds =F.softmax(log_preds,dim=-1)
+    print(class_map)
 
+    preds, ids = torch.topk(preds, k = 2,dim=-1)
+    
+    preds = preds.unsqueeze(dim=-1)
+    ones = [1] * len(preds.shape)
+    preds = preds.repeat(*ones,2)
+        
+    chosen = class_map[ids]
+    
+    chosen = chosen * preds
+    meaned = torch.sum(chosen,dim=-2)
+    print(meaned)
+    
 
 if __name__ == "__main__":
+    softmax_coords()
     # test()
     # mini_tensor()
     # model_cat_vs_multi_forward()
-    check_rows()
+    # check_rows()

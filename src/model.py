@@ -16,7 +16,7 @@ from torchvision.models.resnet import model_urls as resnet_model_urls
 
 from data_module_geoguesser import GeoguesserDataModule
 from defaults import DEFAULT_EARLY_STOPPING_EPOCH_FREQ, DEFAULT_TORCHVISION_VERSION
-from utils_model import model_remove_fc
+from utils_model import lat_lng_weighted_mean, model_remove_fc
 from utils_train import multi_acc
 
 allowed_models = list(resnet_model_urls.keys()) + list(efficientnet_model_urls.keys())
@@ -130,9 +130,10 @@ class LitModel(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         image_list, y_true, image_true_coords = batch
         y_pred = self(image_list)
-
-        y_pred_idx = torch.argmax(y_pred, dim=1).detach()
-        coord_pred = self.class_to_centroid_map[y_pred_idx]
+        
+        coord_pred = lat_lng_weighted_mean(y_pred,  self.class_to_centroid_map, top_k=5)
+        # y_pred_idx = torch.argmax(y_pred, dim=1).detach()
+        # coord_pred = self.class_to_centroid_map[y_pred_idx]
 
         haver_dist = np.mean(haversine_distances(coord_pred.cpu(), image_true_coords.cpu()))
 
