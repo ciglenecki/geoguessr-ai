@@ -104,7 +104,6 @@ class GeoguesserDataset(Dataset):
         label = self.one_hot_encode_label(label)
 
         images = [self.image_transform(image) for image in images]
-        print(image_latitude, image_longitude)
         image_transformed_coords = self.coordinate_transform(image_latitude, image_longitude)
         return images, label, image_transformed_coords
 

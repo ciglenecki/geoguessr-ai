@@ -296,7 +296,6 @@ class LitModelReg(pl.LightningModule):
         image_list, _, image_true_coords = batch
         y_pred = self(image_list)
         image_true_coords_transformed = [[math.degrees(math.asin(elem[0]*self.data_module.lat_max_sin + self.data_module.lat_min_sin)), math.degrees(math.asin(elem[1]*self.data_module.lng_max_sin + self.data_module.lng_min_sin))] for elem in image_true_coords.tolist()]
-        print(image_true_coords_transformed)
         haver_dist = np.mean(haversine_distances(y_pred.cpu(), image_true_coords_transformed))
 
         loss = F.mse_loss(y_pred, image_true_coords)
