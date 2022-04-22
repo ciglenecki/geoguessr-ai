@@ -12,7 +12,7 @@
 *ignoreme*
 reports/22*
 reports/train*
-
+old_reports/
 __pycache__/
 *.py[cod]
 *$py.class
