@@ -1,5 +1,6 @@
 from __future__ import annotations, division, print_function
 
+import math
 from typing import Any, List
 import random
 
@@ -133,7 +134,6 @@ class LitModel(pl.LightningModule):
         image_list, y_true, image_true_coords = batch
         y_pred = self(image_list)
         coord_pred = lat_lng_weighted_mean(y_pred,  self.class_to_centroid_map, top_k=5)
-        print(coord_pred, image_true_coords)
         haver_dist = np.mean(haversine_distances(coord_pred.cpu(), image_true_coords.cpu()))
 
         loss = F.cross_entropy(y_pred, y_true)
@@ -235,6 +235,7 @@ class LitModelReg(pl.LightningModule):
 
         self._set_example_input_array()
         self.save_hyperparameters()
+        self.data_module = data_module
 
     def _set_example_input_array(self):
         num_channels = 3
@@ -294,7 +295,9 @@ class LitModelReg(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         image_list, _, image_true_coords = batch
         y_pred = self(image_list)
-        haver_dist = np.mean(haversine_distances(y_pred.cpu(), image_true_coords.cpu()))
+        image_true_coords_transformed = [[math.degrees(math.asin(elem[0]*self.data_module.lat_max_sin + self.data_module.lat_min_sin)), math.degrees(math.asin(elem[1]*self.data_module.lng_max_sin + self.data_module.lng_min_sin))] for elem in image_true_coords.tolist()]
+        print(image_true_coords_transformed)
+        haver_dist = np.mean(haversine_distances(y_pred.cpu(), image_true_coords_transformed))
 
         loss = F.mse_loss(y_pred, image_true_coords)
         data_dict = {

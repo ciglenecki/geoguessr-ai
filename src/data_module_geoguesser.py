@@ -1,5 +1,6 @@
 from __future__ import annotations, division
 
+import math
 from itertools import combinations
 from pathlib import Path
 from typing import List, Optional, Union, Callable
@@ -58,11 +59,16 @@ class GeoguesserDataModule(pl.LightningDataModule):
 
         """ Dataframe creation, numclasses handling and coord hashing"""
         self.df = self._handle_dataframe(cached_df)
-        lat_mean = self.df['latitude'].mean()
-        lng_mean = self.df['longitude'].mean()
-        lat_std = self.df['latitude'].std()
-        lng_std = self.df['longitude'].std()
-        self.coords_transform = lambda lat, lng, lat_mean=lat_mean, lng_mean=lng_mean, lat_std=lat_std, lng_std=lng_std: torch.tensor([(lat - lat_mean) / lat_std, (lng - lng_mean) / lng_std]).float()
+        self.lat_min_sin = self.df['latitude'].transform(lambda x: math.sin(math.radians(x))).min()
+        self.lat_min_cos = self.df['latitude'].transform(lambda x: math.cos(math.radians(x))).min()
+        self.lat_max_sin = self.df['latitude'].transform(lambda x: math.sin(math.radians(x))).max() - self.lat_min_sin
+        self.lat_max_cos = self.df['latitude'].transform(lambda x: math.cos(math.radians(x))).max() - self.lat_min_cos
+        self.lng_min_sin = self.df['longitude'].transform(lambda x: math.sin(math.radians(x))).min()
+        self.lng_min_cos = self.df['longitude'].transform(lambda x: math.cos(math.radians(x))).min()
+        self.lng_max_sin = self.df['longitude'].transform(lambda x: math.sin(math.radians(x))).max() - self.lng_min_sin
+        self.lng_max_cos = self.df['longitude'].transform(lambda x: math.cos(math.radians(x))).max() - self.lng_min_cos
+
+        self.coords_transform = lambda lat, lng: torch.tensor([(math.sin(math.radians(lat)) - self.lat_min_sin)/self.lat_max_sin, (math.sin(math.radians(lng)) - self.lng_min_sin)/self.lng_max_sin]).float()
 
         self.num_classes = len(self.df["y"].drop_duplicates())
         assert self.num_classes == self.df["y"].max() + 1, "Wrong number of classes"  # Sanity check
@@ -76,7 +82,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
             image_transform=self.image_transform,
             load_dataset_in_ram=load_dataset_in_ram,
             dataset_type=DatasetSplitType.TRAIN,
-            coordinate_transform=self.coords_transform
+            coordinate_transform=self.coords_transform,
         )
 
         self.val_dataset = GeoguesserDataset(
@@ -86,7 +92,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
             image_transform=self.image_transform,
             load_dataset_in_ram=load_dataset_in_ram,
             dataset_type=DatasetSplitType.VAL,
-            coordinate_transform=self.coords_transform
+            coordinate_transform=self.coords_transform,
         )
 
         self.test_dataset = GeoguesserDataset(
@@ -96,7 +102,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
             image_transform=self.image_transform,
             load_dataset_in_ram=load_dataset_in_ram,
             dataset_type=DatasetSplitType.TEST,
-            coordinate_transform=self.coords_transform
+            coordinate_transform=self.coords_transform,
         )
 
     def _handle_dataframe(self, cached_df: Union[Path, None]):
