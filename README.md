@@ -14,23 +14,15 @@
 
 ## 📝 Todo
 
+- WOLF: Angle encoding - we can't use raw angle values in ANY case. We have to transform the angles (both y_true and y_pred) to sensible [0, 1] data. Check this link https://stats.stackexchange.com/questions/218407/encoding-angle-data-for-neural-network and try to find more discussions on similar topic. Sin/cos seems super straight forward but check for other options too.
+  - first encode angles via cos/sin
+  - then use min-max [0, 1] to scale encoded values
+  - apply on y_true and y_pred acordingly
+  - decode before caculating the distancec
+
+- WOLF: Regression loss can be MSE only if encoded data is transformed to [0, 1] (linear distance). If we want to keep angles as inputs we should write a custom loss function for angle
+
 - [x] IMPORTANT: Weighted sum Haversine classification - Whats the current situation? We are making classifications and calling argmax to hard-classify image to a class. Centroid of this class is then used as a prediction. Why are we not taking the weighted sum (softmax probs and centroids) ? 
-
-- Matej: [] Rename reports so that includes basic parameters, also, add random string so that we can reference easy
-
-```
- d =  {
-        'A': 'Alpha',  'B': 'Bravo',   'C': 'Charlie',
-        'D': 'Delta',  'E': 'Echo',    'F': 'Foxtrot',
-        'G': 'Golf',   'H': 'Hotel',   'I': 'India',
-        'J': 'Juliett','K': 'Kilo',    'L': 'Lima',
-        'M': 'Mike',   'N': 'November','O': 'Oscar',
-        'P': 'Papa',   'Q': 'Quebec',  'R': 'Romeo',
-        'S': 'Sierra', 'T': 'Tango',   'U': 'Uniform',
-        'V': 'Victor', 'W': 'Whiskey', 'X': 'X-ray',
-        'Y': 'Yankee', 'Z': 'Zulu'}
-Alpha_15, Zulu_99
-```
 
 - [] Sanity image check - open some images during the training to see if they make sense
 

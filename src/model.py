@@ -133,7 +133,7 @@ class LitModel(pl.LightningModule):
         image_list, y_true, image_true_coords = batch
         y_pred = self(image_list)
         coord_pred = lat_lng_weighted_mean(y_pred,  self.class_to_centroid_map, top_k=5)
-        
+        print(coord_pred, image_true_coords)
         haver_dist = np.mean(haversine_distances(coord_pred.cpu(), image_true_coords.cpu()))
 
         loss = F.cross_entropy(y_pred, y_true)
