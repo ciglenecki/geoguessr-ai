@@ -59,7 +59,6 @@ def lat_lng_weighted_mean(y_pred, class_map, top_k):
     preds = preds.repeat(*ones, 2) # [[[0.2, 0.2], [0.2, 0.2] [0.6, 0.6]], [[0.4, 0.4]...
     
     picked_coords = class_map[indices] # mask with indices, new column is added where data is concated. Pick only the first row [0] and drop the rest with squeeze
-    print(picked_coords)
     scaled_coords = picked_coords * preds
     weighted_sum = torch.sum(scaled_coords,dim=-2).squeeze()
     return weighted_sum

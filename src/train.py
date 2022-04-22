@@ -16,7 +16,7 @@ from callback_finetuning_last_n_layers import BackboneFinetuningLastLayers
 from data_module_geoguesser import GeoguesserDataModule
 from defaults import DEFAULT_EARLY_STOPPING_EPOCH_FREQ
 from model import LitModel, LitSingleModel, OnTrainEpochStartLogCallback, LitModelReg
-from utils_functions import add_prefix_to_keys, get_timestamp, is_primitive, stdout_to_file
+from utils_functions import add_prefix_to_keys, get_timestamp, is_primitive, random_codeword, stdout_to_file
 from calculate_norm_std import calculate_norm_std
 from utils_paths import PATH_REPORT
 
@@ -47,8 +47,8 @@ if __name__ == "__main__":
     use_single_images = args.use_single_images
     is_regression = args.regression
 
-    mean, std = calculate_norm_std(dataset_dirs)
-    # mean, std = [0.5006, 0.5116, 0.4869], [0.1966, 0.1951, 0.2355]
+    # mean, std = calculate_norm_std(dataset_dirs)
+    mean, std = [0.5006, 0.5116, 0.4869], [0.1966, 0.1951, 0.2355]
 
     image_transform_train = transforms.Compose(
         [
@@ -72,6 +72,7 @@ if __name__ == "__main__":
         load_dataset_in_ram=load_dataset_in_ram,
     )
     data_module.setup()
+    num_classes = data_module.num_classes
 
     log_dictionary = {
         **add_prefix_to_keys(vars(args), "user_args/"),
@@ -116,7 +117,7 @@ if __name__ == "__main__":
         model_constructor = LitSingleModel if use_single_images else (LitModelReg if is_regression else LitModel)
         model = model_constructor(
             data_module=data_module,
-            num_classes=data_module.train_dataset.num_classes,
+            num_classes=num_classes,
             model_name=model_names[0],
             pretrained=pretrained,
             learning_rate=learning_rate,
@@ -128,7 +129,7 @@ if __name__ == "__main__":
         # Enables a placeholder metric with key `hp_metric` when `log_hyperparams` is called without a metric (otherwise calls to log_hyperparams without a metric are ignored).
         tb_logger = pl_loggers.TensorBoardLogger(
             save_dir=str(PATH_REPORT),
-            name="{}-{}".format(timestamp, model_name),
+            name="{}-{}{}".format(timestamp, random_codeword(), "-regression" if is_regression else "-num_classes_" + str(num_classes) ),
             default_hp_metric=True,
             log_graph=True,
         )

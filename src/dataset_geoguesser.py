@@ -29,8 +29,8 @@ class GeoguesserDataset(Dataset):
             df: pd.DataFrame,
             num_classes,
             dataset_dirs: List[Path],
-            coordinate_transform: None | Callable,
-            image_transform: None | transforms.Compose = transforms.Compose([transforms.ToTensor()]),
+            coordinate_transform: Callable= lambda lat, lng: torch.tensor([lat,lng]).float(),
+            image_transform: transforms.Compose = transforms.Compose([transforms.ToTensor()]),
             load_dataset_in_ram=DEFAULT_LOAD_DATASET_IN_RAM,
             dataset_type: DatasetSplitType = DatasetSplitType.TRAIN,
     ) -> None:
@@ -103,14 +103,8 @@ class GeoguesserDataset(Dataset):
 
         label = self.one_hot_encode_label(label)
 
-        if self.image_transform is not None:
-            transform = self.image_transform
-            images = [transform(image) for image in images]
-        if self.coordinate_transform is not None:
-            transform = self.coordinate_transform
-            image_latitude, image_longitude = transform(image_latitude, image_longitude)
-
-        image_coords = torch.tensor([image_latitude, image_longitude])
+        images = [self.image_transform(image) for image in images]
+        image_coords = self.coordinate_transform(image_latitude, image_longitude)
         return images, label, image_coords
 
 
