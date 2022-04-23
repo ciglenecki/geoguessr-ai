@@ -1,3 +1,6 @@
+"""
+Input arguments for the train.py file. To see the list of all arguments call `pyhton3 src/train.py -h`
+"""
 from __future__ import annotations, division, print_function
 
 import argparse

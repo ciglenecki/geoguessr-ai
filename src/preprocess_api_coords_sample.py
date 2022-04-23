@@ -1,3 +1,22 @@
+"""
+Enriches the coords_sample__n_<int>.csv.csv file. This file originally contains uniformly sampled values (lat, lng). The problem is that an image might not exist on the sampled (lat, lng) location. This file goes through the rows of coords_sample__n_<int>.csv and populates additional columns which provide information if the street view image in fact exists on that location. If it does, additional metadata will be writen. 
+
+E.g.
+    Input (--csv)
+        sample_longitude,sample_latitude
+        ---------------------------------------
+        0,16.725157101650694,45.80887959964089
+        1,15.87582307662098,44.38751679151152
+
+    Out (coords_sample__n_<int>_modified_<timestamp>):
+        ,sample_longitude,sample_latitude,row_idx,status,radius,latitude,longitude,panorama_id,uuid
+        ------------------------------------------------------------------------------------------------
+        0,16.725157101650694,45.80887959964089,0.0,OK,,45.8102583442322,16.72203900718308,rC0RohGwjXkQX3u7rOi2XQ,a9615845-f0c3-4a46-a5fe-35e7ca32f6f0
+        1,15.87582307662098,44.38751679151152,1.0,OK,,44.38660988435789,15.88616327245129,Akbp_5oGmjsSkVFosLfhSQ,c3062ee3-f172-4c8d-9c52-11fc274f2a6a
+        2,17.50461126873125,45.72957536481877,2.0,ZERO_RESULTS,,,,,9a752d43-2e07-4803-bf0e-1d8940f19265
+
+"""
+
 import argparse
 import asyncio
 import os
@@ -42,10 +61,11 @@ def parse_args(args):
         help="Google Cloud API Key https://console.cloud.google.com/google/maps-apis/credentials?project=lumen-data-science",
         required=True,
     )
+
     parser.add_argument(
         "--signature",
         type=str,
-        help="Signature for sigining requests https://console.cloud.google.com/google/maps-apis/credentials?project=lumen-data-science",
+        help="Signature secret for sigining requests https://console.cloud.google.com/google/maps-apis/credentials?project=lumen-data-science",
         required=True,
     )
 
@@ -99,7 +119,7 @@ def get_json_batch(url, params_list: List[Dict[str, Any]]):
     return result
 
 
-def get_signature_param(url, payload, signature):
+def get_signature_param(url, payload, secret):
     """
     explained here: https://developers.google.com/maps/documentation/streetview/digital-signature#python
     """
@@ -109,8 +129,6 @@ def get_signature_param(url, payload, signature):
 
     url_to_sign = url.path + "?" + url.query
 
-    # TODO: extract this as an argument
-    secret = "6bxHPeMyhlDnddGACzrmsqi2Lsk="
     decoded_key = base64.urlsafe_b64decode(secret)
 
     # Create a signature using the private key and the URL-encoded

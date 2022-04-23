@@ -11,11 +11,11 @@ from pytorch_lightning.callbacks.progress.tqdm_progress import TQDMProgressBar
 from torchvision import transforms
 from torchvision.transforms import AutoAugmentPolicy
 
-from args_train import parse_args_train
+from train_args import parse_args_train
 from callback_finetuning_last_n_layers import BackboneFinetuningLastLayers
 from data_module_geoguesser import GeoguesserDataModule
 from defaults import DEFAULT_EARLY_STOPPING_EPOCH_FREQ
-from model import LitModel, LitSingleModel, OnTrainEpochStartLogCallback, LitModelReg
+from model import LitModel, LitSingleModel, OnTrainEpochStartLogCallback, LitModelRegression
 from utils_functions import add_prefix_to_keys, get_timestamp, is_primitive, random_codeword, stdout_to_file
 from calculate_norm_std import calculate_norm_std
 from utils_paths import PATH_REPORT
@@ -114,7 +114,7 @@ if __name__ == "__main__":
                 )
             )
 
-        model_constructor = LitSingleModel if use_single_images else (LitModelReg if is_regression else LitModel)
+        model_constructor = LitSingleModel if use_single_images else (LitModelRegression if is_regression else LitModel)
         model = model_constructor(
             data_module=data_module,
             num_classes=num_classes,
