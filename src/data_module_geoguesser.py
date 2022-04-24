@@ -5,6 +5,7 @@ It handles the creation/loading of the main dataframe where images metadata is s
 """
 from __future__ import annotations, division
 
+import math
 from itertools import combinations
 from pathlib import Path
 from typing import List, Optional, Union, Callable
@@ -63,16 +64,8 @@ class GeoguesserDataModule(pl.LightningDataModule):
 
         """ Dataframe creation, numclasses handling and coord hashing"""
         self.df = self._handle_dataframe(cached_df)
-        self.lat_min_sin = self.df['latitude'].transform(lambda x: math.sin(math.radians(x))).min()
-        self.lat_min_cos = self.df['latitude'].transform(lambda x: math.cos(math.radians(x))).min()
-        self.lat_max_sin = self.df['latitude'].transform(lambda x: math.sin(math.radians(x))).max() - self.lat_min_sin
-        self.lat_max_cos = self.df['latitude'].transform(lambda x: math.cos(math.radians(x))).max() - self.lat_min_cos
-        self.lng_min_sin = self.df['longitude'].transform(lambda x: math.sin(math.radians(x))).min()
-        self.lng_min_cos = self.df['longitude'].transform(lambda x: math.cos(math.radians(x))).min()
-        self.lng_max_sin = self.df['longitude'].transform(lambda x: math.sin(math.radians(x))).max() - self.lng_min_sin
-        self.lng_max_cos = self.df['longitude'].transform(lambda x: math.cos(math.radians(x))).max() - self.lng_min_cos
 
-        self.coords_transform = lambda lat, lng: torch.tensor([(math.sin(math.radians(lat)) - self.lat_min_sin)/self.lat_max_sin, (math.sin(math.radians(lng)) - self.lng_min_sin)/self.lng_max_sin]).float()
+        self.calculate_lat_lng_stats()
 
         self.num_classes = len(self.df["y"].drop_duplicates())
         assert self.num_classes == self.df["y"].max() + 1, "Number of classes should corespoing to the maximum y value of the csv dataframe"  # Sanity check
@@ -108,6 +101,22 @@ class GeoguesserDataModule(pl.LightningDataModule):
             dataset_type=DatasetSplitType.TEST,
             coordinate_transform=self.coords_transform
         )
+
+    def calculate_lat_lng_stats(self):
+
+        self.lat_min_sin = self.df['latitude'].transform(lambda x: math.sin(math.radians(x))).min()
+        self.lat_max_sin = self.df['latitude'].transform(lambda x: math.sin(math.radians(x))).max() - self.lat_min_sin
+        self.lng_min_sin = self.df['longitude'].transform(lambda x: math.sin(math.radians(x))).min()
+        self.lng_max_sin = self.df['longitude'].transform(lambda x: math.sin(math.radians(x))).max() - self.lng_min_sin
+
+    def coords_transform(self, lat, lng):
+
+        sin_value_lat = math.sin(math.radians(lat))
+        sin_value_lng = math.sin(math.radians(lng))
+        min_max_lat = (sin_value_lat - self.lat_min_sin)/self.lat_max_sin
+        min_max_lng = (sin_value_lng - self.lng_min_sin)/self.lng_max_sin
+
+        return torch.tensor([min_max_lat, min_max_lng]).float()
 
     def _handle_dataframe(self, cached_df: Union[Path, None]):
         """

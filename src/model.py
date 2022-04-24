@@ -226,7 +226,7 @@ class LitModelRegression(pl.LightningModule):
     loggers: List[TensorBoardLogger]
     num_of_outputs = 2
 
-    def __init__(self, data_module, model_name: str, pretrained: bool, learning_rate: float, weight_decay: float, batch_size: int, image_size: int):
+    def __init__(self, data_module, num_classes: int, model_name: str, pretrained: bool, learning_rate: float, weight_decay: float, batch_size: int, image_size: int):
         super(LitModelRegression, self).__init__()
 
         self.learning_rate = learning_rate
