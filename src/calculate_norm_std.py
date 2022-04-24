@@ -1,4 +1,3 @@
-
 from glob import glob
 from pathlib import Path
 from typing import List
@@ -13,7 +12,7 @@ from utils_dataset import DatasetSplitType
 
 def calculate_norm_std(dataset_dirs: List[Path]):
     """
-    Caculates the mean and std of the multiple train dataset directories 
+    Caculates the mean and std of the multiple train dataset directories
     Args:
         dataset_dirs: list of dataset directory paths which the mean and std will be caculated for.
     """

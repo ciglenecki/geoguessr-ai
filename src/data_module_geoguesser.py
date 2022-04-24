@@ -6,6 +6,7 @@ It handles the creation/loading of the main dataframe where images metadata is s
 from __future__ import annotations, division
 
 import math
+from glob import glob
 from itertools import combinations
 from pathlib import Path
 from typing import List, Optional, Union, Callable
@@ -14,6 +15,7 @@ import numpy as np
 import pandas as pd
 import pytorch_lightning as pl
 import torch
+from PIL import Image
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
 from torchvision import transforms
@@ -23,6 +25,7 @@ import preprocess_csv_create_classes
 from dataset_geoguesser import GeoguesserDataset
 from defaults import DEAFULT_DROP_LAST, DEAFULT_NUM_WORKERS, DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING, \
     DEFAULT_LOAD_DATASET_IN_RAM, DEFAULT_SPACING, DEFAULT_TEST_FRAC, DEFAULT_TRAIN_FRAC, DEFAULT_VAL_FRAC
+from utils_functions import flatten
 from utils_dataset import DatasetSplitType
 
 
@@ -104,10 +107,18 @@ class GeoguesserDataModule(pl.LightningDataModule):
 
     def calculate_lat_lng_stats(self):
 
-        self.lat_min_sin = self.df['latitude'].transform(lambda x: math.sin(math.radians(x))).min()
-        self.lat_max_sin = self.df['latitude'].transform(lambda x: math.sin(math.radians(x))).max() - self.lat_min_sin
-        self.lng_min_sin = self.df['longitude'].transform(lambda x: math.sin(math.radians(x))).min()
-        self.lng_max_sin = self.df['longitude'].transform(lambda x: math.sin(math.radians(x))).max() - self.lng_min_sin
+        """
+        Calculates a few states of lat and lng from all the train dataset directories
+        """
+
+        uuid_dir_paths = flatten([glob(str(Path(dataset_dir, "images", DatasetSplitType.TRAIN.value, "*"))) for dataset_dir in self.dataset_dirs])
+        uuids = [Path(uuid_dir_path).stem for uuid_dir_path in uuid_dir_paths]
+        df_train = self.df.loc[self.df["uuid"].isin(uuids)]
+
+        self.lat_min_sin = math.sin(math.radians(df_train['latitude'].min()))
+        self.lat_max_sin = math.sin(math.radians(df_train['latitude'].max())) - self.lat_min_sin
+        self.lng_min_sin = math.sin(math.radians(df_train['longitude'].min()))
+        self.lng_max_sin = math.sin(math.radians(df_train['longitude'].max())) - self.lng_min_sin
 
     def coords_transform(self, lat, lng):
 
