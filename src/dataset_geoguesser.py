@@ -30,7 +30,7 @@ class GeoguesserDataset(Dataset):
             df: pd.DataFrame,
             num_classes,
             dataset_dirs: List[Path],
-            coordinate_transform: Callable = lambda lat, lng: torch.tensor([lat, lng]).float(),
+            coordinate_transform: Callable = lambda x, y, z: torch.tensor([x, y, z]).float(),
             image_transform: transforms.Compose = transforms.Compose([transforms.ToTensor()]),
             load_dataset_in_ram=DEFAULT_LOAD_DATASET_IN_RAM,
             dataset_type: DatasetSplitType = DatasetSplitType.TRAIN,
@@ -88,15 +88,15 @@ class GeoguesserDataset(Dataset):
     def one_hot_encode_label(self, label: int):
         return one_hot_encode(label, self.num_classes)
 
-    def _get_row_attributes(self, row: pd.Series) -> Tuple[str, float, float, int]:
-        return str(row["uuid"]), float(row["latitude"]), float(row["longitude"]), int(row["y"])
+    def _get_row_attributes(self, row: pd.Series) -> Tuple[str, float, float, float, int]:
+        return str(row["uuid"]), float(row["cart_x"]), float(row["cart_y"]), float(row["cart_z"]), int(row["y"])
 
     def __len__(self):
         return len(self.uuids)
 
     def __getitem__(self, index: int):
         row = self.df_csv.iloc[index, :]
-        uuid, image_latitude, image_longitude, label = self._get_row_attributes(row)
+        uuid, image_x, image_y, image_z, label = self._get_row_attributes(row)
 
         images = self.image_cache[uuid]
         if not self.load_dataset_in_ram:
@@ -105,7 +105,7 @@ class GeoguesserDataset(Dataset):
         label = self.one_hot_encode_label(label)
 
         images = [self.image_transform(image) for image in images]
-        image_transformed_coords = self.coordinate_transform(image_latitude, image_longitude)
+        image_transformed_coords = self.coordinate_transform(image_x, image_y, image_z)
         return images, label, image_transformed_coords
 
 

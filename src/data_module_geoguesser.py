@@ -71,8 +71,9 @@ class GeoguesserDataModule(pl.LightningDataModule):
         self.calculate_lat_lng_stats()
 
         self.num_classes = len(self.df["y"].drop_duplicates())
-        assert self.num_classes == self.df["y"].max() + 1, "Number of classes should corespoing to the maximum y value of the csv dataframe"  # Sanity check
-        
+        assert self.num_classes == self.df[
+            "y"].max() + 1, "Number of classes should corespoing to the maximum y value of the csv dataframe"  # Sanity check
+
         self.class_to_centroid_map = torch.tensor(self._get_class_to_centroid_list(self.num_classes))
 
         self.train_dataset = GeoguesserDataset(
@@ -108,26 +109,29 @@ class GeoguesserDataModule(pl.LightningDataModule):
     def calculate_lat_lng_stats(self):
 
         """
-        Calculates a few states for latitude and longitude from all the train dataset directories
+        Calculates some stats for latitude and longitude from all the train dataset directories
         """
 
-        uuid_dir_paths = flatten([glob(str(Path(dataset_dir, "images", DatasetSplitType.TRAIN.value, "*"))) for dataset_dir in self.dataset_dirs])
+        uuid_dir_paths = flatten(
+            [glob(str(Path(dataset_dir, "images", DatasetSplitType.TRAIN.value, "*"))) for dataset_dir in
+             self.dataset_dirs])
         uuids = [Path(uuid_dir_path).stem for uuid_dir_path in uuid_dir_paths]
         df_train = self.df.loc[self.df["uuid"].isin(uuids)]
 
-        self.lat_min_sin = math.sin(math.radians(df_train['latitude'].min()))
-        self.lat_max_sin = math.sin(math.radians(df_train['latitude'].max())) - self.lat_min_sin
-        self.lng_min_sin = math.sin(math.radians(df_train['longitude'].min()))
-        self.lng_max_sin = math.sin(math.radians(df_train['longitude'].max())) - self.lng_min_sin
+        self.x_min = df_train['cart_x'].min()
+        self.x_max = df_train['cart_x'].max() - self.x_min
+        self.y_min = df_train['cart_y'].min()
+        self.y_max = df_train['cart_y'].max() - self.y_min
+        self.z_min = df_train['cart_z'].min()
+        self.z_max = df_train['cart_z'].max() - self.z_min
 
-    def coords_transform(self, lat, lng):
+    def coords_transform(self, x, y, z):
 
-        sin_value_lat = math.sin(math.radians(lat))
-        sin_value_lng = math.sin(math.radians(lng))
-        min_max_lat = (sin_value_lat - self.lat_min_sin)/self.lat_max_sin
-        min_max_lng = (sin_value_lng - self.lng_min_sin)/self.lng_max_sin
+        min_max_x = (x - self.x_min) / self.x_max
+        min_max_y = (y - self.y_min) / self.y_max
+        min_max_z = (z - self.z_min) / self.z_max
 
-        return torch.tensor([min_max_lat, min_max_lng]).float()
+        return torch.tensor([min_max_x, min_max_y, min_max_z]).float()
 
     def _handle_dataframe(self, cached_df: Union[Path, None]):
         """
@@ -161,14 +165,12 @@ class GeoguesserDataModule(pl.LightningDataModule):
         Itterate over the information of each valid polygon/class and return it's centroids
         """
 
-        df_class_info = self.df.loc[:,
-                        ["polygon_index", "y", "centroid_lat", "centroid_lng", "is_true_centroid"]].drop_duplicates()
+        df_class_info = self.df.loc[:, ["polygon_index", "y", "centroid_x", "centroid_y", "centroid_z", "is_true_centroid"]].drop_duplicates()
         _class_to_centroid_map = []
         for class_idx in range(num_classes):
             row = df_class_info.loc[df_class_info["y"] == class_idx].head(1)  # ensure that only one row is taken
-            polygon_lat, polygon_lng = row["centroid_lat"].values[0], row["centroid_lng"].values[
-                0]  # values -> ndarray with 1 dim
-            point = [polygon_lat, polygon_lng]
+            polygon_x, polygon_y, polygon_z = row["centroid_x"].values[0], row["centroid_y"].values, row["centroid_z"].values[0]  # values -> ndarray with 1 dim
+            point = [polygon_x, polygon_y, polygon_z]
             _class_to_centroid_map.append(point)
         return _class_to_centroid_map
 

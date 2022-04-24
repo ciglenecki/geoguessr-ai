@@ -1,5 +1,6 @@
 from __future__ import annotations, division, print_function
 
+import math
 from typing import Any, List
 import random
 
@@ -25,7 +26,6 @@ allowed_models = list(resnet_model_urls.keys()) + list(efficientnet_model_urls.k
 
 class OnTrainEpochStartLogCallback(pl.Callback):
     def on_train_epoch_start(self, trainer, pl_module: LitModel):
-
         current_lr = trainer.optimizers[0].param_groups[0]["lr"]
         data_dict = {
             "trainable_params_num": float(pl_module.get_num_of_trainable_params()),
@@ -52,16 +52,20 @@ class LitModel(pl.LightningModule):
     """
 
     loggers: List[TensorBoardLogger]
+
     # send class to centroid map instead of data module!, and cl,one it before
-    def __init__(self, data_module: GeoguesserDataModule, num_classes: int, model_name, pretrained, learning_rate, weight_decay, batch_size, image_size):
+    def __init__(self, data_module: GeoguesserDataModule, num_classes: int, model_name, pretrained, learning_rate,
+                 weight_decay, batch_size, image_size):
         super(LitModel, self).__init__()
-        self.register_buffer("class_to_centroid_map", data_module.class_to_centroid_map.clone().detach())  # set self.class_to_centroid_map on gpu
+        self.register_buffer("class_to_centroid_map",
+                             data_module.class_to_centroid_map.clone().detach())  # set self.class_to_centroid_map on gpu
 
         self.learning_rate = learning_rate
         self.weight_decay = weight_decay
         self.batch_size = batch_size
         self.image_size = image_size
         self.num_classes = num_classes
+        self.data_module = data_module
 
         backbone = torch.hub.load(DEFAULT_TORCHVISION_VERSION, model_name, pretrained=pretrained)
         self.backbone = model_remove_fc(backbone)
@@ -73,7 +77,8 @@ class LitModel(pl.LightningModule):
     def _set_example_input_array(self):
         num_channels = 3
         num_of_image_sides = 4
-        list_of_images = [torch.rand(self.batch_size, num_channels, self.image_size, self.image_size)] * num_of_image_sides
+        list_of_images = [torch.rand(self.batch_size, num_channels, self.image_size,
+                                     self.image_size)] * num_of_image_sides
         self.example_input_array = torch.stack(list_of_images)
 
     def _get_last_fc_in_channels(self) -> Any:
@@ -84,7 +89,8 @@ class LitModel(pl.LightningModule):
         num_channels = 3
         num_image_sides = 4
         with torch.no_grad():
-            image_batch_list = [torch.rand(self.batch_size, num_channels, self.image_size, self.image_size)] * num_image_sides
+            image_batch_list = [torch.rand(self.batch_size, num_channels, self.image_size,
+                                           self.image_size)] * num_image_sides
             outs_backbone = [self.backbone(image) for image in image_batch_list]
             out_backbone_cat = torch.cat(outs_backbone, dim=1)
             flattened_output = torch.flatten(out_backbone_cat, 1)  # shape (batch_size x some_number)
@@ -132,8 +138,8 @@ class LitModel(pl.LightningModule):
         image_list, y_true, image_true_coords = batch
         y_pred = self(image_list)
         coord_pred = lat_lng_weighted_mean(y_pred, self.class_to_centroid_map, top_k=5)
-        print(coord_pred, image_true_coords)
-        haver_dist = np.mean(haversine_distances(coord_pred.cpu(), image_true_coords.cpu()))
+        coord_pred_changed, image_true_coords_changed = self.cart_to_lat_long(coord_pred, image_true_coords)
+        haver_dist = np.mean(haversine_distances(coord_pred_changed, image_true_coords_changed))
 
         loss = F.cross_entropy(y_pred, y_true)
         acc = multi_acc(y_pred, y_true)
@@ -159,14 +165,14 @@ class LitModel(pl.LightningModule):
         self.log_dict(log_dict)
 
     def test_step(self, batch, batch_idx):
-        image_list, y, image_true_coords = batch
+        image_list, y_true, image_true_coords = batch
         y_pred = self(image_list)
-
         coord_pred = lat_lng_weighted_mean(y_pred, self.class_to_centroid_map, top_k=5)
-        haver_dist = np.mean(haversine_distances(coord_pred.cpu(), image_true_coords.cpu()))
+        coord_pred_changed, image_true_coords_changed = self.cart_to_lat_long(coord_pred, image_true_coords)
+        haver_dist = np.mean(haversine_distances(coord_pred_changed, image_true_coords_changed))
 
-        loss = F.cross_entropy(y_pred, y)
-        acc = multi_acc(y_pred, y)
+        loss = F.cross_entropy(y_pred, y_true)
+        acc = multi_acc(y_pred, y_true)
         data_dict = {
             "loss": loss,  # the 'loss' key needs to be present
             "test/loss": loss,
@@ -188,8 +194,29 @@ class LitModel(pl.LightningModule):
         }
         self.log_dict(log_dict)
 
-    def configure_optimizers(self):
+    def cart_to_lat_long(self, y, images):
+        y[:, 0] = y[:, 0] * self.data_module.x_max + self.data_module.x_min
+        y[:, 1] = y[:, 1] * self.data_module.y_max + self.data_module.y_min
+        y[:, 2] = y[:, 2] * self.data_module.z_max + self.data_module.z_min
 
+        tmp_tensor = torch.zeros(y.size(0), y.size(1))
+        tmp_tensor[:, :2] = y[:, [0, 1]]**2
+        latitude_y = torch.atan2(y[:, 2], torch.sum(tmp_tensor[:, :2], dim=-1).sqrt())
+        longitude_y = torch.atan2(y[:, 1], y[:, 0])
+
+        images[:, 0] = images[:, 0] * self.data_module.x_max + self.data_module.x_min
+        images[:, 1] = images[:, 1] * self.data_module.y_max + self.data_module.y_min
+        images[:, 2] = images[:, 2] * self.data_module.z_max + self.data_module.z_min
+
+        tmp_tensor = torch.zeros(images.size(0), images.size(1))
+
+        tmp_tensor[:, :2] = images[:, [0, 1]] ** 2
+        latitude_images = torch.atan2(images[:, 2], torch.sum(tmp_tensor[:, :2], dim=-1).sqrt())
+        longitude_images = torch.atan2(images[:, 1], images[:, 0])
+
+        return torch.stack((latitude_y, longitude_y)), torch.stack((latitude_images, longitude_images))
+
+    def configure_optimizers(self):
         optimizer = (
             torch.optim.RMSprop(
                 self.parameters(),
@@ -204,7 +231,8 @@ class LitModel(pl.LightningModule):
                 weight_decay=self.weight_decay,
             )
         )
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, "min", patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ // 2) - 1)
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, "min",
+                                                               patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ // 2) - 1)
         return {
             "optimizer": optimizer,
             "lr_scheduler": {
@@ -222,11 +250,11 @@ class LitModel(pl.LightningModule):
 
 
 class LitModelRegression(pl.LightningModule):
-
     loggers: List[TensorBoardLogger]
-    num_of_outputs = 2
+    num_of_outputs = 3
 
-    def __init__(self, data_module, num_classes: int, model_name: str, pretrained: bool, learning_rate: float, weight_decay: float, batch_size: int, image_size: int):
+    def __init__(self, data_module, num_classes: int, model_name: str, pretrained: bool, learning_rate: float,
+                 weight_decay: float, batch_size: int, image_size: int):
         super(LitModelRegression, self).__init__()
 
         self.learning_rate = learning_rate
@@ -245,7 +273,8 @@ class LitModelRegression(pl.LightningModule):
     def _set_example_input_array(self):
         num_channels = 3
         num_of_image_sides = 4
-        list_of_images = [torch.rand(self.batch_size, num_channels, self.image_size, self.image_size)] * num_of_image_sides
+        list_of_images = [torch.rand(self.batch_size, num_channels, self.image_size,
+                                     self.image_size)] * num_of_image_sides
         self.example_input_array = torch.stack(list_of_images)
 
     def _get_last_fc_in_channels(self) -> Any:
@@ -256,7 +285,8 @@ class LitModelRegression(pl.LightningModule):
         num_channels = 3
         num_image_sides = 4
         with torch.no_grad():
-            image_batch_list = [torch.rand(self.batch_size, num_channels, self.image_size, self.image_size)] * num_image_sides
+            image_batch_list = [torch.rand(self.batch_size, num_channels, self.image_size,
+                                           self.image_size)] * num_image_sides
             outs_backbone = [self.backbone(image) for image in image_batch_list]
             out_backbone_cat = torch.cat(outs_backbone, dim=1)
             flattened_output = torch.flatten(out_backbone_cat, 1)  # shape (batch_size x some_number)
@@ -300,6 +330,7 @@ class LitModelRegression(pl.LightningModule):
         y_pred = self(image_list)
 
         y_pred_changed, image_true_coords_transformed = self.normalize_output(y_pred, image_true_coords)
+        print(y_pred_changed, image_true_coords_transformed)
 
         haver_dist = np.mean(haversine_distances(y_pred_changed.cpu(), image_true_coords_transformed.cpu()))
 
@@ -358,7 +389,8 @@ class LitModelRegression(pl.LightningModule):
                 weight_decay=self.weight_decay,
                 momentum=0.2,
             )
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, "min", patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ // 2) - 1)
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, "min",
+                                                               patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ // 2) - 1)
         return {
             "optimizer": optimizer,
             "lr_scheduler": {
@@ -375,7 +407,6 @@ class LitModelRegression(pl.LightningModule):
         }
 
     def normalize_output(self, y, coords):
-
         y[:, 0] = y[:, 0] * self.data_module.lat_max_sin + self.data_module.lat_min_sin
         y[:, 1] = y[:, 1] * self.data_module.lng_max_sin + self.data_module.lng_min_sin
 
