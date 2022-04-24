@@ -22,6 +22,7 @@ class GeoguesserDataset(Dataset):
 
     1. Holds pointers to the data (images and coordinates)
     2. Fetches them lazily when __getitem__ is called
+    3. Image and coord transformations are applied before __getitem__ returns image and coordinates
     """
 
     def __init__(
@@ -88,7 +89,7 @@ class GeoguesserDataset(Dataset):
         return one_hot_encode(label, self.num_classes)
 
     def _get_row_attributes(self, row: pd.Series) -> Tuple[str, float, float, int]:
-        return str(row["uuid"]), row["latitude"], row["longitude"], int(row["y"])
+        return str(row["uuid"]), float(row["latitude"]), float(row["longitude"]), int(row["y"])
 
     def __len__(self):
         return len(self.uuids)

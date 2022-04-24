@@ -1,3 +1,25 @@
+"""
+File that filters the rows of the csv dataframe. Rows are filtered to only include uuids from the dataset directory (--data-dir). 
+
+E.g.
+    Base CSV:
+        uuid,data
+        -----------
+        ab,"test"
+        ba2,"tesa"
+        dxa,"teab1"
+
+    Dataset directory:
+    ├──ab/
+    └──dxa
+
+Saves the csv:
+    uuid,data
+    -----------
+    ab,"test"
+    dxa,"teab1"
+"""
+
 from pathlib import Path
 import pandas as pd
 from utils_paths import PATH_DATA_EXTERNAL, PATH_DATA_SAMPLER

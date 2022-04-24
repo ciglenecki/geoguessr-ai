@@ -1,6 +1,10 @@
+"""
+GeoguesserDataModule preprocesses and hashes values that are shared acorss multiple Datasets (train/val/test). Any preprocessing that will be used across all datasets should be done here (scalings, caculating mean and std of images, hashing data values for faster item fetching...).
+
+It handles the creation/loading of the main dataframe where images metadata is stored. The dataframe is passed to each Dataset. It also takes care of splitting the data (images) between different Datasets creating DataLoaders for each class.
+"""
 from __future__ import annotations, division
 
-import math
 from itertools import combinations
 from pathlib import Path
 from typing import List, Optional, Union, Callable
@@ -71,7 +75,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
         self.coords_transform = lambda lat, lng: torch.tensor([(math.sin(math.radians(lat)) - self.lat_min_sin)/self.lat_max_sin, (math.sin(math.radians(lng)) - self.lng_min_sin)/self.lng_max_sin]).float()
 
         self.num_classes = len(self.df["y"].drop_duplicates())
-        assert self.num_classes == self.df["y"].max() + 1, "Wrong number of classes"  # Sanity check
+        assert self.num_classes == self.df["y"].max() + 1, "Number of classes should corespoing to the maximum y value of the csv dataframe"  # Sanity check
         
         self.class_to_centroid_map = torch.tensor(self._get_class_to_centroid_list(self.num_classes))
 
@@ -82,7 +86,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
             image_transform=self.image_transform,
             load_dataset_in_ram=load_dataset_in_ram,
             dataset_type=DatasetSplitType.TRAIN,
-            coordinate_transform=self.coords_transform,
+            coordinate_transform=self.coords_transform
         )
 
         self.val_dataset = GeoguesserDataset(
@@ -92,7 +96,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
             image_transform=self.image_transform,
             load_dataset_in_ram=load_dataset_in_ram,
             dataset_type=DatasetSplitType.VAL,
-            coordinate_transform=self.coords_transform,
+            coordinate_transform=self.coords_transform
         )
 
         self.test_dataset = GeoguesserDataset(
@@ -102,19 +106,18 @@ class GeoguesserDataModule(pl.LightningDataModule):
             image_transform=self.image_transform,
             load_dataset_in_ram=load_dataset_in_ram,
             dataset_type=DatasetSplitType.TEST,
-            coordinate_transform=self.coords_transform,
+            coordinate_transform=self.coords_transform
         )
 
     def _handle_dataframe(self, cached_df: Union[Path, None]):
-
         """
         Args:
             cached_df: path to the cached dataframe e.g. data/csv_decorated/data__spacing_0.2__num_class_231.csv
 
-        - load the dataframe (cached or created in runtime)
-        - remove rows with no images
+        - load the dataframe. If path is not provided the dataframe will be created in runtime (taking --dataset-dirs and --spacing into account)
+        - remove rows with images that do not exist in the any of dataset directories
         - recount classes (y) because there might be polygons with no images assigned to them
-            - note: the class count is same for all datasets
+            - note: the class count is same for all types (train/val/test) datasets
         """
 
         if cached_df:

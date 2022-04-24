@@ -1,3 +1,4 @@
+"""Concaternates rows and columns of multiple csv dataframes"""
 import argparse
 import pandas as pd
 import sys
@@ -15,7 +16,7 @@ def parse_args(args):
 def main(args):
     args = parse_args(args)
     dfs = [pd.read_csv(csv_path) for csv_path in args.csv]
-    df = pd.concat(dfs,ignore_index=True)
+    df = pd.concat(dfs, ignore_index=True)
     df = df.loc[:, ["uuid", "latitude", "longitude"]]
 
     if args.no_out:
