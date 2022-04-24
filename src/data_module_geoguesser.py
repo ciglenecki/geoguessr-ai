@@ -1,3 +1,8 @@
+"""
+GeoguesserDataModule preprocesses and hashes values that are shared acorss multiple Datasets (train/val/test). Any preprocessing that will be used across all datasets should be done here (scalings, caculating mean and std of images, hashing data values for faster item fetching...).
+
+It handles the creation/loading of the main dataframe where images metadata is stored. The dataframe is passed to each Dataset. It also takes care of splitting the data (images) between different Datasets creating DataLoaders for each class.
+"""
 from __future__ import annotations, division
 
 from itertools import combinations
@@ -57,15 +62,20 @@ class GeoguesserDataModule(pl.LightningDataModule):
         self.shuffle_before_splitting = shuffle_before_splitting
 
         """ Dataframe creation, numclasses handling and coord hashing"""
-        self.df = self._handle_dataframe(cached_df)
+        self.df = self._handle_dataframe(cached_df) # data/complete/data__spacing_0.5__num_class_55.csv
+        
+        # TODO: extract this into a function
         lat_mean = self.df['latitude'].mean()
         lng_mean = self.df['longitude'].mean()
         lat_std = self.df['latitude'].std()
         lng_std = self.df['longitude'].std()
+        
+        # TODO: create a propert function instead of lambda function. It's too long to be in one line
+        # TODO: saving the variable to self is not necesary as we don't use it anywhere else other than passing it to Datasets
         self.coords_transform = lambda lat, lng, lat_mean=lat_mean, lng_mean=lng_mean, lat_std=lat_std, lng_std=lng_std: torch.tensor([(lat - lat_mean) / lat_std, (lng - lng_mean) / lng_std]).float()
 
         self.num_classes = len(self.df["y"].drop_duplicates())
-        assert self.num_classes == self.df["y"].max() + 1, "Wrong number of classes"  # Sanity check
+        assert self.num_classes == self.df["y"].max() + 1, "Number of classes should corespoing to the maximum y value of the csv dataframe"  # Sanity check
         
         self.class_to_centroid_map = torch.tensor(self._get_class_to_centroid_list(self.num_classes))
 
@@ -100,15 +110,14 @@ class GeoguesserDataModule(pl.LightningDataModule):
         )
 
     def _handle_dataframe(self, cached_df: Union[Path, None]):
-
         """
         Args:
             cached_df: path to the cached dataframe e.g. data/csv_decorated/data__spacing_0.2__num_class_231.csv
 
-        - load the dataframe (cached or created in runtime)
-        - remove rows with no images
+        - load the dataframe. If path is not provided the dataframe will be created in runtime (taking --dataset-dirs and --spacing into account)
+        - remove rows with images that do not exist in the any of dataset directories
         - recount classes (y) because there might be polygons with no images assigned to them
-            - note: the class count is same for all datasets
+            - note: the class count is same for all types (train/val/test) datasets
         """
 
         if cached_df:

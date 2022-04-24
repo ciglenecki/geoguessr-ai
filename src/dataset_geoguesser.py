@@ -22,6 +22,7 @@ class GeoguesserDataset(Dataset):
 
     1. Holds pointers to the data (images and coordinates)
     2. Fetches them lazily when __getitem__ is called
+    3. Image and coord transformations are applied before __getitem__ returns image and coordinates
     """
 
     def __init__(
