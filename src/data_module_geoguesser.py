@@ -108,7 +108,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
     def calculate_lat_lng_stats(self):
 
         """
-        Calculates a few states of lat and lng from all the train dataset directories
+        Calculates a few states for latitude and longitude from all the train dataset directories
         """
 
         uuid_dir_paths = flatten([glob(str(Path(dataset_dir, "images", DatasetSplitType.TRAIN.value, "*"))) for dataset_dir in self.dataset_dirs])
