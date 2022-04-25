@@ -14,7 +14,7 @@
 ###       NOTE (2.3) WHAT DOES THE FUNCTION RETURN?
 ### NOTE (**): IF YOU DON'T DO THIS IN THE MOMENT, YOU ARE JUST LEAVING THE WORK TO SOMEONE IN THE FUTURE.
 
-- [x] : Implement the Croatia's CRS projection https://epsg.io/3766
+- [] : Implement the Croatia's CRS projection https://epsg.io/3766
   - this projection will transform lat and lng's to a 2D plane which can be used in linear manner
   - [] in `preprocess_csv_create_classes.py` you have to save the projected values along with angles in the .csv file
   - check `preprocess_sample_coords.py` because there we already used the projection
