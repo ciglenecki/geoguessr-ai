@@ -102,7 +102,7 @@ class LitModel(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         image_list, y, _ = batch
-        y_pred = self(image_list)
+        y_pred = self(image_list)  # same as self.forward
 
         loss = F.cross_entropy(y_pred, y)
         acc = multi_acc(y_pred, y)

@@ -78,7 +78,7 @@ def main(args):
     num_of_coords = args.n
     fig_format = args.fig_format
 
-    croatia_crs = 3765
+    croatia_crs = 3766
     default_crs = 4326
 
     batch_size = num_of_coords // 5
