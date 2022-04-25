@@ -14,11 +14,19 @@
 ###       NOTE (2.3) WHAT DOES THE FUNCTION RETURN?
 ### NOTE (**): IF YOU DON'T DO THIS IN THE MOMENT, YOU ARE JUST LEAVING THE WORK TO SOMEONE IN THE FUTURE.
 
+<<<<<<< HEAD
 - [x] Implement the Croatia's CRS projection https://epsg.io/3766
   - note: this projection will transform lat and lng's to a 2D plane which can be used in linear manner
   - [ ] in `preprocess_csv_create_classes.py` you have to save the projected values along with angles in the .csv file
   - note:  check `preprocess_sample_coords.py` because there we already used the projection
     - this projection and reprojection is really tricky and in my opinion you should print the values at every step just as a sanity check to make sure everything is working
+=======
+- [] : Implement the Croatia's CRS projection https://epsg.io/3766
+  - this projection will transform lat and lng's to a 2D plane which can be used in linear manner
+  - [] in `preprocess_csv_create_classes.py` you have to save the projected values along with angles in the .csv file
+  - check `preprocess_sample_coords.py` because there we already used the projection
+    - note: this projection and reprojection is really tricky and in my opinion you should print the values at every step just as a sanity check to make sure everything is working
+>>>>>>> c9b76913ae6d1c75b050c8547fa834f720359744
       - first: SET projection to default crs (4326). To my knowledge, this doesn't change the values yet
       - second: PROJECT by to a new crs (3766)  
       - optional: third: REPROJECT to default (4326) if you need lat lng values again. In the gpd.GeoDataFrame You might even access the original lat,lng without reprojecting but i'm not sure.
