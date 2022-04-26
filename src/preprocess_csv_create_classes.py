@@ -151,7 +151,7 @@ def main(args, df_object=None):
 
     df_label_polygon_map = pd.DataFrame.from_dict(polygon_dict)
 
-    df['cart_x'], df['cart_y'], df['cart_z'], df['centroid_x'], df['centroid_y'], df['centroid_z'] = generate_spherical_coords(df['latitude'], df['longitude'], df['centroid_lat'], df['centroid_lng'])
+    # df['cart_x'], df['cart_y'], df['cart_z'], df['centroid_x'], df['centroid_y'], df['centroid_z'] = generate_spherical_coords(df['latitude'], df['longitude'], df['centroid_lat'], df['centroid_lng'])
 
     df = append_polygons_without_data(df, df_label_polygon_map)
     num_polygons_without_images = len(df.loc[df["uuid"].isna(), :])

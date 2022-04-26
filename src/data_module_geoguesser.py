@@ -68,7 +68,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
         """ Dataframe creation, numclasses handling and coord hashing"""
         self.df = self._handle_dataframe(cached_df)
 
-        self.calculate_lat_lng_stats()
+        # self.calculate_lat_lng_stats()
 
         self.num_classes = len(self.df["y"].drop_duplicates())
         assert self.num_classes == self.df[
@@ -157,7 +157,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
         df = df.merge(map_poly_index_to_y, on="polygon_index")
         return df
 
-    def _get_class_to_centroid_list(self, num_classes: int):
+    def _get_class_to_centroid_list_cart(self, num_classes: int):
 
         """
         Args:
@@ -171,6 +171,23 @@ class GeoguesserDataModule(pl.LightningDataModule):
             row = df_class_info.loc[df_class_info["y"] == class_idx].head(1)  # ensure that only one row is taken
             polygon_x, polygon_y, polygon_z = row["centroid_x"].values[0], row["centroid_y"].values, row["centroid_z"].values[0]  # values -> ndarray with 1 dim
             point = [polygon_x, polygon_y, polygon_z]
+            _class_to_centroid_map.append(point)
+        return _class_to_centroid_map
+
+    def _get_class_to_centroid_list(self, num_classes: int):
+
+        """
+        Args:
+            num_classes: number of classes that were recounted ("y" column)
+        Itterate over the information of each valid polygon/class and return it's centroids
+        """
+
+        df_class_info = self.df.loc[:, ["polygon_index", "y", "centroid_lat", "centroid_lng", "is_true_centroid"]].drop_duplicates()
+        _class_to_centroid_map = []
+        for class_idx in range(num_classes):
+            row = df_class_info.loc[df_class_info["y"] == class_idx].head(1)  # ensure that only one row is taken
+            polygon_lat, polygon_lng = row["centroid_lat"].values[0], row["centroid_lng"].values # values -> ndarray with 1 dim
+            point = [polygon_lat, polygon_lng]
             _class_to_centroid_map.append(point)
         return _class_to_centroid_map
 
