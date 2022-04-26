@@ -191,6 +191,7 @@ def main(args, df_object=None):
     points_geometry = gpd.points_from_xy(df.loc[:, "longitude"], df.loc[:, "latitude"])
     df_csv = gpd.GeoDataFrame(df, geometry=points_geometry, crs=default_crs)  # type: ignore #[geopandas doesnt recognize args]
     df = reproject_dataframe(df_csv, croatia_crs)
+    df = df.drop(["geometry"], axis=1)
     df = append_polygons_without_data(df, df_label_polygon_map)
     num_polygons_without_images = len(df.loc[df["uuid"].isna(), :])
     polys_without_data = [
