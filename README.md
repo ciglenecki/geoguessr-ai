@@ -14,14 +14,6 @@
 ###       NOTE (2.3) WHAT DOES THE FUNCTION RETURN?
 ### NOTE (**): IF YOU DON'T DO THIS IN THE MOMENT, YOU ARE JUST LEAVING THE WORK TO SOMEONE IN THE FUTURE.
 
-- [x] Implement the Croatia's CRS projection https://epsg.io/3766
-  - note: this projection will transform lat and lng's to a 2D plane which can be used in linear manner
-  - [ ] in `preprocess_csv_create_classes.py` you have to save the projected values along with angles in the .csv file
-  - note:  check `preprocess_sample_coords.py` because there we already used the projection
-    - this projection and reprojection is really tricky and in my opinion you should print the values at every step just as a sanity check to make sure everything is working
-      - first: SET projection to default crs (4326). To my knowledge, this doesn't change the values yet
-      - second: PROJECT by to a new crs (3766)  
-      - optional: third: REPROJECT to default (4326) if you need lat lng values again. In the gpd.GeoDataFrame You might even access the original lat,lng without reprojecting but i'm not sure.
 - [ ] Fix the creation of the grid
   - current situation: each square in the grid is defined as start_lat, start_lng, end_lat, end_lng. This is bad because spacing between those angles is not linear, but we act like they are because we increase the step linearly.
   - [ ] you have to project the lat lngs to a 2D plane before applying the spacing
@@ -66,6 +58,15 @@
   - then use min-max [0, 1] to scale encoded values
   - apply on y_true and y_pred acordingly
   - decode before caculating the distancec
+
+- [x] Implement the Croatia's CRS projection https://epsg.io/3766
+  - note: this projection will transform lat and lng's to a 2D plane which can be used in linear manner
+  - [x] in `preprocess_csv_create_classes.py` you have to save the projected values along with angles in the .csv file
+  - note:  check `preprocess_sample_coords.py` because there we already used the projection
+    - this projection and reprojection is really tricky and in my opinion you should print the values at every step just as a sanity check to make sure everything is working
+      - first: SET projection to default crs (4326). To my knowledge, this doesn't change the values yet
+      - second: PROJECT by to a new crs (3766)  
+      - optional: third: REPROJECT to default (4326) if you need lat lng values again. In the gpd.GeoDataFrame You might even access the original lat,lng without reprojecting but i'm not sure.
 
 ## 🧠 Brainstorming
 
