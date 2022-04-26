@@ -27,7 +27,14 @@ from defaults import (
     LOG_EVERY_N,
 )
 from model import allowed_models
-from utils_functions import is_between_0_1, is_positive_int, is_valid_dir, is_valid_fractions_array, is_valid_image_size, is_valid_unfreeze_arg
+from utils_functions import (
+    is_between_0_1,
+    is_positive_int,
+    is_valid_dir,
+    is_valid_fractions_array,
+    is_valid_image_size,
+    is_valid_unfreeze_arg,
+)
 from utils_paths import PATH_DATA_EXTERNAL, PATH_DATA_RAW, PATH_REPORT
 
 ARGS_GROUP_NAME = "General arguments"

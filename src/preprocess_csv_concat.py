@@ -8,7 +8,11 @@ def parse_args(args):
     parser = argparse.ArgumentParser()
     parser.add_argument("--csv", nargs="+", metavar="file_a.csv file_b.csv")
     parser.add_argument("--out", metavar="csv", help="Path of the csv output")
-    parser.add_argument("--no-out", action="store_true", help="Disable any dataframe or figure saving. Useful when calling inside other scripts")
+    parser.add_argument(
+        "--no-out",
+        action="store_true",
+        help="Disable any dataframe or figure saving. Useful when calling inside other scripts",
+    )
     args = parser.parse_args(args)
     return args
 

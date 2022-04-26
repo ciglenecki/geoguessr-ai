@@ -225,7 +225,14 @@ def main(args):
     GOOGLE_RATE_LIMIT_SECONDS = 60  # 25000 requests in 60 seconds
     url = "https://maps.googleapis.com/maps/api/streetview/metadata?"
     timestamp = get_timestamp()
-    batch_size, radius, override, csv_path, signature, key = args.batch, args.radius, args.override, args.csv, args.signature, args.key
+    batch_size, radius, override, csv_path, signature, key = (
+        args.batch,
+        args.radius,
+        args.override,
+        args.csv,
+        args.signature,
+        args.key,
+    )
 
     path_dir = Path(csv_path).parents[0]
     base_name = Path(csv_path).stem
@@ -235,15 +242,24 @@ def main(args):
 
     print("Saving to file:", str(out))
 
-    df = pd.read_csv(csv_path, index_col=[0])  # index_col - column which defines how rows are indexed (e.g. when `df.loc` is called)
-    df = add_columns_if_they_dont_exist(df, ["row_idx", "status", "radius", "latitude", "longitude", "panorama_id", "uuid"])
+    df = pd.read_csv(
+        csv_path, index_col=[0]
+    )  # index_col - column which defines how rows are indexed (e.g. when `df.loc` is called)
+    df = add_columns_if_they_dont_exist(
+        df,
+        ["row_idx", "status", "radius", "latitude", "longitude", "panorama_id", "uuid"],
+    )
     df = upsert_uuids(df)
     df = flip_df(df) if args.start_from_end else df
 
     df_unresolved = get_rows_with_unresolved_status(df)
 
     base_itterator = chunker(df_unresolved, batch_size)
-    pretty_itterator = tqdm(base_itterator, desc="Waiting for the first itteration to finish...", total=len(df) // batch_size)
+    pretty_itterator = tqdm(
+        base_itterator,
+        desc="Waiting for the first itteration to finish...",
+        total=len(df) // batch_size,
+    )
 
     for rows in pretty_itterator:
         indices = rows.index
@@ -265,7 +281,11 @@ def main(args):
 
         num_ok_status = len(df.loc[df["status"] == "OK", :])
         num_zero_results_status = len(df.loc[df["status"] == "ZERO_RESULTS", :])
-        pretty_itterator.set_description("Last saved index range: [{}, {}], OK: {}, ZERO {}".format(start_idx, end_idx, num_ok_status, num_zero_results_status))
+        pretty_itterator.set_description(
+            "Last saved index range: [{}, {}], OK: {}, ZERO {}".format(
+                start_idx, end_idx, num_ok_status, num_zero_results_status
+            )
+        )
         sleep(GOOGLE_RATE_LIMIT_SECONDS)
 
 

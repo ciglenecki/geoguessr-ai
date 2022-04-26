@@ -44,7 +44,11 @@ def get_country_shape(world_shape: gpd.GeoDataFrame, iso2: str) -> gpd.GeoDataFr
     return country_shape  # type: ignore #[can't recognize type because of modifications]
 
 
-def get_intersecting_polygons(grid: List[Polygon], base_shape: List[Polygon], percentage_of_intersection_threshold=0):
+def get_intersecting_polygons(
+    grid: List[Polygon],
+    base_shape: List[Polygon],
+    percentage_of_intersection_threshold=0,
+):
     """
     Args:
         grid - list of polygons that will be checked against base_shape. polygons in grid which intersect with base_shape will be returned
@@ -57,7 +61,9 @@ def get_intersecting_polygons(grid: List[Polygon], base_shape: List[Polygon], pe
 
     intersecting_polygons: List[Polygon] = []
     for polygon_grid, polygon_base in tqdm(product(grid, base_shape), desc="Finding polygons that intersect"):
-        is_area_valid = (polygon_grid.intersection(polygon_base).area / polygon_grid.area) > percentage_of_intersection_threshold
+        is_area_valid = (
+            polygon_grid.intersection(polygon_base).area / polygon_grid.area
+        ) > percentage_of_intersection_threshold
         if is_area_valid and polygon_grid not in intersecting_polygons:
             intersecting_polygons.append(polygon_grid)
     return intersecting_polygons
@@ -87,7 +93,9 @@ def get_clipped_centroids(polygons: List[Polygon], clipping_shape: gpd.GeoDataFr
             distances = clipping_shape.distance(centroid)
             country_polygon_index = distances.sort_values().index[0]
             country_polygon = clipping_shape.loc[country_polygon_index, :]
-            nearest_point = nearest_points(centroid, country_polygon.geometry)[1]  # [0] is the first argument, [1] is nearest point
+            nearest_point = nearest_points(centroid, country_polygon.geometry)[
+                1
+            ]  # [0] is the first argument, [1] is nearest point
 
             clipped_centroid.point = nearest_point
             clipped_centroid.is_true_centroid = False

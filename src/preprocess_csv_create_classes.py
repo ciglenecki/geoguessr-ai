@@ -10,7 +10,13 @@ from tqdm import tqdm
 
 from defaults import DEFAULT_SPACING
 from utils_functions import is_valid_dir
-from utils_geo import ClippedCentroid, get_clipped_centroids, get_country_shape, get_grid, get_intersecting_polygons
+from utils_geo import (
+    ClippedCentroid,
+    get_clipped_centroids,
+    get_country_shape,
+    get_grid,
+    get_intersecting_polygons,
+)
 from utils_paths import PATH_FIGURE, PATH_WORLD_BORDERS
 
 
@@ -77,12 +83,18 @@ def _handle_arguments(args, df_object):
     out_dir_csv = out
 
     if df_object is None and path_csv is None:
-        raise argparse.ArgumentError(args, "Provide one of the following: --csv path.csv or df_object via main function")
+        raise argparse.ArgumentError(
+            args,
+            "Provide one of the following: --csv path.csv or df_object via main function",
+        )
 
     if not no_out:
         if out is None:
             if path_csv is None:
-                raise argparse.ArgumentError(args, "You want to save the datarame but you didn't provide the output path")
+                raise argparse.ArgumentError(
+                    args,
+                    "You want to save the datarame but you didn't provide the output path",
+                )
             out_dir_csv = Path(path_csv).parents[0]
     return path_csv, no_out, out_dir_csv
 
@@ -120,7 +132,9 @@ def main(args, df_object=None):
     country_shape = get_country_shape(world_shape, "HR")
     x_min, y_min, x_max, y_max = country_shape.total_bounds
     grid_polygons = get_grid(x_min, y_min, x_max, y_max, spacing=spacing)
-    intersecting_polygons = get_intersecting_polygons(grid_polygons, country_shape.geometry, percentage_of_intersection_threshold=0)
+    intersecting_polygons = get_intersecting_polygons(
+        grid_polygons, country_shape.geometry, percentage_of_intersection_threshold=0
+    )
     clipped_centroid = get_clipped_centroids(intersecting_polygons, country_shape)
     num_of_polygons = len(clipped_centroid)
 
@@ -132,7 +146,10 @@ def main(args, df_object=None):
     }
     polys_with_data = []
 
-    for polygon_idx, (polygon, centroid) in tqdm(enumerate(zip(intersecting_polygons, clipped_centroid)), desc="Mapping image coords to polygon"):
+    for polygon_idx, (polygon, centroid) in tqdm(
+        enumerate(zip(intersecting_polygons, clipped_centroid)),
+        desc="Mapping image coords to polygon",
+    ):
 
         centroid: ClippedCentroid
         row_mask = df_geo_csv.within(polygon)
@@ -151,25 +168,42 @@ def main(args, df_object=None):
 
     df_label_polygon_map = pd.DataFrame.from_dict(polygon_dict)
 
-    df['cart_x'], df['cart_y'], df['cart_z'], df['centroid_x'], df['centroid_y'], df['centroid_z'] = generate_spherical_coords(df['latitude'], df['longitude'], df['centroid_lat'], df['centroid_lng'])
+    (
+        df["cart_x"],
+        df["cart_y"],
+        df["cart_z"],
+        df["centroid_x"],
+        df["centroid_y"],
+        df["centroid_z"],
+    ) = generate_spherical_coords(df["latitude"], df["longitude"], df["centroid_lat"], df["centroid_lng"])
 
     df = append_polygons_without_data(df, df_label_polygon_map)
     num_polygons_without_images = len(df.loc[df["uuid"].isna(), :])
     polys_without_data = [poly for poly in intersecting_polygons if poly not in polys_with_data]
 
     print("{}/{} images got marked by a polygon label (class)".format(df["polygon_index"].notnull().sum(), len(df)))
-    print("{}/{} polygons have at least one image assigned to them".format(num_of_polygons - num_polygons_without_images, num_of_polygons))
+    print(
+        "{}/{} polygons have at least one image assigned to them".format(
+            num_of_polygons - num_polygons_without_images, num_of_polygons
+        )
+    )
     num_valid_polys = len(intersecting_polygons)
     print(num_valid_polys, "- number of classes (polygons)")
 
     if no_out:
         return df
 
-    filepath_csv = Path(out_dir_csv, "data__spacing_{}__num_class_{}.csv".format(spacing, num_valid_polys))
+    filepath_csv = Path(
+        out_dir_csv,
+        "data__spacing_{}__num_class_{}.csv".format(spacing, num_valid_polys),
+    )
     df.to_csv(filepath_csv, index=False)
     print("Saved file:", filepath_csv)
 
-    filepath_csv_map = Path(out_dir_csv, "label_map__spacing_{}__num_class_{}.csv".format(spacing, num_valid_polys))
+    filepath_csv_map = Path(
+        out_dir_csv,
+        "label_map__spacing_{}__num_class_{}.csv".format(spacing, num_valid_polys),
+    )
     df_label_polygon_map.to_csv(filepath_csv_map, index=False)
 
     df_polys_with_data = gpd.GeoDataFrame({"geometry": polys_with_data})
@@ -185,7 +219,10 @@ def main(args, df_object=None):
     ax.set_xlabel("Longitude")
     ax.set_ylabel("Latitude")
 
-    filepath_fig = Path(out_dir_fig, "data_fig__spacing_{}__num_class_{}.{}".format(spacing, num_valid_polys, fig_format))
+    filepath_fig = Path(
+        out_dir_fig,
+        "data_fig__spacing_{}__num_class_{}.{}".format(spacing, num_valid_polys, fig_format),
+    )
 
     plt.savefig(filepath_fig, dpi=1200)
     print("Saved file:", filepath_fig)

@@ -13,12 +13,12 @@ from torch.utils.data import Dataset
 import random
 import string
 
+
 class InvalidRatios(Exception):
     pass
 
 
 T = TypeVar("T")
-
 
 
 def name_without_extension(filename: Union[Path, str]):
@@ -60,14 +60,18 @@ def split_by_ratio(array: np.ndarray, *ratios, use_whole_array=False) -> List[np
 
 def get_train_test_indices(dataset: Dataset, test_size, dataset_frac=1.0, shuffle=True):
     dataset_size = floor(
-        len(dataset) * dataset_frac)  # type: ignore # - dataseta has length only __len__ is implemented
+        len(dataset) * dataset_frac
+    )  # type: ignore # - dataseta has length only __len__ is implemented
     dataset_indices = np.arange(dataset_size)
 
     if shuffle:
         np.random.shuffle(dataset_indices)
 
     test_split_index = int(np.floor(test_size * dataset_size))
-    train_indices, test_indices = dataset_indices[test_split_index:], dataset_indices[:test_split_index]
+    train_indices, test_indices = (
+        dataset_indices[test_split_index:],
+        dataset_indices[:test_split_index],
+    )
 
     train_len = test_split_index
     test_len = len(dataset_indices) - test_split_index
@@ -101,8 +105,16 @@ def one_hot_encode(index: int, length: int):
 
 
 def np_set_default_printoptions():
-    np.set_printoptions(edgeitems=3, infstr="inf", linewidth=75, nanstr="nan", precision=8, suppress=False,
-                        threshold=1000, formatter=None)
+    np.set_printoptions(
+        edgeitems=3,
+        infstr="inf",
+        linewidth=75,
+        nanstr="nan",
+        precision=8,
+        suppress=False,
+        threshold=1000,
+        formatter=None,
+    )
 
 
 def imshow(img, y_true, y_pred=None):
@@ -204,16 +216,36 @@ def is_primitive(obj):
 def flatten(t):
     return [item for sublist in t for item in sublist]
 
-nato_alphabet =  {
-        'A': 'Alpha',  'B': 'Bravo',   'C': 'Charlie',
-        'D': 'Delta',  'E': 'Echo',    'F': 'Foxtrot',
-        'G': 'Golf',   'H': 'Hotel',   'I': 'India',
-        'J': 'Juliett','K': 'Kilo',    'L': 'Lima',
-        'M': 'Mike',   'N': 'November','O': 'Oscar',
-        'P': 'Papa',   'Q': 'Quebec',  'R': 'Romeo',
-        'S': 'Sierra', 'T': 'Tango',   'U': 'Uniform',
-        'V': 'Victor', 'W': 'Whiskey', 'X': 'X-ray',
-        'Y': 'Yankee', 'Z': 'Zulu'}
+
+nato_alphabet = {
+    "A": "Alpha",
+    "B": "Bravo",
+    "C": "Charlie",
+    "D": "Delta",
+    "E": "Echo",
+    "F": "Foxtrot",
+    "G": "Golf",
+    "H": "Hotel",
+    "I": "India",
+    "J": "Juliett",
+    "K": "Kilo",
+    "L": "Lima",
+    "M": "Mike",
+    "N": "November",
+    "O": "Oscar",
+    "P": "Papa",
+    "Q": "Quebec",
+    "R": "Romeo",
+    "S": "Sierra",
+    "T": "Tango",
+    "U": "Uniform",
+    "V": "Victor",
+    "W": "Whiskey",
+    "X": "X-ray",
+    "Y": "Yankee",
+    "Z": "Zulu",
+}
+
 
 def random_codeword():
     """
@@ -221,7 +253,8 @@ def random_codeword():
         Alpha_13, Zulu_39, X-ray_95
     """
     random_letter = random.choice(string.ascii_uppercase)
-    return "{}_{}".format(nato_alphabet[random_letter], random.randint(10,99))
+    return "{}_{}".format(nato_alphabet[random_letter], random.randint(10, 99))
+
 
 def timeit(func):
     def timed(*args, **kwargs):
