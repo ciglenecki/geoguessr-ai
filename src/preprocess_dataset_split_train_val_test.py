@@ -60,13 +60,22 @@ def main(args):
     uuid_indices = np.arange(len(uuids))
 
     train_frac, val_frac, test_frac = split_ratios
-    train_indices, val_indices, test_indices = split_by_ratio(uuid_indices, train_frac, val_frac, test_frac, use_whole_array=True)
+    train_indices, val_indices, test_indices = split_by_ratio(
+        uuid_indices, train_frac, val_frac, test_frac, use_whole_array=True
+    )
 
     create_train_val_test_dirs(out_dir)
 
-    list_of_indices = [("train", train_indices), ("val", val_indices), ("test", test_indices)]
+    list_of_indices = [
+        ("train", train_indices),
+        ("val", val_indices),
+        ("test", test_indices),
+    ]
     for split_name, indices in list_of_indices:
-        for i in tqdm(range(indices[0], indices[-1] + 1), desc="Copying {} images".format(split_name)):
+        for i in tqdm(
+            range(indices[0], indices[-1] + 1),
+            desc="Copying {} images".format(split_name),
+        ):
             uuid = uuids[i]
             path_source_dir = Path(dataset_dir, uuid)
             path_dest_dir = Path(out_dir, split_name, uuid)

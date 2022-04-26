@@ -100,9 +100,7 @@ def _handle_arguments(args, df_object):
     return path_csv, no_out, out_dir_csv
 
 
-def generate_spherical_coords(
-    latitude_column, longitude_column, centroid_lat_columns, centroid_lng_column
-):
+def generate_spherical_coords(latitude_column, longitude_column, centroid_lat_columns, centroid_lng_column):
 
     x_coords = []
     y_coords = []
@@ -111,9 +109,7 @@ def generate_spherical_coords(
     y_centroid = []
     z_centroid = []
 
-    for lat, lng, c_lat, c_lng in zip(
-        latitude_column, longitude_column, centroid_lat_columns, centroid_lng_column
-    ):
+    for lat, lng, c_lat, c_lng in zip(latitude_column, longitude_column, centroid_lat_columns, centroid_lng_column):
         x_coords.append(math.sin(math.radians(lat)) * math.cos(math.radians(lng)))
         y_coords.append(math.sin(math.radians(lat)) * math.sin(math.radians(lng)))
         z_coords.append(math.cos(math.radians(lat)))
@@ -138,17 +134,9 @@ def main(args, df_object=None):
 
     default_crs = DEFAULT_GLOBAL_CRS
 
-    df = (
-        df_object
-        if type(df_object) is pd.DataFrame
-        else pd.read_csv(path_csv, index_col=False)
-    )
-    df_geo_csv = gpd.GeoDataFrame(
-        df, geometry=gpd.points_from_xy(df.loc[:, "longitude"], df.loc[:, "latitude"])
-    )
-    df.drop(
-        "geometry", axis=1, inplace=True
-    )  # info: GeoDataFrame somehow adds "geometry" column onto df
+    df = df_object if type(df_object) is pd.DataFrame else pd.read_csv(path_csv, index_col=False)
+    df_geo_csv = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.loc[:, "longitude"], df.loc[:, "latitude"]))
+    df.drop("geometry", axis=1, inplace=True)  # info: GeoDataFrame somehow adds "geometry" column onto df
 
     world_shape: gpd.GeoDataFrame = gpd.read_file(str(PATH_WORLD_BORDERS))
     country_shape = get_country_shape(world_shape, "HR")
@@ -191,7 +179,14 @@ def main(args, df_object=None):
 
     df_label_polygon_map = pd.DataFrame.from_dict(polygon_dict)
 
-    # df['cart_x'], df['cart_y'], df['cart_z'], df['centroid_x'], df['centroid_y'], df['centroid_z'] = generate_spherical_coords(df['latitude'], df['longitude'], df['centroid_lat'], df['centroid_lng'])
+    # (
+    #     df["cart_x"],
+    #     df["cart_y"],
+    #     df["cart_z"],
+    #     df["centroid_x"],
+    #     df["centroid_y"],
+    #     df["centroid_z"],
+    # ) = generate_spherical_coords(df["latitude"], df["longitude"], df["centroid_lat"], df["centroid_lng"])
 
     # country_shape = country_shape.to_crs(crs=croatia_crs)
     df["sample_longitude"], df["sample_latitude"] = generate_src_coords(
@@ -200,20 +195,12 @@ def main(args, df_object=None):
     (
         df["sample_centroid_longitude"],
         df["sample_centroid_latitude"],
-    ) = generate_src_coords(
-        df.copy(), df.loc[:, "centroid_lat"], df.loc[:, "centroid_lng"]
-    )
+    ) = generate_src_coords(df.copy(), df.loc[:, "centroid_lat"], df.loc[:, "centroid_lng"])
     df = append_polygons_without_data(df, df_label_polygon_map)
     num_polygons_without_images = len(df.loc[df["uuid"].isna(), :])
-    polys_without_data = [
-        poly for poly in intersecting_polygons if poly not in polys_with_data
-    ]
+    polys_without_data = [poly for poly in intersecting_polygons if poly not in polys_with_data]
 
-    print(
-        "{}/{} images got marked by a polygon label (class)".format(
-            df["polygon_index"].notnull().sum(), len(df)
-        )
-    )
+    print("{}/{} images got marked by a polygon label (class)".format(df["polygon_index"].notnull().sum(), len(df)))
     print(
         "{}/{} polygons have at least one image assigned to them".format(
             num_of_polygons - num_polygons_without_images, num_of_polygons
@@ -240,30 +227,20 @@ def main(args, df_object=None):
 
     df_polys_with_data = gpd.GeoDataFrame({"geometry": polys_with_data})
     df_polys_without_data = gpd.GeoDataFrame({"geometry": polys_without_data})
-    intersecting_points_df = gpd.GeoDataFrame(
-        {"geometry": [c.point for c in clipped_centroid]}
-    )
+    intersecting_points_df = gpd.GeoDataFrame({"geometry": [c.point for c in clipped_centroid]})
 
     ax = country_shape.plot(color="green")
 
-    df_polys_with_data.plot(
-        ax=ax, alpha=1, facecolor="none", linewidth=0.6, edgecolor="black"
-    )
-    df_polys_without_data.plot(
-        ax=ax, alpha=1, facecolor="none", linewidth=0.6, edgecolor="red"
-    )
+    df_polys_with_data.plot(ax=ax, alpha=1, facecolor="none", linewidth=0.6, edgecolor="black")
+    df_polys_without_data.plot(ax=ax, alpha=1, facecolor="none", linewidth=0.6, edgecolor="red")
 
-    intersecting_points_df.plot(
-        ax=ax, alpha=1, linewidth=0.2, markersize=2, edgecolor="white", color="red"
-    )
+    intersecting_points_df.plot(ax=ax, alpha=1, linewidth=0.2, markersize=2, edgecolor="white", color="red")
     ax.set_xlabel("Longitude")
     ax.set_ylabel("Latitude")
 
     filepath_fig = Path(
         out_dir_fig,
-        "data_fig__spacing_{}__num_class_{}.{}".format(
-            spacing, num_valid_polys, fig_format
-        ),
+        "data_fig__spacing_{}__num_class_{}.{}".format(spacing, num_valid_polys, fig_format),
     )
 
     plt.savefig(filepath_fig, dpi=1200)

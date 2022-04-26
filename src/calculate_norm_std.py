@@ -20,7 +20,7 @@ def calculate_norm_std(dataset_dirs: List[Path]):
 
     degrees = ["0", "90", "180", "270"]
     transform = transforms.ToTensor()
-    
+
     for dataset_dir in dataset_dirs:
         path_images = Path(dataset_dir, "images", DatasetSplitType.TRAIN.value)
         uuid_dir_paths = glob(str(Path(path_images, "*")))

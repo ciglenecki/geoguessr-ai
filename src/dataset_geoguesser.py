@@ -30,12 +30,8 @@ class GeoguesserDataset(Dataset):
         df: pd.DataFrame,
         num_classes,
         dataset_dirs: List[Path],
-        coordinate_transform: Callable = lambda lat, lng: torch.tensor(
-            [lat, lng]
-        ).float(),
-        image_transform: transforms.Compose = transforms.Compose(
-            [transforms.ToTensor()]
-        ),
+        coordinate_transform: Callable = lambda lat, lng: torch.tensor([lat, lng]).float(),
+        image_transform: transforms.Compose = transforms.Compose([transforms.ToTensor()]),
         load_dataset_in_ram=DEFAULT_LOAD_DATASET_IN_RAM,
         dataset_type: DatasetSplitType = DatasetSplitType.TRAIN,
     ) -> None:
@@ -46,10 +42,7 @@ class GeoguesserDataset(Dataset):
         self.coordinate_transform = coordinate_transform
 
         self.uuid_dir_paths = flatten(
-            [
-                glob(str(Path(dataset_dir, "images", dataset_type.value, "*")))
-                for dataset_dir in dataset_dirs
-            ]
+            [glob(str(Path(dataset_dir, "images", dataset_type.value, "*"))) for dataset_dir in dataset_dirs]
         )
         self.uuids = [Path(uuid_dir_path).stem for uuid_dir_path in self.uuid_dir_paths]
         self.df_csv = df
@@ -62,20 +55,14 @@ class GeoguesserDataset(Dataset):
         self._sanity_check_images_dataframe()
 
     def _sanity_check_images_dataframe(self):
-        size_rows_with_images = len(
-            self.df_csv.loc[self.df_csv["uuid"].isin(self.uuids), :]
-        )
-        assert size_rows_with_images == len(
-            self.uuids
-        ), "Dataframe doesn't contain uuids for all images!"
+        size_rows_with_images = len(self.df_csv.loc[self.df_csv["uuid"].isin(self.uuids), :])
+        assert size_rows_with_images == len(self.uuids), "Dataframe doesn't contain uuids for all images!"
 
     def _get_image_cache(self):
         """Cache image paths or images itself so that the __getitem__ function doesn't perform this job"""
         image_cache = {}
         for uuid, uuid_dir_path in zip(self.uuids, self.uuid_dir_paths):
-            image_filepaths = [
-                Path(uuid_dir_path, "{}.jpg".format(degree)) for degree in self.degrees
-            ]
+            image_filepaths = [Path(uuid_dir_path, "{}.jpg".format(degree)) for degree in self.degrees]
             cache_item = (
                 [Image.open(image_path) for image_path in image_filepaths]
                 if self.load_dataset_in_ram
@@ -97,9 +84,7 @@ class GeoguesserDataset(Dataset):
             Dataframe with new column y
         """
 
-        self.y_map = (
-            df.filter(["polygon_index"]).drop_duplicates().sort_values("polygon_index")
-        )
+        self.y_map = df.filter(["polygon_index"]).drop_duplicates().sort_values("polygon_index")
         self.y_map["y"] = np.arange(len(self.y_map))
         df = df.merge(self.y_map, on="polygon_index")
         return df
@@ -115,9 +100,7 @@ class GeoguesserDataset(Dataset):
             int(row["y"]),
         )
 
-    def _get_row_attributes_cart(
-        self, row: pd.Series
-    ) -> Tuple[str, float, float, float, int]:
+    def _get_row_attributes_cart(self, row: pd.Series) -> Tuple[str, float, float, float, int]:
         return (
             str(row["uuid"]),
             float(row["cart_x"]),

@@ -41,7 +41,14 @@ def get_model_weights_sample(model):
     return model.conv1.weight[30:32, 0:2, 3:4, 3:6]
 
 
-def get_setup(batch_size, consecutive_forwads_num, channels, image_size, model_name, freeze_batchnorm_layers=False):
+def get_setup(
+    batch_size,
+    consecutive_forwads_num,
+    channels,
+    image_size,
+    model_name,
+    freeze_batchnorm_layers=False,
+):
     np.random.seed(0)
     random.seed(0)
     torch.manual_seed(SEED)
@@ -114,7 +121,14 @@ def freeze_batchnorm(model: ResNet):
 def main():
     log("CONSECUTIVE FORWARD ======================")
 
-    model, criterion, optimizer, labels, image_batch_list = get_setup(batch_size, consecutive_forwads_num, channels, image_size, MODEL_NAME, freeze_batchnorm_layers=FREEZE_BATCHNORM_LAYERS)
+    model, criterion, optimizer, labels, image_batch_list = get_setup(
+        batch_size,
+        consecutive_forwads_num,
+        channels,
+        image_size,
+        MODEL_NAME,
+        freeze_batchnorm_layers=FREEZE_BATCHNORM_LAYERS,
+    )
     output = forward_consecutive(model, image_batch_list)
     optimizer.zero_grad()
     loss = criterion(output, labels)
@@ -123,9 +137,18 @@ def main():
     optimizer.step()
 
     log("CAT FORWARD ======================")
-    log("Instead of 8 batches that go through forward 4 times, this time we will concat 4 images on the first dimension. This will increase the batch size => 8 x 4 = 32 batches")
+    log(
+        "Instead of 8 batches that go through forward 4 times, this time we will concat 4 images on the first dimension. This will increase the batch size => 8 x 4 = 32 batches"
+    )
 
-    model, criterion, optimizer, labels, image_batch_list = get_setup(batch_size, consecutive_forwads_num, channels, image_size, MODEL_NAME, freeze_batchnorm_layers=FREEZE_BATCHNORM_LAYERS)
+    model, criterion, optimizer, labels, image_batch_list = get_setup(
+        batch_size,
+        consecutive_forwads_num,
+        channels,
+        image_size,
+        MODEL_NAME,
+        freeze_batchnorm_layers=FREEZE_BATCHNORM_LAYERS,
+    )
     output = forward_cat(model, image_batch_list)
     optimizer.zero_grad()
     loss = criterion(output, labels)
@@ -137,10 +160,19 @@ def main():
         log("RANDOM IMAGES - CONSECUTIVE FORWARD ======================")
         """ Used as a sanity check to confirm that the model is getting completely different gradients for completely different batch of images"""
 
-        model, criterion, optimizer, labels, _ = get_setup(batch_size, consecutive_forwads_num, channels, image_size, MODEL_NAME, freeze_batchnorm_layers=FREEZE_BATCHNORM_LAYERS)
+        model, criterion, optimizer, labels, _ = get_setup(
+            batch_size,
+            consecutive_forwads_num,
+            channels,
+            image_size,
+            MODEL_NAME,
+            freeze_batchnorm_layers=FREEZE_BATCHNORM_LAYERS,
+        )
         # use different seed to ensure images are different
         torch.manual_seed(99)
-        image_batch_list_different = [torch.rand(batch_size, channels, image_size, image_size)] * consecutive_forwads_num
+        image_batch_list_different = [
+            torch.rand(batch_size, channels, image_size, image_size)
+        ] * consecutive_forwads_num
         output = forward_cat(model, image_batch_list_different)
         optimizer.zero_grad()
         loss = criterion(output, labels)

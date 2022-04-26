@@ -40,10 +40,7 @@ def get_country_shape(world_shape: gpd.GeoDataFrame, iso2: str) -> gpd.GeoDataFr
 
     country_shape = world_shape[world_shape["ISO2"] == iso2]
     country_shape = country_shape.explode(ignore_index=False)
-    country_shape = country_shape.explode(ignore_index=False)
-    country_shape = country_shape.droplevel(
-        0
-    )  # we don't need country index on level 0, we work with a single country
+    country_shape = country_shape.droplevel(0)  # we don't need country index on level 0, we work with a single country
     return country_shape  # type: ignore #[can't recognize type because of modifications]
 
 
@@ -63,9 +60,7 @@ def get_intersecting_polygons(
     """
 
     intersecting_polygons: List[Polygon] = []
-    for polygon_grid, polygon_base in tqdm(
-        product(grid, base_shape), desc="Finding polygons that intersect"
-    ):
+    for polygon_grid, polygon_base in tqdm(product(grid, base_shape), desc="Finding polygons that intersect"):
         is_area_valid = (
             polygon_grid.intersection(polygon_base).area / polygon_grid.area
         ) > percentage_of_intersection_threshold
