@@ -119,7 +119,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
             coordinate_transform=self.coords_transform,
         )
 
-    def calculate_lat_lng_stats(self):
+    def calculate_lat_lng_stats_cart(self):
 
         """
         Calculates some stats for latitude and longitude from all the train dataset directories
@@ -143,13 +143,42 @@ class GeoguesserDataModule(pl.LightningDataModule):
         self.z_min = df_train["cart_z"].min()
         self.z_max = df_train["cart_z"].max() - self.z_min
 
-    def coords_transform(self, x, y, z):
+    def calculate_lat_lng_stats(self):
+
+        """
+        Calculates some stats for latitude and longitude from all the train dataset directories
+        """
+
+        uuid_dir_paths = flatten(
+            [
+                glob(
+                    str(Path(dataset_dir, "images", DatasetSplitType.TRAIN.value, "*"))
+                )
+                for dataset_dir in self.dataset_dirs
+            ]
+        )
+        uuids = [Path(uuid_dir_path).stem for uuid_dir_path in uuid_dir_paths]
+        df_train = self.df.loc[self.df["uuid"].isin(uuids)]
+
+        self.lat_min = df_train["sample_latitude"].min()
+        self.lat_max = df_train["sample_latitude"].max() - self.lat_min
+        self.lng_min = df_train["sample_longitude"].min()
+        self.lng_max = df_train["sample_longitude"].max() - self.lng_min
+
+    def coords_transform_cart(self, x, y, z):
 
         min_max_x = (x - self.x_min) / self.x_max
         min_max_y = (y - self.y_min) / self.y_max
         min_max_z = (z - self.z_min) / self.z_max
 
         return torch.tensor([min_max_x, min_max_y, min_max_z]).float()
+
+    def coords_transform(self, lat, lng):
+
+        min_max_lat = (lat - self.lat_min) / self.lat_max
+        min_max_lng = (lng - self.lng_min) / self.lng_max
+
+        return torch.tensor([min_max_lat, min_max_lng]).float()
 
     def _handle_dataframe(self, cached_df: Union[Path, None]):
         """

@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from tqdm import tqdm
 
-from defaults import DEFAULT_SPACING
+from defaults import DEFAULT_SPACING, DEFAULT_CROATIA_CRS, DEFAULT_GLOBAL_CRS
 from preprocess_sample_coords import reproject_dataframe
 from utils_functions import is_valid_dir
 from utils_geo import (
@@ -124,13 +124,19 @@ def generate_spherical_coords(
     return x_coords, y_coords, z_coords, x_centroid, y_centroid, z_centroid
 
 
+def generate_src_coords(df, lat, lng):
+    points_geometry = gpd.points_from_xy(lng, lat)
+    df_csv = gpd.GeoDataFrame(df, geometry=points_geometry, crs=DEFAULT_GLOBAL_CRS)  # type: ignore #[geopandas doesnt recognize args]
+    df = reproject_dataframe(df_csv, DEFAULT_CROATIA_CRS)
+    return df["sample_longitude"], df["sample_latitude"]
+
+
 def main(args, df_object=None):
     args = parse_args(args)
     path_csv, no_out, out_dir_csv = _handle_arguments(args, df_object)
     spacing, out_dir_fig, fig_format = args.spacing, args.out_fig, args.fig_format
 
-    croatia_crs = 3766
-    default_crs = 4326
+    default_crs = DEFAULT_GLOBAL_CRS
 
     df = (
         df_object
@@ -188,10 +194,15 @@ def main(args, df_object=None):
     # df['cart_x'], df['cart_y'], df['cart_z'], df['centroid_x'], df['centroid_y'], df['centroid_z'] = generate_spherical_coords(df['latitude'], df['longitude'], df['centroid_lat'], df['centroid_lng'])
 
     # country_shape = country_shape.to_crs(crs=croatia_crs)
-    points_geometry = gpd.points_from_xy(df.loc[:, "longitude"], df.loc[:, "latitude"])
-    df_csv = gpd.GeoDataFrame(df, geometry=points_geometry, crs=default_crs)  # type: ignore #[geopandas doesnt recognize args]
-    df = reproject_dataframe(df_csv, croatia_crs)
-    df = df.drop(["geometry"], axis=1)
+    df["sample_longitude"], df["sample_latitude"] = generate_src_coords(
+        df.copy(), df.loc[:, "latitude"], df.loc[:, "longitude"]
+    )
+    (
+        df["sample_centroid_longitude"],
+        df["sample_centroid_latitude"],
+    ) = generate_src_coords(
+        df.copy(), df.loc[:, "centroid_lat"], df.loc[:, "centroid_lng"]
+    )
     df = append_polygons_without_data(df, df_label_polygon_map)
     num_polygons_without_images = len(df.loc[df["uuid"].isna(), :])
     polys_without_data = [
