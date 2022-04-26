@@ -25,9 +25,7 @@ def name_without_extension(filename: Union[Path, str]):
     return Path(filename).stem
 
 
-def split_by_ratio(
-    array: np.ndarray, *ratios, use_whole_array=False
-) -> List[np.ndarray]:
+def split_by_ratio(array: np.ndarray, *ratios, use_whole_array=False) -> List[np.ndarray]:
     """
     Splits the ndarray for given ratios
 
@@ -84,9 +82,7 @@ def get_timestamp():
     return datetime.today().strftime("%y-%m-%d-%H-%M-%S")
 
 
-def set_train_val_frac(
-    dataset_size: int, train_split_factor, val_split_factor
-) -> Tuple[int, int]:
+def set_train_val_frac(dataset_size: int, train_split_factor, val_split_factor) -> Tuple[int, int]:
     """Set size for training and validation set
     Args:
         train_split_factor [0,1] - percentage of train images
@@ -137,9 +133,7 @@ def imshow(img, y_true, y_pred=None):
 
 def is_valid_fractions_array(array):
     if len(array) != 3 or sum(array) != 1:
-        raise argparse.ArgumentError(
-            array, "There has to be 3 fractions (train, val, test) that sum to 1"
-        )
+        raise argparse.ArgumentError(array, "There has to be 3 fractions (train, val, test) that sum to 1")
     return array
 
 
@@ -160,9 +154,7 @@ def is_valid_image_size(x):
     except ValueError:
         raise argparse.ArgumentTypeError("%r not a int literal" % (x,))
     if x not in valid_sizes:
-        raise argparse.ArgumentTypeError(
-            "Size has to be any of: [224, 112, 56, 28, 14]"
-        )
+        raise argparse.ArgumentTypeError("Size has to be any of: [224, 112, 56, 28, 14]")
     return x
 
 
@@ -178,9 +170,7 @@ def is_valid_unfreeze_arg(arg):
     if type(arg) is str and arg == "all":
         return arg
     try:
-        return is_positive_int(
-            arg
-        )  # is_positive_int's raise will be caught by the except
+        return is_positive_int(arg)  # is_positive_int's raise will be caught by the except
     except:
         raise argparse.ArgumentTypeError("%s has to be positive int or 'all'" % arg)
     return args
