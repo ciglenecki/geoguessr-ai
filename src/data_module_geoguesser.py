@@ -78,7 +78,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
         """ Dataframe creation, numclasses handling and coord hashing"""
         self.df = self._handle_dataframe(cached_df)
 
-        # self.calculate_lat_lng_stats()
+        self.calculate_lat_lng_stats()
 
         self.num_classes = len(self.df["y"].drop_duplicates())
         assert (
@@ -257,7 +257,13 @@ class GeoguesserDataModule(pl.LightningDataModule):
 
         df_class_info = self.df.loc[
             :,
-            ["polygon_index", "y", "centroid_lat", "centroid_lng", "is_true_centroid"],
+            [
+                "polygon_index",
+                "y",
+                "sample_centroid_latitude",
+                "sample_centroid_longitude",
+                "is_true_centroid",
+            ],
         ].drop_duplicates()
         _class_to_centroid_map = []
         for class_idx in range(num_classes):
@@ -265,8 +271,8 @@ class GeoguesserDataModule(pl.LightningDataModule):
                 1
             )  # ensure that only one row is taken
             polygon_lat, polygon_lng = (
-                row["centroid_lat"].values[0],
-                row["centroid_lng"].values,
+                row["sample_centroid_latitude"].values[0],
+                row["sample_centroid_longitude"].values,
             )  # values -> ndarray with 1 dim
             point = [polygon_lat, polygon_lng]
             _class_to_centroid_map.append(point)

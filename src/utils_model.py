@@ -47,7 +47,11 @@ def freeze_but_last_n_blocks(model, leave_last_n):
     for model_block in model_blocks[:-leave_last_n]:
         for param in model_block.parameters():
             param.requires_grad = False
-    print("{} freezing ({}/{}) layers".format(model_name, len(model_blocks) - leave_last_n, len(model_blocks)))
+    print(
+        "{} freezing ({}/{}) layers".format(
+            model_name, len(model_blocks) - leave_last_n, len(model_blocks)
+        )
+    )
     return model
 
 
@@ -56,10 +60,13 @@ def lat_lng_weighted_mean(y_pred, class_map, top_k):
     preds = preds / torch.sum(preds, dim=1, keepdim=True)  # sum to 1 again
     preds = preds.unsqueeze(dim=-1)  # [[0.2, 0.2, 0.6], [0.4, 0.5, 0.1]]
     ones = [1] * len(preds.shape)
-    preds = preds.repeat(*ones, 3)  # [[[0.2, 0.2], [0.2, 0.2] [0.6, 0.6]], [[0.4, 0.4]...
+    preds = preds.repeat(
+        *ones, 2
+    )  # [[[0.2, 0.2], [0.2, 0.2] [0.6, 0.6]], [[0.4, 0.4]...
 
     picked_coords = class_map[
-        indices]  # mask with indices, new column is added where data is concated. Pick only the first row [0] and drop the rest with squeeze
+        indices
+    ]  # mask with indices, new column is added where data is concated. Pick only the first row [0] and drop the rest with squeeze
     scaled_coords = picked_coords * preds
     weighted_sum = torch.sum(scaled_coords, dim=-2).squeeze()
     return weighted_sum

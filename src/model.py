@@ -4,10 +4,13 @@ import math
 from typing import Any, List
 import random
 
+import geopandas
 import numpy as np
+import pandas as pd
 import pytorch_lightning as pl
 import torch
 import torch.nn.functional as F
+from pyproj import Transformer
 from pytorch_lightning.loggers import TensorBoardLogger
 from sklearn.metrics.pairwise import haversine_distances
 from torch import nn
@@ -16,7 +19,13 @@ from torchvision.models.efficientnet import model_urls as efficientnet_model_url
 from torchvision.models.resnet import model_urls as resnet_model_urls
 
 from data_module_geoguesser import GeoguesserDataModule
-from defaults import DEFAULT_EARLY_STOPPING_EPOCH_FREQ, DEFAULT_TORCHVISION_VERSION
+from defaults import (
+    DEFAULT_EARLY_STOPPING_EPOCH_FREQ,
+    DEFAULT_TORCHVISION_VERSION,
+    DEFAULT_GLOBAL_CRS,
+    DEFAULT_CROATIA_CRS,
+)
+from preprocess_sample_coords import reproject_dataframe
 from utils_functions import timeit
 from utils_model import lat_lng_weighted_mean, model_remove_fc
 from utils_train import multi_acc
@@ -54,11 +63,21 @@ class LitModel(pl.LightningModule):
     loggers: List[TensorBoardLogger]
 
     # send class to centroid map instead of data module!, and cl,one it before
-    def __init__(self, data_module: GeoguesserDataModule, num_classes: int, model_name, pretrained, learning_rate,
-                 weight_decay, batch_size, image_size):
+    def __init__(
+        self,
+        data_module: GeoguesserDataModule,
+        num_classes: int,
+        model_name,
+        pretrained,
+        learning_rate,
+        weight_decay,
+        batch_size,
+        image_size,
+    ):
         super(LitModel, self).__init__()
-        self.register_buffer("class_to_centroid_map",
-                             data_module.class_to_centroid_map.clone().detach())  # set self.class_to_centroid_map on gpu
+        self.register_buffer(
+            "class_to_centroid_map", data_module.class_to_centroid_map.clone().detach()
+        )  # set self.class_to_centroid_map on gpu
 
         self.learning_rate = learning_rate
         self.weight_decay = weight_decay
@@ -77,8 +96,9 @@ class LitModel(pl.LightningModule):
     def _set_example_input_array(self):
         num_channels = 3
         num_of_image_sides = 4
-        list_of_images = [torch.rand(self.batch_size, num_channels, self.image_size,
-                                     self.image_size)] * num_of_image_sides
+        list_of_images = [
+            torch.rand(self.batch_size, num_channels, self.image_size, self.image_size)
+        ] * num_of_image_sides
         self.example_input_array = torch.stack(list_of_images)
 
     def _get_last_fc_in_channels(self) -> Any:
@@ -89,8 +109,9 @@ class LitModel(pl.LightningModule):
         num_channels = 3
         num_image_sides = 4
         with torch.no_grad():
-            image_batch_list = [torch.rand(self.batch_size, num_channels, self.image_size,
-                                           self.image_size)] * num_image_sides
+            image_batch_list = [
+                torch.rand(self.batch_size, num_channels, self.image_size, self.image_size)
+            ] * num_image_sides
             outs_backbone = [self.backbone(image) for image in image_batch_list]
             out_backbone_cat = torch.cat(outs_backbone, dim=1)
             flattened_output = torch.flatten(out_backbone_cat, 1)  # shape (batch_size x some_number)
@@ -138,7 +159,7 @@ class LitModel(pl.LightningModule):
         image_list, y_true, image_true_coords = batch
         y_pred = self(image_list)
         coord_pred = lat_lng_weighted_mean(y_pred, self.class_to_centroid_map, top_k=5)
-        coord_pred_changed, image_true_coords_changed = self.cart_to_lat_long(coord_pred, image_true_coords)
+        coord_pred_changed, image_true_coords_changed = self.crs_to_lat_long(coord_pred, image_true_coords)
         haver_dist = np.mean(haversine_distances(coord_pred_changed, image_true_coords_changed))
 
         loss = F.cross_entropy(y_pred, y_true)
@@ -195,12 +216,13 @@ class LitModel(pl.LightningModule):
         self.log_dict(log_dict)
 
     def cart_to_lat_long(self, y, images):
+
         y[:, 0] = y[:, 0] * self.data_module.x_max + self.data_module.x_min
         y[:, 1] = y[:, 1] * self.data_module.y_max + self.data_module.y_min
         y[:, 2] = y[:, 2] * self.data_module.z_max + self.data_module.z_min
 
         tmp_tensor = torch.zeros(y.size(0), y.size(1))
-        tmp_tensor[:, :2] = y[:, [0, 1]]**2
+        tmp_tensor[:, :2] = y[:, [0, 1]] ** 2
         latitude_y = torch.atan2(y[:, 2], torch.sum(tmp_tensor[:, :2], dim=-1).sqrt())
         longitude_y = torch.atan2(y[:, 1], y[:, 0])
 
@@ -215,6 +237,25 @@ class LitModel(pl.LightningModule):
         longitude_images = torch.atan2(images[:, 1], images[:, 0])
 
         return torch.stack((latitude_y, longitude_y)), torch.stack((latitude_images, longitude_images))
+
+    def crs_to_lat_long(self, y, images):
+
+        """
+        Returns: torch tensor of lat and long in radians.
+        """
+
+        transformer = Transformer.from_crs("epsg:3766", "epsg:4326")
+
+        y[:, 0] = y[:, 0] * self.data_module.lat_max + self.data_module.lat_min
+        y[:, 1] = y[:, 1] * self.data_module.lng_max + self.data_module.lng_min
+
+        images[:, 0] = images[:, 0] * self.data_module.lat_max + self.data_module.lat_min
+        images[:, 1] = images[:, 1] * self.data_module.lng_max + self.data_module.lng_min
+
+        y, images = transformer.transform(y, images)
+        print(y, images)
+
+        return y, images
 
     def configure_optimizers(self):
         optimizer = (
@@ -231,8 +272,9 @@ class LitModel(pl.LightningModule):
                 weight_decay=self.weight_decay,
             )
         )
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, "min",
-                                                               patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ // 2) - 1)
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer, "min", patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ // 2) - 1
+        )
         return {
             "optimizer": optimizer,
             "lr_scheduler": {
@@ -253,8 +295,17 @@ class LitModelRegression(pl.LightningModule):
     loggers: List[TensorBoardLogger]
     num_of_outputs = 3
 
-    def __init__(self, data_module, num_classes: int, model_name: str, pretrained: bool, learning_rate: float,
-                 weight_decay: float, batch_size: int, image_size: int):
+    def __init__(
+        self,
+        data_module,
+        num_classes: int,
+        model_name: str,
+        pretrained: bool,
+        learning_rate: float,
+        weight_decay: float,
+        batch_size: int,
+        image_size: int,
+    ):
         super(LitModelRegression, self).__init__()
 
         self.learning_rate = learning_rate
@@ -273,8 +324,9 @@ class LitModelRegression(pl.LightningModule):
     def _set_example_input_array(self):
         num_channels = 3
         num_of_image_sides = 4
-        list_of_images = [torch.rand(self.batch_size, num_channels, self.image_size,
-                                     self.image_size)] * num_of_image_sides
+        list_of_images = [
+            torch.rand(self.batch_size, num_channels, self.image_size, self.image_size)
+        ] * num_of_image_sides
         self.example_input_array = torch.stack(list_of_images)
 
     def _get_last_fc_in_channels(self) -> Any:
@@ -285,8 +337,9 @@ class LitModelRegression(pl.LightningModule):
         num_channels = 3
         num_image_sides = 4
         with torch.no_grad():
-            image_batch_list = [torch.rand(self.batch_size, num_channels, self.image_size,
-                                           self.image_size)] * num_image_sides
+            image_batch_list = [
+                torch.rand(self.batch_size, num_channels, self.image_size, self.image_size)
+            ] * num_image_sides
             outs_backbone = [self.backbone(image) for image in image_batch_list]
             out_backbone_cat = torch.cat(outs_backbone, dim=1)
             flattened_output = torch.flatten(out_backbone_cat, 1)  # shape (batch_size x some_number)
@@ -389,8 +442,9 @@ class LitModelRegression(pl.LightningModule):
                 weight_decay=self.weight_decay,
                 momentum=0.2,
             )
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, "min",
-                                                               patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ // 2) - 1)
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer, "min", patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ // 2) - 1
+        )
         return {
             "optimizer": optimizer,
             "lr_scheduler": {
