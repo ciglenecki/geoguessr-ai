@@ -31,6 +31,8 @@
 
 - [ ] Fix weighted sum classification - Once the dataframe contains projected CRS values, fix the weighted sum of classification predictions so those values are used instead of lat lng values.
 
+- [ ] Set centroid via image distribution
+  - note: the centroids are now set in the middle of the square (or clipped to the border if they are in another country or sea). We should adjust this so that the centroid is **weighted sum of locations of all images IN THE SQUARE**. Notice that we can't take mean of lat/lng, rather we should take mean of the projected values
 - [ ] Generate images that show weights of the model:
   - https://pytorch-lightning-bolts.readthedocs.io/en/latest/vision_callbacks.html#
   - How often should be this called? At the end of every val epoch seems fine
