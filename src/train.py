@@ -16,8 +16,19 @@ from train_args import parse_args_train
 from callback_finetuning_last_n_layers import BackboneFinetuningLastLayers
 from data_module_geoguesser import GeoguesserDataModule
 from defaults import DEFAULT_EARLY_STOPPING_EPOCH_FREQ
-from model import LitModel, LitSingleModel, OnTrainEpochStartLogCallback, LitModelRegression
-from utils_functions import add_prefix_to_keys, get_timestamp, is_primitive, random_codeword, stdout_to_file
+from model import (
+    LitModel,
+    LitSingleModel,
+    OnTrainEpochStartLogCallback,
+    LitModelRegression,
+)
+from utils_functions import (
+    add_prefix_to_keys,
+    get_timestamp,
+    is_primitive,
+    random_codeword,
+    stdout_to_file,
+)
 from calculate_norm_std import calculate_norm_std
 from utils_paths import PATH_REPORT
 
@@ -25,7 +36,9 @@ if __name__ == "__main__":
     args, pl_args = parse_args_train()
 
     timestamp = get_timestamp()
-    filename_report = Path(args.output_report, "-".join(["train", *args.models, timestamp]) + ".txt")
+    filename_report = Path(
+        args.output_report, "-".join(["train", *args.models, timestamp]) + ".txt"
+    )
     stdout_to_file(filename_report)
     print(str(filename_report))
     pprint([vars(args), vars(pl_args)])
@@ -93,10 +106,13 @@ if __name__ == "__main__":
         )
         callback_checkpoint = ModelCheckpoint(
             monitor="val/haversine_distance",
-            filename=model_name + "__haversine_{val/haversine_distance:.4f}__val_acc_{val/acc:.2f}__val_loss_{val/loss:.2f}",
+            filename=model_name
+            + "__haversine_{val/haversine_distance:.4f}__val_acc_{val/acc:.2f}__val_loss_{val/loss:.2f}",
             auto_insert_metric_name=False,
         )
-        bar_refresh_rate = int(len(data_module.train_dataloader()) / pl_args.log_every_n_steps)
+        bar_refresh_rate = int(
+            len(data_module.train_dataloader()) / pl_args.log_every_n_steps
+        )
 
         callbacks = [
             callback_early_stopping,
@@ -116,7 +132,11 @@ if __name__ == "__main__":
                 )
             )
 
-        model_constructor = LitSingleModel if use_single_images else (LitModelRegression if is_regression else LitModel)
+        model_constructor = (
+            LitSingleModel
+            if use_single_images
+            else (LitModelRegression if is_regression else LitModel)
+        )
         model = model_constructor(
             data_module=data_module,
             num_classes=num_classes,
@@ -131,7 +151,11 @@ if __name__ == "__main__":
         # Enables a placeholder metric with key `hp_metric` when `log_hyperparams` is called without a metric (otherwise calls to log_hyperparams without a metric are ignored).
         tb_logger = pl_loggers.TensorBoardLogger(
             save_dir=str(PATH_REPORT),
-            name="{}-{}{}".format(timestamp, random_codeword(), "-regression" if is_regression else "-num_classes_" + str(num_classes)),
+            name="{}-{}{}".format(
+                timestamp,
+                random_codeword(),
+                "-regression" if is_regression else "-num_classes_" + str(num_classes),
+            ),
             default_hp_metric=True,
             log_graph=True,
         )

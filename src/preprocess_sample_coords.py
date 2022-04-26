@@ -97,10 +97,16 @@ def main(args):
     final_df = gpd.GeoDataFrame()
     for rand_coords in tqdm(uniform_2d_generator(lat_lng_min, lat_lng_max, batch_size)):
         df_batch = pd.DataFrame(rand_coords, columns=["latitude", "longitude"])
-        points_geometry = gpd.points_from_xy(df_batch.loc[:, "longitude"], df_batch.loc[:, "latitude"])
+        points_geometry = gpd.points_from_xy(
+            df_batch.loc[:, "longitude"], df_batch.loc[:, "latitude"]
+        )
         df_batch_csv = gpd.GeoDataFrame(df_batch, geometry=points_geometry, crs=croatia_crs)  # type: ignore #[geopandas doesnt recognize args]
-        df_batch_points_in_country = gpd.sjoin(df_batch_csv, country_shape, predicate="within").set_crs(croatia_crs)
-        final_df = gpd.GeoDataFrame(pd.concat([final_df, df_batch_points_in_country]), crs=croatia_crs)
+        df_batch_points_in_country = gpd.sjoin(
+            df_batch_csv, country_shape, predicate="within"
+        ).set_crs(croatia_crs)
+        final_df = gpd.GeoDataFrame(
+            pd.concat([final_df, df_batch_points_in_country]), crs=croatia_crs
+        )
 
         if len(final_df) >= num_of_coords:
             break
@@ -116,7 +122,9 @@ def main(args):
     if not no_df_out:
         print("Saving to csv...")
         final_df_clean = final_df.loc[:, ["sample_longitude", "sample_latitude"]]
-        final_df_clean = final_df_clean.sample(frac=1).reset_index(drop=True)  # Shuffle rows and reassign indices
+        final_df_clean = final_df_clean.sample(frac=1).reset_index(
+            drop=True
+        )  # Shuffle rows and reassign indices
         csv_path = Path(out_dir, basename + ".csv")
         final_df_clean.to_csv(csv_path, index_label=False)
         print("Saved file", str(csv_path))
@@ -124,7 +132,14 @@ def main(args):
     if not no_fig_out:
         print("Saving figure...")
         ax = country_shape.plot(color="green")
-        final_df.plot(ax=ax, alpha=1, linewidth=0.01, markersize=0.01, edgecolor="white", color="red")
+        final_df.plot(
+            ax=ax,
+            alpha=1,
+            linewidth=0.01,
+            markersize=0.01,
+            edgecolor="white",
+            color="red",
+        )
         ax.set_xlabel("Longitude")
         ax.set_ylabel("Latitude")
         fig_path = Path(out_dir, basename + "." + fig_format)
