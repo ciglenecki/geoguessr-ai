@@ -68,11 +68,29 @@ class GeoguesserDataset(Dataset):
     def name_without_extension(self, filename: Path | str):
         return Path(filename).stem
 
+    def append_column_y(self, df: pd.DataFrame):
+        """
+        y_map is temporary dataframe that hold non-duplicated values of polygon_index. y is then created by aranging polygon_index. The issue is that polygon_index might be interupted discrete series. The new column is uninterupted {0, ..., num_classes}
+
+        Args:
+            df - dataframe
+        Returns:
+            Dataframe with new column y
+        """
+
+        self.y_map = df.filter(["polygon_index"]).drop_duplicates().sort_values("polygon_index")
+        self.y_map["y"] = np.arange(len(self.y_map))
+        df = df.merge(self.y_map, on="polygon_index")
+        return df
+
     def one_hot_encode_label(self, label: int):
         return one_hot_encode(label, self.num_classes)
 
     def _get_row_attributes(self, row: pd.Series) -> Tuple[str, float, float, int]:
         return str(row["uuid"]), row["latitude"], row["longitude"], int(row["y"])
+
+    def _get_row_attributes_cart(self, row: pd.Series) -> Tuple[str, float, float, float, int]:
+        return str(row["uuid"]), float(row["cart_x"]), float(row["cart_y"]), float(row["cart_z"]), int(row["y"])
 
     def __len__(self):
         return len(self.uuids)

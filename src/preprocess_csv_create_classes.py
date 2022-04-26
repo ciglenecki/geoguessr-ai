@@ -1,4 +1,5 @@
 import argparse
+import math
 import sys
 from pathlib import Path
 
@@ -86,6 +87,26 @@ def _handle_arguments(args, df_object):
     return path_csv, no_out, out_dir_csv
 
 
+def generate_spherical_coords(latitude_column, longitude_column, centroid_lat_columns, centroid_lng_column):
+
+    x_coords = []
+    y_coords = []
+    z_coords = []
+    x_centroid = []
+    y_centroid = []
+    z_centroid = []
+
+    for lat, lng, c_lat, c_lng in zip(latitude_column, longitude_column, centroid_lat_columns, centroid_lng_column):
+        x_coords.append(math.sin(math.radians(lat)) * math.cos(math.radians(lng)))
+        y_coords.append(math.sin(math.radians(lat)) * math.sin(math.radians(lng)))
+        z_coords.append(math.cos(math.radians(lat)))
+        x_centroid.append(math.sin(math.radians(c_lat)) * math.cos(math.radians(c_lng)))
+        y_centroid.append(math.sin(math.radians(c_lat)) * math.sin(math.radians(c_lng)))
+        z_centroid.append(math.cos(math.radians(c_lat)))
+
+    return x_coords, y_coords, z_coords, x_centroid, y_centroid, z_centroid
+
+
 def main(args, df_object=None):
     args = parse_args(args)
     path_csv, no_out, out_dir_csv = _handle_arguments(args, df_object)
@@ -129,6 +150,8 @@ def main(args, df_object=None):
         polygon_dict["is_true_centroid"].append(centroid.is_true_centroid)
 
     df_label_polygon_map = pd.DataFrame.from_dict(polygon_dict)
+
+    df['cart_x'], df['cart_y'], df['cart_z'], df['centroid_x'], df['centroid_y'], df['centroid_z'] = generate_spherical_coords(df['latitude'], df['longitude'], df['centroid_lat'], df['centroid_lng'])
 
     df = append_polygons_without_data(df, df_label_polygon_map)
     num_polygons_without_images = len(df.loc[df["uuid"].isna(), :])

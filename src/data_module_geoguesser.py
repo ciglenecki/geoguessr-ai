@@ -5,6 +5,8 @@ It handles the creation/loading of the main dataframe where images metadata is s
 """
 from __future__ import annotations, division
 
+import math
+from glob import glob
 from itertools import combinations
 from pathlib import Path
 from typing import List, Optional, Union, Callable
@@ -13,6 +15,7 @@ import numpy as np
 import pandas as pd
 import pytorch_lightning as pl
 import torch
+from PIL import Image
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
 from torchvision import transforms
@@ -22,6 +25,7 @@ import preprocess_csv_create_classes
 from dataset_geoguesser import GeoguesserDataset
 from defaults import DEAFULT_DROP_LAST, DEAFULT_NUM_WORKERS, DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING, \
     DEFAULT_LOAD_DATASET_IN_RAM, DEFAULT_SPACING, DEFAULT_TEST_FRAC, DEFAULT_TRAIN_FRAC, DEFAULT_VAL_FRAC
+from utils_functions import flatten
 from utils_dataset import DatasetSplitType
 
 
@@ -62,21 +66,14 @@ class GeoguesserDataModule(pl.LightningDataModule):
         self.shuffle_before_splitting = shuffle_before_splitting
 
         """ Dataframe creation, numclasses handling and coord hashing"""
-        self.df = self._handle_dataframe(cached_df) # data/complete/data__spacing_0.5__num_class_55.csv
-        
-        # TODO: extract this into a function
-        lat_mean = self.df['latitude'].mean()
-        lng_mean = self.df['longitude'].mean()
-        lat_std = self.df['latitude'].std()
-        lng_std = self.df['longitude'].std()
-        
-        # TODO: create a propert function instead of lambda function. It's too long to be in one line
-        # TODO: saving the variable to self is not necesary as we don't use it anywhere else other than passing it to Datasets
-        self.coords_transform = lambda lat, lng, lat_mean=lat_mean, lng_mean=lng_mean, lat_std=lat_std, lng_std=lng_std: torch.tensor([(lat - lat_mean) / lat_std, (lng - lng_mean) / lng_std]).float()
+        self.df = self._handle_dataframe(cached_df)
+
+        self.calculate_lat_lng_stats()
 
         self.num_classes = len(self.df["y"].drop_duplicates())
-        assert self.num_classes == self.df["y"].max() + 1, "Number of classes should corespoing to the maximum y value of the csv dataframe"  # Sanity check
-        
+        assert self.num_classes == self.df[
+            "y"].max() + 1, "Number of classes should corespoing to the maximum y value of the csv dataframe"  # Sanity check
+
         self.class_to_centroid_map = torch.tensor(self._get_class_to_centroid_list(self.num_classes))
 
         self.train_dataset = GeoguesserDataset(
@@ -108,6 +105,33 @@ class GeoguesserDataModule(pl.LightningDataModule):
             dataset_type=DatasetSplitType.TEST,
             coordinate_transform=self.coords_transform
         )
+
+    def calculate_lat_lng_stats(self):
+
+        """
+        Calculates some stats for latitude and longitude from all the train dataset directories
+        """
+
+        uuid_dir_paths = flatten(
+            [glob(str(Path(dataset_dir, "images", DatasetSplitType.TRAIN.value, "*"))) for dataset_dir in
+             self.dataset_dirs])
+        uuids = [Path(uuid_dir_path).stem for uuid_dir_path in uuid_dir_paths]
+        df_train = self.df.loc[self.df["uuid"].isin(uuids)]
+
+        self.x_min = df_train['cart_x'].min()
+        self.x_max = df_train['cart_x'].max() - self.x_min
+        self.y_min = df_train['cart_y'].min()
+        self.y_max = df_train['cart_y'].max() - self.y_min
+        self.z_min = df_train['cart_z'].min()
+        self.z_max = df_train['cart_z'].max() - self.z_min
+
+    def coords_transform(self, x, y, z):
+
+        min_max_x = (x - self.x_min) / self.x_max
+        min_max_y = (y - self.y_min) / self.y_max
+        min_max_z = (z - self.z_min) / self.z_max
+
+        return torch.tensor([min_max_x, min_max_y, min_max_z]).float()
 
     def _handle_dataframe(self, cached_df: Union[Path, None]):
         """
@@ -141,14 +165,12 @@ class GeoguesserDataModule(pl.LightningDataModule):
         Itterate over the information of each valid polygon/class and return it's centroids
         """
 
-        df_class_info = self.df.loc[:,
-                        ["polygon_index", "y", "centroid_lat", "centroid_lng", "is_true_centroid"]].drop_duplicates()
+        df_class_info = self.df.loc[:, ["polygon_index", "y", "centroid_x", "centroid_y", "centroid_z", "is_true_centroid"]].drop_duplicates()
         _class_to_centroid_map = []
         for class_idx in range(num_classes):
             row = df_class_info.loc[df_class_info["y"] == class_idx].head(1)  # ensure that only one row is taken
-            polygon_lat, polygon_lng = row["centroid_lat"].values[0], row["centroid_lng"].values[
-                0]  # values -> ndarray with 1 dim
-            point = [polygon_lat, polygon_lng]
+            polygon_x, polygon_y, polygon_z = row["centroid_x"].values[0], row["centroid_y"].values, row["centroid_z"].values[0]  # values -> ndarray with 1 dim
+            point = [polygon_x, polygon_y, polygon_z]
             _class_to_centroid_map.append(point)
         return _class_to_centroid_map
 
