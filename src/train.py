@@ -6,6 +6,7 @@ from pprint import pprint
 import pytorch_lightning as pl
 from pytorch_lightning import loggers as pl_loggers
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
+from pytorch_lightning.callbacks.model_summary import ModelSummary
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from pytorch_lightning.callbacks.progress.tqdm_progress import TQDMProgressBar
 from torchvision import transforms
@@ -102,6 +103,7 @@ if __name__ == "__main__":
             TQDMProgressBar(refresh_rate=bar_refresh_rate),
             callback_checkpoint,
             OnTrainEpochStartLogCallback(),
+            ModelSummary(max_depth=2),
         ]
 
         if unfreeze_backbone_at_epoch:
@@ -129,7 +131,7 @@ if __name__ == "__main__":
         # Enables a placeholder metric with key `hp_metric` when `log_hyperparams` is called without a metric (otherwise calls to log_hyperparams without a metric are ignored).
         tb_logger = pl_loggers.TensorBoardLogger(
             save_dir=str(PATH_REPORT),
-            name="{}-{}{}".format(timestamp, random_codeword(), "-regression" if is_regression else "-num_classes_" + str(num_classes) ),
+            name="{}-{}{}".format(timestamp, random_codeword(), "-regression" if is_regression else "-num_classes_" + str(num_classes)),
             default_hp_metric=True,
             log_graph=True,
         )

@@ -26,14 +26,14 @@ class GeoguesserDataset(Dataset):
     """
 
     def __init__(
-            self,
-            df: pd.DataFrame,
-            num_classes,
-            dataset_dirs: List[Path],
-            coordinate_transform: Callable= lambda lat, lng: torch.tensor([lat,lng]).float(),
-            image_transform: transforms.Compose = transforms.Compose([transforms.ToTensor()]),
-            load_dataset_in_ram=DEFAULT_LOAD_DATASET_IN_RAM,
-            dataset_type: DatasetSplitType = DatasetSplitType.TRAIN,
+        self,
+        df: pd.DataFrame,
+        num_classes,
+        dataset_dirs: List[Path],
+        coordinate_transform: Callable = lambda lat, lng: torch.tensor([lat, lng]).float(),
+        image_transform: transforms.Compose = transforms.Compose([transforms.ToTensor()]),
+        load_dataset_in_ram=DEFAULT_LOAD_DATASET_IN_RAM,
+        dataset_type: DatasetSplitType = DatasetSplitType.TRAIN,
     ) -> None:
         print("GeoguesserDataset init")
         super().__init__()
@@ -41,8 +41,7 @@ class GeoguesserDataset(Dataset):
         self.image_transform = image_transform
         self.coordinate_transform = coordinate_transform
 
-        self.uuid_dir_paths = flatten(
-            [glob(str(Path(dataset_dir, "images", dataset_type.value, "*"))) for dataset_dir in dataset_dirs])
+        self.uuid_dir_paths = flatten([glob(str(Path(dataset_dir, "images", dataset_type.value, "*"))) for dataset_dir in dataset_dirs])
         self.uuids = [Path(uuid_dir_path).stem for uuid_dir_path in self.uuid_dir_paths]
         self.df_csv = df
         self.num_classes = num_classes
@@ -62,28 +61,12 @@ class GeoguesserDataset(Dataset):
         image_cache = {}
         for uuid, uuid_dir_path in zip(self.uuids, self.uuid_dir_paths):
             image_filepaths = [Path(uuid_dir_path, "{}.jpg".format(degree)) for degree in self.degrees]
-            cache_item = [Image.open(image_path) for image_path in
-                          image_filepaths] if self.load_dataset_in_ram else image_filepaths
+            cache_item = [Image.open(image_path) for image_path in image_filepaths] if self.load_dataset_in_ram else image_filepaths
             image_cache[uuid] = cache_item
         return image_cache
 
     def name_without_extension(self, filename: Path | str):
         return Path(filename).stem
-
-    def append_column_y(self, df: pd.DataFrame):
-        """
-        y_map is temporary dataframe that hold non-duplicated values of polygon_index. y is then created by aranging polygon_index. The issue is that polygon_index might be interupted discrete series. The new column is uninterupted {0, ..., num_classes}
-
-        Args:
-            df - dataframe
-        Returns:
-            Dataframe with new column y
-        """
-
-        self.y_map = df.filter(["polygon_index"]).drop_duplicates().sort_values("polygon_index")
-        self.y_map["y"] = np.arange(len(self.y_map))
-        df = df.merge(self.y_map, on="polygon_index")
-        return df
 
     def one_hot_encode_label(self, label: int):
         return one_hot_encode(label, self.num_classes)
