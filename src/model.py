@@ -255,8 +255,8 @@ class LitModel(pl.LightningModule):
 
         images[:, 0] = images[:, 0] * self.data_module.lat_max + self.data_module.lat_min
         images[:, 1] = images[:, 1] * self.data_module.lng_max + self.data_module.lng_min
-        images1, images2 = transformer.transform(images[:, 1], images[:, 0])
-        y1, y2 = transformer.transform(y[:, 1], y[:, 0])
+        images1, images2 = transformer.transform(images[:, 1].cpu(), images[:, 0].cpu())
+        y1, y2 = transformer.transform(y[:, 1].cpu(), y[:, 0].cpu())
 
         return torch.tensor(np.dstack([y1, y2])[0]), torch.tensor(np.dstack([images1, images2])[0])
 
