@@ -160,7 +160,9 @@ class LitModel(pl.LightningModule):
         y_pred = self(image_list)
         coord_pred = lat_lng_weighted_mean(y_pred, self.class_to_centroid_map, top_k=5)
         coord_pred_changed, image_true_coords_changed = self.crs_to_lat_long(coord_pred, image_true_coords)
-        haver_dist = np.mean(haversine_distances(coord_pred_changed, image_true_coords_changed))
+        haver_dist = np.mean(
+            haversine_distances(torch.deg2rad(coord_pred_changed), torch.deg2rad(image_true_coords_changed))
+        )
 
         loss = F.cross_entropy(y_pred, y_true)
         acc = multi_acc(y_pred, y_true)
@@ -189,8 +191,10 @@ class LitModel(pl.LightningModule):
         image_list, y_true, image_true_coords = batch
         y_pred = self(image_list)
         coord_pred = lat_lng_weighted_mean(y_pred, self.class_to_centroid_map, top_k=5)
-        coord_pred_changed, image_true_coords_changed = self.cart_to_lat_long(coord_pred, image_true_coords)
-        haver_dist = np.mean(haversine_distances(coord_pred_changed, image_true_coords_changed))
+        coord_pred_changed, image_true_coords_changed = self.crs_to_lat_long(coord_pred, image_true_coords)
+        haver_dist = np.mean(
+            haversine_distances(torch.deg2rad(coord_pred_changed), torch.deg2rad(image_true_coords_changed))
+        )
 
         loss = F.cross_entropy(y_pred, y_true)
         acc = multi_acc(y_pred, y_true)
@@ -246,16 +250,15 @@ class LitModel(pl.LightningModule):
 
         transformer = Transformer.from_crs("epsg:3766", "epsg:4326")
 
-        y[:, 0] = y[:, 0] * self.data_module.lat_max + self.data_module.lat_min
-        y[:, 1] = y[:, 1] * self.data_module.lng_max + self.data_module.lng_min
+        # y[:, 1] = y[:, 1] * self.data_module.lat_max + self.data_module.lat_min
+        # y[:, 0] = y[:, 0] * self.data_module.lng_max + self.data_module.lng_min
 
         images[:, 0] = images[:, 0] * self.data_module.lat_max + self.data_module.lat_min
         images[:, 1] = images[:, 1] * self.data_module.lng_max + self.data_module.lng_min
+        images1, images2 = transformer.transform(images[:, 1], images[:, 0])
+        y1, y2 = transformer.transform(y[:, 1], y[:, 0])
 
-        y, images = transformer.transform(y, images)
-        print(y, images)
-
-        return y, images
+        return torch.tensor(np.dstack([y1, y2])[0]), torch.tensor(np.dstack([images1, images2])[0])
 
     def configure_optimizers(self):
         optimizer = (
