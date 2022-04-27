@@ -312,7 +312,6 @@ class GeoguesserDataModule(pl.LightningDataModule):
             num_workers=self.num_workers,
             sampler=self.train_sampler,
             drop_last=self.drop_last,
-            shuffle=True,
         )
 
     def val_dataloader(self) -> DataLoader:
@@ -322,7 +321,6 @@ class GeoguesserDataModule(pl.LightningDataModule):
             num_workers=self.num_workers,
             sampler=self.val_sampler,
             drop_last=self.drop_last,
-            shuffle=False,
         )
 
     def test_dataloader(self) -> DataLoader:
@@ -332,7 +330,6 @@ class GeoguesserDataModule(pl.LightningDataModule):
             num_workers=self.num_workers,
             sampler=self.test_sampler,
             drop_last=self.drop_last,
-            shuffle=False,
         )
 
 
