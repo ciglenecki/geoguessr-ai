@@ -11,6 +11,7 @@ from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from pytorch_lightning.callbacks.progress.tqdm_progress import TQDMProgressBar
 from torchvision import transforms
 from torchvision.transforms import AutoAugmentPolicy
+from pytorch_lightning.callbacks import BackboneFinetuning
 
 from train_args import parse_args_train
 from callback_finetuning_last_n_layers import BackboneFinetuningLastLayers
@@ -89,9 +90,9 @@ if __name__ == "__main__":
     log_dictionary = {
         **add_prefix_to_keys(vars(args), "user_args/"),
         **add_prefix_to_keys(vars(pl_args), "lightning_args/"),
-        "train_size": len(data_module.train_dataloader()),
-        "val_size": len(data_module.val_dataloader()),
-        "test_size": len(data_module.test_dataloader()),
+        "train_size": len(data_module.train_dataloader().dataset),  # type: ignore
+        "val_size": len(data_module.val_dataloader().dataset),  # type: ignore
+        "test_size": len(data_module.test_dataloader().dataset),  # type: ignore
     }
 
     for model_name in model_names:
@@ -119,13 +120,16 @@ if __name__ == "__main__":
         ]
 
         if unfreeze_backbone_at_epoch:
-            multiplicative = lambda epoch: 1.4
+            rate_fine_tuning_multiply = 10
+            learning_rate *= rate_fine_tuning_multiply
+            multiplicative = lambda epoch: 1
             callbacks.append(
                 BackboneFinetuningLastLayers(
                     unfreeze_blocks_num=unfreeze_blocks_num,
+                    backbone_initial_ratio_lr=1 / rate_fine_tuning_multiply,
                     unfreeze_backbone_at_epoch=unfreeze_backbone_at_epoch,
                     lambda_func=multiplicative,
-                )
+                ),
             )
 
         model_constructor = LitSingleModel if use_single_images else (LitModelRegression if is_regression else LitModel)

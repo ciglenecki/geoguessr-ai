@@ -300,23 +300,22 @@ class GeoguesserDataModule(pl.LightningDataModule):
         self.train_size = len(dataset_train_indices)
         self.val_size = len(dataset_val_indices)
         self.test_size = len(dataset_test_indices)
-        print("Train, val and test size", self.train_size, self.val_size, self.test_size)
 
         self.train_sampler = SubsetRandomSampler(dataset_train_indices)
         self.val_sampler = SubsetRandomSampler(dataset_val_indices)
         self.test_sampler = SubsetRandomSampler(dataset_test_indices)
 
-    def train_dataloader(self):
+    def train_dataloader(self) -> DataLoader:
         return DataLoader(
             self.train_dataset,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             sampler=self.train_sampler,
             drop_last=self.drop_last,
-            shuffle=False,
+            shuffle=True,
         )
 
-    def val_dataloader(self):
+    def val_dataloader(self) -> DataLoader:
         return DataLoader(
             self.val_dataset,
             batch_size=self.batch_size,
@@ -326,7 +325,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
             shuffle=False,
         )
 
-    def test_dataloader(self):
+    def test_dataloader(self) -> DataLoader:
         return DataLoader(
             self.test_dataset,
             batch_size=self.batch_size,

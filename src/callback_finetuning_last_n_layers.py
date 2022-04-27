@@ -39,7 +39,7 @@ class BackboneFinetuningLastLayers(BackboneFinetuning):
         trainable_blocks: List[Module] = blocks
         if type(self.unfreeze_blocks_num) is int:
             trainable_blocks = blocks[len(blocks) - self.unfreeze_blocks_num :]
-        if self.unfreeze_blocks_num != "all":
+        elif self.unfreeze_blocks_num != "all":
             raise InvalidArgument("unfreeze_blocks_num argument should be [0, inf> or 'all'")
 
         last_layer = get_last_layer(modules)

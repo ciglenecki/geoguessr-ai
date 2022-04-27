@@ -181,10 +181,10 @@ def is_valid_unfreeze_arg(arg):
     if type(arg) is str and arg == "all":
         return arg
     try:
-        return is_positive_int(arg)  # is_positive_int's raise will be caught by the except
+        if is_positive_int(arg):  # is_positive_int's raise will be caught by the except
+            return int(arg)
     except:
         raise argparse.ArgumentTypeError("%s has to be positive int or 'all'" % arg)
-    return args
 
 
 def is_valid_dir(arg):
