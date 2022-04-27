@@ -4,14 +4,14 @@
 	<img src="readme-pics/geoguesser-logo.png"></img>
 </p>
 
-
-
 ## 📝 Tasks
 
 ### **(RULE 1): EXTRACT YOUR CODE INTO FUNCTIONS**
 
 ### **(RULE 2): ADD DESCRIPTIONS TO YOUR FUNCTIONS.**
+
 ### **(RULE 3): IF YOU CAN, DEFINE THE FUNCTION IN utils_functions.py**
+
 ## **(!!): IF YOU DON'T DO THIS YOU ARE JUST LEAVING THE WORK TO SOMEONE IN THE FUTURE.**
 
 ```py
@@ -27,6 +27,12 @@ def function(arg1, arg2) -> List[arg1, arg2]:
     list of length 2 which contains both arguments
   """
 ```
+
+- [ ] **Create local server that can predict an image**
+  - use FastAPI, it's simple and it can self-document <https://fastapi.tiangolo.com/tutorial/first-steps/>
+  - [ ] make sure that the server is highly configurable and receives multiple paramters: ports, directory path to models...etc.
+  - [ ] add ability to use any existing model, for example, any in `models` directory <https://fastapi.tiangolo.com/tutorial/path-params/#predefined-values> . We can handle all response that come to /predict/</path/to/filename-model-name.ckpt>. Then check if the path and model exist. After validating that the model exist (is .ckpt file) then we load it
+  - [ ] scan default directory `models` and find all `ckpt` files (`models/*ckpt`). List the files in the interactive API like shown in the example here: <https://fastapi.tiangolo.com/tutorial/path-params/#check-the-docs>
 - [ ] **Fix the creation of the grid in `utils_geo.py` (`def get_grid`) and in places where it's used**
   - current situation: each square in the grid is defined as start_lat, start_lng, end_lat, end_lng. This is bad because spacing between those angles is not linear, but we act like they are because we increase the step linearly.
   - [ ] project the lat lngs to 3766 CRS 2D plane and then use new values (crs_3766_x and crs_3766_y) before applying the spacing. The function _shouldn't_ take care of the projection. Do the projection beforehand.
