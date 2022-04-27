@@ -12,7 +12,6 @@ import torch
 import torch.nn.functional as F
 from pyproj import Transformer
 from pytorch_lightning.loggers import TensorBoardLogger
-from sklearn.metrics.pairwise import haversine_distances
 from torch import nn
 from torchvision.models.efficientnet import EfficientNet
 from torchvision.models.efficientnet import model_urls as efficientnet_model_urls
@@ -26,7 +25,7 @@ from defaults import (
     DEFAULT_CROATIA_CRS,
 )
 from preprocess_sample_coords import reproject_dataframe
-from utils_functions import timeit
+from utils_functions import haversine_distance_neighbour, timeit
 from utils_model import lat_lng_weighted_mean, model_remove_fc
 from utils_train import multi_acc
 
@@ -160,8 +159,9 @@ class LitModel(pl.LightningModule):
         y_pred = self(image_list)
         coord_pred = lat_lng_weighted_mean(y_pred, self.class_to_centroid_map, top_k=5)
         coord_pred_changed, image_true_coords_changed = self.crs_to_lat_long(coord_pred, image_true_coords)
+
         haver_dist = np.mean(
-            haversine_distances(torch.deg2rad(coord_pred_changed), torch.deg2rad(image_true_coords_changed))
+            haversine_distance_neighbour(torch.deg2rad(coord_pred_changed), torch.deg2rad(image_true_coords_changed))
         )
 
         loss = F.cross_entropy(y_pred, y_true)
@@ -193,7 +193,7 @@ class LitModel(pl.LightningModule):
         coord_pred = lat_lng_weighted_mean(y_pred, self.class_to_centroid_map, top_k=5)
         coord_pred_changed, image_true_coords_changed = self.crs_to_lat_long(coord_pred, image_true_coords)
         haver_dist = np.mean(
-            haversine_distances(torch.deg2rad(coord_pred_changed), torch.deg2rad(image_true_coords_changed))
+            haversine_distance_neighbour(torch.deg2rad(coord_pred_changed), torch.deg2rad(image_true_coords_changed))
         )
 
         loss = F.cross_entropy(y_pred, y_true)
@@ -388,7 +388,7 @@ class LitModelRegression(pl.LightningModule):
         y_pred_changed, image_true_coords_transformed = self.normalize_output(y_pred, image_true_coords)
         print(y_pred_changed, image_true_coords_transformed)
 
-        haver_dist = np.mean(haversine_distances(y_pred_changed.cpu(), image_true_coords_transformed.cpu()))
+        haver_dist = np.mean(haversine_distance_neighbour(y_pred_changed.cpu(), image_true_coords_transformed.cpu()))
 
         loss = F.mse_loss(y_pred, image_true_coords)
         data_dict = {
@@ -415,7 +415,7 @@ class LitModelRegression(pl.LightningModule):
 
         y_pred_changed, image_true_coords_transformed = self.normalize_output(y_pred, image_true_coords)
 
-        haver_dist = np.mean(haversine_distances(y_pred_changed.cpu(), image_true_coords_transformed.cpu()))
+        haver_dist = np.mean(haversine_distance_neighbour(y_pred_changed.cpu(), image_true_coords_transformed.cpu()))
 
         loss = F.mse_loss(y_pred, image_true_coords)
         data_dict = {

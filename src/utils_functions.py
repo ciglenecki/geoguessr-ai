@@ -12,6 +12,7 @@ import torch
 from torch.utils.data import Dataset
 import random
 import string
+from sklearn.metrics.pairwise import haversine_distances
 
 
 class InvalidRatios(Exception):
@@ -19,6 +20,16 @@ class InvalidRatios(Exception):
 
 
 T = TypeVar("T")
+
+
+def haversine_distance_neighbour(a: Union[np.ndarray, torch.Tensor], b: Union[np.ndarray, torch.Tensor]):
+    """haversine_distances gives pairwise distances, however, we are only interested in ones where indices match (elements that are neighbours). Since indices i and j must match (i=j) diagonal is returned"""
+    return np.diag(haversine_distances(a, b))
+
+
+def tensor_sum_of_elements_to_one(ten: torch.Tensor, dim):
+    """Scales elements of the tensor so that the sum is 1"""
+    return ten / torch.sum(ten, dim=dim, keepdim=True)
 
 
 def name_without_extension(filename: Union[Path, str]):
