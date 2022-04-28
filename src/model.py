@@ -292,7 +292,7 @@ class LitModel(pl.LightningModule):
 
 class LitModelRegression(pl.LightningModule):
     loggers: List[TensorBoardLogger]
-    num_of_outputs = 3
+    num_of_outputs = 2
 
     def __init__(
         self,
@@ -380,11 +380,11 @@ class LitModelRegression(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         image_list, _, image_true_coords = batch
         y_pred = self(image_list)
+        y_pred_changed, image_true_coords_transformed = self.crs_to_lat_long(y_pred, image_true_coords)
 
-        y_pred_changed, image_true_coords_transformed = self.normalize_output(y_pred, image_true_coords)
-        print(y_pred_changed, image_true_coords_transformed)
-
-        haver_dist = np.mean(haversine_distance_neighbour(y_pred_changed.cpu(), image_true_coords_transformed.cpu()))
+        haver_dist = np.mean(
+            haversine_distance_neighbour(torch.deg2rad(y_pred_changed), torch.deg2rad(image_true_coords_transformed))
+        )
 
         loss = F.mse_loss(y_pred, image_true_coords)
         data_dict = {
@@ -408,10 +408,11 @@ class LitModelRegression(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         image_list, _, image_true_coords = batch
         y_pred = self(image_list)
+        y_pred_changed, image_true_coords_transformed = self.crs_to_lat_long(y_pred, image_true_coords)
 
-        y_pred_changed, image_true_coords_transformed = self.normalize_output(y_pred, image_true_coords)
-
-        haver_dist = np.mean(haversine_distance_neighbour(y_pred_changed.cpu(), image_true_coords_transformed.cpu()))
+        haver_dist = np.mean(
+            haversine_distance_neighbour(torch.deg2rad(y_pred_changed), torch.deg2rad(image_true_coords_transformed))
+        )
 
         loss = F.mse_loss(y_pred, image_true_coords)
         data_dict = {
@@ -467,6 +468,24 @@ class LitModelRegression(pl.LightningModule):
         coords[:, 1] = coords[:, 1] * self.data_module.lng_max_sin + self.data_module.lng_min_sin
 
         return y, coords
+
+    def crs_to_lat_long(self, y, images):
+
+        """
+        Returns: torch tensor of lat and long in radians.
+        """
+
+        transformer = Transformer.from_crs("epsg:3766", "epsg:4326")
+
+        y[:, 0] = y[:, 0] * self.data_module.lat_max + self.data_module.lat_min
+        y[:, 1] = y[:, 1] * self.data_module.lng_max + self.data_module.lng_min
+
+        images[:, 0] = images[:, 0] * self.data_module.lat_max + self.data_module.lat_min
+        images[:, 1] = images[:, 1] * self.data_module.lng_max + self.data_module.lng_min
+        images1, images2 = transformer.transform(images[:, 1].cpu(), images[:, 0].cpu())
+        y1, y2 = transformer.transform(y[:, 1].cpu(), y[:, 0].cpu())
+
+        return torch.tensor(np.dstack([y1, y2])[0]), torch.tensor(np.dstack([images1, images2])[0])
 
 
 class LitSingleModel(LitModel):
