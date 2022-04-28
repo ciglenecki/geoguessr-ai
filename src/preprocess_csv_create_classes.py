@@ -179,22 +179,10 @@ def main(args, df_object=None):
 
     df_label_polygon_map = pd.DataFrame.from_dict(polygon_dict)
 
-    # (
-    #     df["cart_x"],
-    #     df["cart_y"],
-    #     df["cart_z"],
-    #     df["centroid_x"],
-    #     df["centroid_y"],
-    #     df["centroid_z"],
-    # ) = generate_spherical_coords(df["latitude"], df["longitude"], df["centroid_lat"], df["centroid_lng"])
-
-    # country_shape = country_shape.to_crs(crs=croatia_crs)
-    df["sample_longitude"], df["sample_latitude"] = generate_src_coords(
-        df.copy(), df.loc[:, "latitude"], df.loc[:, "longitude"]
-    )
+    df["crs_y"], df["crs_x"] = generate_src_coords(df.copy(), df.loc[:, "latitude"], df.loc[:, "longitude"])
     (
-        df["sample_centroid_longitude"],
-        df["sample_centroid_latitude"],
+        df["crs_centroid_y"],
+        df["crs_centroid_x"],
     ) = generate_src_coords(df.copy(), df.loc[:, "centroid_lat"], df.loc[:, "centroid_lng"])
     df = append_polygons_without_data(df, df_label_polygon_map)
     num_polygons_without_images = len(df.loc[df["uuid"].isna(), :])

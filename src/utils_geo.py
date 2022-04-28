@@ -5,6 +5,8 @@ from typing import List
 
 import geopandas as gpd
 import numpy as np
+import pandas as pd
+import torch
 from shapely.geometry import Polygon, box
 from shapely.geometry.point import Point
 from shapely.ops import nearest_points
@@ -14,6 +16,20 @@ from tqdm import tqdm
 class ClippedCentroid:
     point: Point
     is_true_centroid: bool
+
+
+def coords_transform(lat: pd.Series, lng: pd.Series):
+
+    lat_min, lat_max, lng_min, lng_max = lat_lng_bounds(lat, lng)
+
+    min_max_lat = (lat - lat_min) / lat_max
+    min_max_lng = (lng - lng_min) / lng_max
+
+    return [min_max_lat, min_max_lng]
+
+
+def lat_lng_bounds(lat, lng):
+    return lat.min(), lat.max(), lng.min(), lng.max()
 
 
 def get_grid(x_min, y_min, x_max, y_max, spacing):

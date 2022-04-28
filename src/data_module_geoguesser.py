@@ -33,6 +33,7 @@ from defaults import (
     DEFAULT_TRAIN_FRAC,
     DEFAULT_VAL_FRAC,
 )
+from utils_geo import lat_lng_bounds
 from utils_functions import flatten
 from utils_dataset import DatasetSplitType
 
@@ -152,18 +153,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
         uuids = [Path(uuid_dir_path).stem for uuid_dir_path in uuid_dir_paths]
         df_train = self.df.loc[self.df["uuid"].isin(uuids)]
 
-        self.lat_min = df_train["sample_latitude"].min()
-        self.lat_max = df_train["sample_latitude"].max() - self.lat_min
-        self.lng_min = df_train["sample_longitude"].min()
-        self.lng_max = df_train["sample_longitude"].max() - self.lng_min
-
-    def coords_transform_cart(self, x, y, z):
-
-        min_max_x = (x - self.x_min) / self.x_max
-        min_max_y = (y - self.y_min) / self.y_max
-        min_max_z = (z - self.z_min) / self.z_max
-
-        return torch.tensor([min_max_x, min_max_y, min_max_z]).float()
+        self.lat_min, self.lat_max, self.lng_min, self.lng_max = lat_lng_bounds(df_train["crs_x"], df_train["crs_y"])
 
     def coords_transform(self, lat, lng):
 
@@ -196,37 +186,6 @@ class GeoguesserDataModule(pl.LightningDataModule):
         df = df.merge(map_poly_index_to_y, on="polygon_index")
         return df
 
-    def _get_class_to_centroid_list_cart(self, num_classes: int):
-
-        """
-        Args:
-            num_classes: number of classes that were recounted ("y" column)
-        Itterate over the information of each valid polygon/class and return it's centroids
-        """
-
-        df_class_info = self.df.loc[
-            :,
-            [
-                "polygon_index",
-                "y",
-                "centroid_x",
-                "centroid_y",
-                "centroid_z",
-                "is_true_centroid",
-            ],
-        ].drop_duplicates()
-        _class_to_centroid_map = []
-        for class_idx in range(num_classes):
-            row = df_class_info.loc[df_class_info["y"] == class_idx].head(1)  # ensure that only one row is taken
-            polygon_x, polygon_y, polygon_z = (
-                row["centroid_x"].values[0],
-                row["centroid_y"].values,
-                row["centroid_z"].values[0],
-            )  # values -> ndarray with 1 dim
-            point = [polygon_x, polygon_y, polygon_z]
-            _class_to_centroid_map.append(point)
-        return _class_to_centroid_map
-
     def _get_class_to_centroid_list(self, num_classes: int):
 
         """
@@ -240,8 +199,8 @@ class GeoguesserDataModule(pl.LightningDataModule):
             [
                 "polygon_index",
                 "y",
-                "sample_centroid_latitude",
-                "sample_centroid_longitude",
+                "crs_centroid_x",
+                "crs_centroid_y",
                 "is_true_centroid",
             ],
         ].drop_duplicates()
@@ -249,8 +208,8 @@ class GeoguesserDataModule(pl.LightningDataModule):
         for class_idx in range(num_classes):
             row = df_class_info.loc[df_class_info["y"] == class_idx].head(1)  # ensure that only one row is taken
             polygon_lat, polygon_lng = (
-                row["sample_centroid_latitude"].values[0],
-                row["sample_centroid_longitude"].values,
+                row["crs_centroid_x"].values[0],
+                row["crs_centroid_y"].values,
             )  # values -> ndarray with 1 dim
             point = [polygon_lat, polygon_lng]
             _class_to_centroid_map.append(point)

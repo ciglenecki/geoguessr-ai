@@ -95,8 +95,8 @@ class GeoguesserDataset(Dataset):
     def _get_row_attributes(self, row: pd.Series) -> Tuple[str, float, float, int]:
         return (
             str(row["uuid"]),
-            row["sample_latitude"],
-            row["sample_longitude"],
+            float(row["crs_x"]),
+            float(row["crs_y"]),
             int(row["y"]),
         )
 
