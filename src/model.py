@@ -269,11 +269,7 @@ class LitModel(pl.LightningModule):
                 momentum=0.2,
             )
             if type(self.backbone) is EfficientNet
-            else torch.optim.Adam(
-                self.parameters(),
-                lr=self.learning_rate,
-                weight_decay=self.weight_decay,
-            )
+            else torch.optim.Adam(self.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
         )
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             optimizer, "min", patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ // 2) - 1
