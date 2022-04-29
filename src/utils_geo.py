@@ -1,7 +1,7 @@
 from __future__ import annotations, division, print_function
 
 from itertools import product
-from typing import List
+from typing import List, Union
 
 import geopandas as gpd
 import numpy as np
@@ -11,11 +11,28 @@ from shapely.geometry import Polygon, box
 from shapely.geometry.point import Point
 from shapely.ops import nearest_points
 from tqdm import tqdm
+from pyproj import Transformer
+
+from defaults import DEFAULT_CROATIA_CRS, DEFAULT_GLOBAL_CRS
 
 
 class ClippedCentroid:
     point: Point
     is_true_centroid: bool
+
+
+def crs_coords_to_degree(xy: Union[pd.Series, np.ndarray, torch.Tensor]):
+    transformer = Transformer.from_crs(DEFAULT_CROATIA_CRS, DEFAULT_GLOBAL_CRS)
+    x = xy[:, 0]
+    y = xy[:, 1]
+    lng, lat = transformer.transform(x, y)
+    return lat, lng
+
+
+def angle_to_crs_coords(lat: Union[pd.Series, np.ndarray], lng: Union[pd.Series, np.ndarray]):
+    transformer = Transformer.from_crs(DEFAULT_GLOBAL_CRS, DEFAULT_CROATIA_CRS)
+    x, y = transformer.transform(lng, lat)
+    return x, y
 
 
 def coords_transform(lat: pd.Series, lng: pd.Series):

@@ -16,7 +16,7 @@ from torch import nn
 from torchvision.models.efficientnet import EfficientNet
 from torchvision.models.efficientnet import model_urls as efficientnet_model_urls
 from torchvision.models.resnet import model_urls as resnet_model_urls
-
+from sklearn.preprocessing import MinMaxScaler
 from data_module_geoguesser import GeoguesserDataModule
 from defaults import (
     DEFAULT_EARLY_STOPPING_EPOCH_FREQ,
@@ -26,7 +26,8 @@ from defaults import (
 )
 from preprocess_sample_coords import reproject_dataframe
 from utils_functions import haversine_distance_neighbour, timeit
-from utils_model import lat_lng_weighted_mean, model_remove_fc
+from utils_geo import crs_coords_to_degree
+from utils_model import crs_coords_weighed_mean, model_remove_fc
 from utils_train import multi_acc
 
 allowed_models = list(resnet_model_urls.keys()) + list(efficientnet_model_urls.keys())
@@ -73,10 +74,10 @@ class LitModel(pl.LightningModule):
         batch_size,
         image_size,
     ):
-        super(LitModel, self).__init__()
+        super().__init__()
         self.register_buffer(
-            "class_to_centroid_map", data_module.class_to_centroid_map.clone().detach()
-        )  # set self.class_to_centroid_map on gpu
+            "class_to_crs_centroid_map", data_module.class_to_crs_centroid_map.clone().detach()
+        )  # set self.class_to_crs_centroid_map on gpu
 
         self.learning_rate = learning_rate
         self.weight_decay = weight_decay
@@ -126,6 +127,20 @@ class LitModel(pl.LightningModule):
         out = self.fc(out_flatten)
         return out
 
+    def _get_haversine_from_predictions(self, pred_crs_coord, image_true_crs_coords):
+
+        pred_crs_coord_transformed = self.data_module.crs_scaler.inverse_transform(pred_crs_coord)
+        true_crs_coord_transformed = self.data_module.crs_scaler.inverse_transform(image_true_crs_coords)
+
+        pred_degree_coords = crs_coords_to_degree(pred_crs_coord_transformed)
+        true_degree_coords = crs_coords_to_degree(true_crs_coord_transformed)
+
+        pred_radian_coords = np.deg2rad(pred_degree_coords)
+        true_radian_coords = np.deg2rad(true_degree_coords)
+
+        haver_dist = np.mean(haversine_distance_neighbour(pred_radian_coords, true_radian_coords))
+        return haver_dist
+
     def training_step(self, batch, batch_idx):
         image_list, y, _ = batch
         y_pred = self(image_list)  # same as self.forward
@@ -143,26 +158,12 @@ class LitModel(pl.LightningModule):
         self.log_dict(log_dict, on_step=True, on_epoch=True, logger=True, prog_bar=True)
         return data_dict
 
-    def training_epoch_end(self, outs):
-        loss = sum(map(lambda x: x["train/loss"], outs)) / len(outs)
-        acc = sum(map(lambda x: x["train/acc"], outs)) / len(outs)
-        log_dict = {
-            "train/loss_epoch": loss,
-            "train/acc_epoch": acc,
-            "step": self.current_epoch,  # explicitly set the x axis
-        }
-
-        self.log_dict(log_dict)
-
     def validation_step(self, batch, batch_idx):
-        image_list, y_true, image_true_coords = batch
+        image_list, y_true, image_true_crs_coords = batch
         y_pred = self(image_list)
-        coord_pred = lat_lng_weighted_mean(y_pred, self.class_to_centroid_map, top_k=5)
-        coord_pred_changed, image_true_coords_changed = self.crs_to_lat_long(coord_pred, image_true_coords)
 
-        haver_dist = np.mean(
-            haversine_distance_neighbour(torch.deg2rad(coord_pred_changed), torch.deg2rad(image_true_coords_changed))
-        )
+        pred_crs_coord = crs_coords_weighed_mean(y_pred, self.class_to_crs_centroid_map, top_k=5)
+        haver_dist = self._get_haversine_from_predictions(pred_crs_coord, image_true_crs_coords)
 
         loss = F.cross_entropy(y_pred, y_true)
         acc = multi_acc(y_pred, y_true)
@@ -177,24 +178,12 @@ class LitModel(pl.LightningModule):
         self.log_dict(log_dict, on_step=True, on_epoch=True, logger=True, prog_bar=True)
         return data_dict
 
-    def validation_epoch_end(self, outs):
-        loss = sum(map(lambda x: x["val/loss"], outs)) / len(outs)
-        acc = sum(map(lambda x: x["val/acc"], outs)) / len(outs)
-        log_dict = {
-            "val/loss_epoch": loss,
-            "val/acc_epoch": acc,
-            "step": self.current_epoch,
-        }
-        self.log_dict(log_dict)
-
     def test_step(self, batch, batch_idx):
-        image_list, y_true, image_true_coords = batch
+        image_list, y_true, image_true_crs_coords = batch
         y_pred = self(image_list)
-        coord_pred = lat_lng_weighted_mean(y_pred, self.class_to_centroid_map, top_k=5)
-        coord_pred_changed, image_true_coords_changed = self.crs_to_lat_long(coord_pred, image_true_coords)
-        haver_dist = np.mean(
-            haversine_distance_neighbour(torch.deg2rad(coord_pred_changed), torch.deg2rad(image_true_coords_changed))
-        )
+
+        pred_crs_coord = crs_coords_weighed_mean(y_pred, self.class_to_crs_centroid_map, top_k=5)
+        haver_dist = self._get_haversine_from_predictions(pred_crs_coord, image_true_crs_coords)
 
         loss = F.cross_entropy(y_pred, y_true)
         acc = multi_acc(y_pred, y_true)
@@ -208,57 +197,6 @@ class LitModel(pl.LightningModule):
         log_dict.pop("loss", None)
         self.log_dict(log_dict, on_step=True, on_epoch=True, logger=True, prog_bar=True)
         return data_dict
-
-    def test_epoch_end(self, outs):
-        loss = sum(map(lambda x: x["test/loss"], outs)) / len(outs)
-        acc = sum(map(lambda x: x["test/acc"], outs)) / len(outs)
-        log_dict = {
-            "test/loss_epoch": loss,
-            "test/acc_epoch": acc,
-            "step": self.current_epoch,
-        }
-        self.log_dict(log_dict)
-
-    def cart_to_lat_long(self, y, images):
-
-        y[:, 0] = y[:, 0] * self.data_module.x_max + self.data_module.x_min
-        y[:, 1] = y[:, 1] * self.data_module.y_max + self.data_module.y_min
-        y[:, 2] = y[:, 2] * self.data_module.z_max + self.data_module.z_min
-
-        tmp_tensor = torch.zeros(y.size(0), y.size(1))
-        tmp_tensor[:, :2] = y[:, [0, 1]] ** 2
-        latitude_y = torch.atan2(y[:, 2], torch.sum(tmp_tensor[:, :2], dim=-1).sqrt())
-        longitude_y = torch.atan2(y[:, 1], y[:, 0])
-
-        images[:, 0] = images[:, 0] * self.data_module.x_max + self.data_module.x_min
-        images[:, 1] = images[:, 1] * self.data_module.y_max + self.data_module.y_min
-        images[:, 2] = images[:, 2] * self.data_module.z_max + self.data_module.z_min
-
-        tmp_tensor = torch.zeros(images.size(0), images.size(1))
-
-        tmp_tensor[:, :2] = images[:, [0, 1]] ** 2
-        latitude_images = torch.atan2(images[:, 2], torch.sum(tmp_tensor[:, :2], dim=-1).sqrt())
-        longitude_images = torch.atan2(images[:, 1], images[:, 0])
-
-        return torch.stack((latitude_y, longitude_y)), torch.stack((latitude_images, longitude_images))
-
-    def crs_to_lat_long(self, y, images):
-
-        """
-        Returns: torch tensor of lat and long in radians.
-        """
-
-        transformer = Transformer.from_crs("epsg:3766", "epsg:4326")
-
-        # y[:, 1] = y[:, 1] * self.data_module.lat_max + self.data_module.lat_min
-        # y[:, 0] = y[:, 0] * self.data_module.lng_max + self.data_module.lng_min
-
-        images[:, 0] = images[:, 0] * self.data_module.lat_max + self.data_module.lat_min
-        images[:, 1] = images[:, 1] * self.data_module.lng_max + self.data_module.lng_min
-        images1, images2 = transformer.transform(images[:, 1].cpu(), images[:, 0].cpu())
-        y1, y2 = transformer.transform(y[:, 1].cpu(), y[:, 0].cpu())
-
-        return torch.tensor(np.dstack([y1, y2])[0]), torch.tensor(np.dstack([images1, images2])[0])
 
     def configure_optimizers(self):
         optimizer = (
@@ -305,7 +243,7 @@ class LitModelRegression(pl.LightningModule):
         batch_size: int,
         image_size: int,
     ):
-        super(LitModelRegression, self).__init__()
+        super().__init__()
 
         self.learning_rate = learning_rate
         self.weight_decay = weight_decay
@@ -355,10 +293,10 @@ class LitModelRegression(pl.LightningModule):
         return out
 
     def training_step(self, batch, batch_idx):
-        image_list, _, image_true_coords = batch
+        image_list, _, image_true_crs_coords = batch
         y_pred = self(image_list)
 
-        loss = F.mse_loss(y_pred, image_true_coords)
+        loss = F.mse_loss(y_pred, image_true_crs_coords)
 
         data_dict = {
             "loss": loss,  # the 'loss' key needs to be present
@@ -369,24 +307,19 @@ class LitModelRegression(pl.LightningModule):
         self.log_dict(log_dict, on_step=True, on_epoch=True, logger=True, prog_bar=True)
         return data_dict
 
-    def training_epoch_end(self, outs):
-        loss = sum(map(lambda x: x["train/loss"], outs)) / len(outs)
-        log_dict = {
-            "train/loss_epoch": loss,
-            "step": self.current_epoch,  # explicitly set the x axis
-        }
-        self.log_dict(log_dict)
-
     def validation_step(self, batch, batch_idx):
-        image_list, _, image_true_coords = batch
+        image_list, _, image_true_crs_coords = batch
         y_pred = self(image_list)
-        y_pred_changed, image_true_coords_transformed = self.crs_to_lat_long(y_pred, image_true_coords)
+        # crs_coords_to_degree()
+        y_pred_changed, image_true_crs_coords_transformed = self.crs_to_lat_long(y_pred, image_true_crs_coords)
 
         haver_dist = np.mean(
-            haversine_distance_neighbour(torch.deg2rad(y_pred_changed), torch.deg2rad(image_true_coords_transformed))
+            haversine_distance_neighbour(
+                torch.deg2rad(y_pred_changed), torch.deg2rad(image_true_crs_coords_transformed)
+            )
         )
 
-        loss = F.mse_loss(y_pred, image_true_coords)
+        loss = F.mse_loss(y_pred, image_true_crs_coords)
         data_dict = {
             "loss": loss,  # the 'loss' key needs to be present
             "val/loss": loss,
@@ -397,24 +330,18 @@ class LitModelRegression(pl.LightningModule):
         self.log_dict(log_dict, on_step=True, on_epoch=True, logger=True, prog_bar=True)
         return data_dict
 
-    def validation_epoch_end(self, outs):
-        loss = sum(map(lambda x: x["val/loss"], outs)) / len(outs)
-        log_dict = {
-            "val/loss_epoch": loss,
-            "step": self.current_epoch,
-        }
-        self.log_dict(log_dict)
-
     def test_step(self, batch, batch_idx):
-        image_list, _, image_true_coords = batch
+        image_list, _, image_true_crs_coords = batch
         y_pred = self(image_list)
-        y_pred_changed, image_true_coords_transformed = self.crs_to_lat_long(y_pred, image_true_coords)
+        y_pred_changed, image_true_crs_coords_transformed = self.crs_to_lat_long(y_pred, image_true_crs_coords)
 
         haver_dist = np.mean(
-            haversine_distance_neighbour(torch.deg2rad(y_pred_changed), torch.deg2rad(image_true_coords_transformed))
+            haversine_distance_neighbour(
+                torch.deg2rad(y_pred_changed), torch.deg2rad(image_true_crs_coords_transformed)
+            )
         )
 
-        loss = F.mse_loss(y_pred, image_true_coords)
+        loss = F.mse_loss(y_pred, image_true_crs_coords)
         data_dict = {
             "loss": loss,  # the 'loss' key needs to be present
             "test/loss": loss,
@@ -424,14 +351,6 @@ class LitModelRegression(pl.LightningModule):
         log_dict.pop("loss", None)
         self.log_dict(log_dict, on_step=True, on_epoch=True, logger=True, prog_bar=True)
         return data_dict
-
-    def test_epoch_end(self, outs):
-        loss = sum(map(lambda x: x["test/loss"], outs)) / len(outs)
-        log_dict = {
-            "test/loss_epoch": loss,
-            "step": self.current_epoch,
-        }
-        self.log_dict(log_dict)
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
@@ -469,29 +388,29 @@ class LitModelRegression(pl.LightningModule):
 
         return y, coords
 
-    def crs_to_lat_long(self, y, images):
+    # def crs_to_lat_long(self, y, images):
 
-        """
-        Returns: torch tensor of lat and long in radians.
-        """
+    #     """
+    #     Returns: torch tensor of lat and long in radians.
+    #     """
 
-        transformer = Transformer.from_crs("epsg:3766", "epsg:4326")
+    #     transformer = Transformer.from_crs("epsg:3766", "epsg:4326")
 
-        y[:, 0] = y[:, 0] * self.data_module.lat_max + self.data_module.lat_min
-        y[:, 1] = y[:, 1] * self.data_module.lng_max + self.data_module.lng_min
+    #     y[:, 0] = y[:, 0] * self.data_module.lat_max + self.data_module.lat_min
+    #     y[:, 1] = y[:, 1] * self.data_module.lng_max + self.data_module.lng_min
 
-        images[:, 0] = images[:, 0] * self.data_module.lat_max + self.data_module.lat_min
-        images[:, 1] = images[:, 1] * self.data_module.lng_max + self.data_module.lng_min
-        images1, images2 = transformer.transform(images[:, 1].cpu(), images[:, 0].cpu())
-        y1, y2 = transformer.transform(y[:, 1].cpu(), y[:, 0].cpu())
+    #     images[:, 0] = images[:, 0] * self.data_module.lat_max + self.data_module.lat_min
+    #     images[:, 1] = images[:, 1] * self.data_module.lng_max + self.data_module.lng_min
+    #     images1, images2 = transformer.transform(images[:, 1].cpu(), images[:, 0].cpu())
+    #     y1, y2 = transformer.transform(y[:, 1].cpu(), y[:, 0].cpu())
 
-        return torch.tensor(np.dstack([y1, y2])[0]), torch.tensor(np.dstack([images1, images2])[0])
+    #     return torch.tensor(np.dstack([y1, y2])[0]), torch.tensor(np.dstack([images1, images2])[0])
 
 
 class LitSingleModel(LitModel):
     def __init__(self, *args: Any, **kwargs: Any):
         print("LitSingleModel init")
-        super(LitSingleModel, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.fc = nn.Linear(self._get_last_fc_in_channels(), self.num_classes)
 
     def _get_last_fc_in_channels(self) -> Any:

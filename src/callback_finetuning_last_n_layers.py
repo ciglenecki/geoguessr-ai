@@ -23,7 +23,7 @@ class BackboneFinetuningLastLayers(BackboneFinetuning):
 
     def __init__(self, unfreeze_blocks_num: Union[int, str], *args, **kwargs):
         self.unfreeze_blocks_num = unfreeze_blocks_num
-        super(BackboneFinetuningLastLayers, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def unfreeze_and_add_param_group(
         self,

@@ -95,7 +95,7 @@ def forward_consecutive(model, image_batch_list):
 
 class Identity(nn.Module):
     def __init__(self):
-        super(Identity, self).__init__()
+        super().__init__()
 
     def forward(self, x):
         return x

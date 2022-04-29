@@ -12,6 +12,7 @@ from pytorch_lightning.callbacks.progress.tqdm_progress import TQDMProgressBar
 from torchvision import transforms
 from torchvision.transforms import AutoAugmentPolicy
 from pytorch_lightning.callbacks import BackboneFinetuning
+from callback_override_epoch_metric import OverrideEpochMetricCallback
 
 from train_args import parse_args_train
 from callback_finetuning_last_n_layers import BackboneFinetuningLastLayers
@@ -117,6 +118,7 @@ if __name__ == "__main__":
             callback_checkpoint,
             OnTrainEpochStartLogCallback(),
             ModelSummary(max_depth=2),
+            OverrideEpochMetricCallback(),
         ]
 
         if unfreeze_backbone_at_epoch:

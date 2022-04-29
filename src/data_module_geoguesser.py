@@ -21,12 +21,13 @@ from torch.utils.data.sampler import SubsetRandomSampler
 from torchvision import transforms
 
 import preprocess_csv_concat
-import preprocess_csv_create_classes
+import preprocess_csv_create_polygons
 from dataset_geoguesser import GeoguesserDataset
 from defaults import (
     DEAFULT_DROP_LAST,
     DEAFULT_NUM_WORKERS,
     DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING,
+    DEFAULT_BATCH_SIZE,
     DEFAULT_LOAD_DATASET_IN_RAM,
     DEFAULT_SPACING,
     DEFAULT_TEST_FRAC,
@@ -34,8 +35,9 @@ from defaults import (
     DEFAULT_VAL_FRAC,
 )
 from utils_geo import lat_lng_bounds
-from utils_functions import flatten
-from utils_dataset import DatasetSplitType
+from utils_dataset import DatasetSplitType, filter_df_by_dataset_split
+from utils_paths import PATH_DATA_COMPLETE, PATH_DATA_EXTERNAL, PATH_DATA_RAW
+from sklearn.preprocessing import MinMaxScaler
 
 
 class InvalidSizes(Exception):
@@ -47,7 +49,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
         self,
         cached_df: Path,
         dataset_dirs: List[Path],
-        batch_size: int,
+        batch_size: int = DEFAULT_BATCH_SIZE,
         train_frac=DEFAULT_TRAIN_FRAC,
         val_frac=DEFAULT_VAL_FRAC,
         test_frac=DEFAULT_TEST_FRAC,
@@ -75,16 +77,21 @@ class GeoguesserDataModule(pl.LightningDataModule):
         self.shuffle_before_splitting = shuffle_before_splitting
 
         """ Dataframe creation, numclasses handling and coord hashing"""
-        self.df = self._handle_dataframe(cached_df)
+        df = self._load_dataframe(cached_df)
+        df = self._dataframe_create_classes(df)
+        self.df, self.crs_scaler = self.min_max_scale_crs_coords(df)
 
-        self.calculate_lat_lng_stats()
+        pd.set_option("display.max_columns", None)
+        print(df.head())
+
+        print(df.head())
 
         self.num_classes = len(self.df["y"].drop_duplicates())
         assert (
             self.num_classes == self.df["y"].max() + 1
         ), "Number of classes should corespoing to the maximum y value of the csv dataframe"  # Sanity check
 
-        self.class_to_centroid_map = torch.tensor(self._get_class_to_centroid_list(self.num_classes))
+        self.class_to_crs_centroid_map = torch.tensor(self._get_class_to_crs_centroid_list(self.num_classes))
 
         self.train_dataset = GeoguesserDataset(
             df=self.df,
@@ -93,7 +100,6 @@ class GeoguesserDataModule(pl.LightningDataModule):
             image_transform=self.image_transform,
             load_dataset_in_ram=load_dataset_in_ram,
             dataset_type=DatasetSplitType.TRAIN,
-            coordinate_transform=self.coords_transform,
         )
 
         self.val_dataset = GeoguesserDataset(
@@ -103,7 +109,6 @@ class GeoguesserDataModule(pl.LightningDataModule):
             image_transform=self.image_transform,
             load_dataset_in_ram=load_dataset_in_ram,
             dataset_type=DatasetSplitType.VAL,
-            coordinate_transform=self.coords_transform,
         )
 
         self.test_dataset = GeoguesserDataset(
@@ -113,56 +118,9 @@ class GeoguesserDataModule(pl.LightningDataModule):
             image_transform=self.image_transform,
             load_dataset_in_ram=load_dataset_in_ram,
             dataset_type=DatasetSplitType.TEST,
-            coordinate_transform=self.coords_transform,
         )
 
-    def calculate_lat_lng_stats_cart(self):
-
-        """
-        Calculates some stats for latitude and longitude from all the train dataset directories
-        """
-
-        uuid_dir_paths = flatten(
-            [
-                glob(str(Path(dataset_dir, "images", DatasetSplitType.TRAIN.value, "*")))
-                for dataset_dir in self.dataset_dirs
-            ]
-        )
-        uuids = [Path(uuid_dir_path).stem for uuid_dir_path in uuid_dir_paths]
-        df_train = self.df.loc[self.df["uuid"].isin(uuids)]
-
-        self.x_min = df_train["cart_x"].min()
-        self.x_max = df_train["cart_x"].max() - self.x_min
-        self.y_min = df_train["cart_y"].min()
-        self.y_max = df_train["cart_y"].max() - self.y_min
-        self.z_min = df_train["cart_z"].min()
-        self.z_max = df_train["cart_z"].max() - self.z_min
-
-    def calculate_lat_lng_stats(self):
-
-        """
-        Calculates some stats for latitude and longitude from all the train dataset directories
-        """
-
-        uuid_dir_paths = flatten(
-            [
-                glob(str(Path(dataset_dir, "images", DatasetSplitType.TRAIN.value, "*")))
-                for dataset_dir in self.dataset_dirs
-            ]
-        )
-        uuids = [Path(uuid_dir_path).stem for uuid_dir_path in uuid_dir_paths]
-        df_train = self.df.loc[self.df["uuid"].isin(uuids)]
-
-        self.lat_min, self.lat_max, self.lng_min, self.lng_max = lat_lng_bounds(df_train["crs_x"], df_train["crs_y"])
-
-    def coords_transform(self, lat, lng):
-
-        min_max_lat = (lat - self.lat_min) / self.lat_max
-        min_max_lng = (lng - self.lng_min) / self.lng_max
-
-        return torch.tensor([min_max_lat, min_max_lng]).float()
-
-    def _handle_dataframe(self, cached_df: Union[Path, None]):
+    def _load_dataframe(self, cached_df: Union[Path, None]):
         """
         Args:
             cached_df: path to the cached dataframe e.g. data/csv_decorated/data__spacing_0.2__num_class_231.csv
@@ -178,42 +136,68 @@ class GeoguesserDataModule(pl.LightningDataModule):
         else:
             df_paths = [str(Path(dataset_dir, "data.csv")) for dataset_dir in self.dataset_dirs]
             df_merged = preprocess_csv_concat.main(["--csv", *df_paths, "--no-out"])
-            df = preprocess_csv_create_classes.main(["--spacing", str(DEFAULT_SPACING), "--no-out"], df_merged)
+            df = preprocess_csv_create_polygons.main(["--spacing", str(DEFAULT_SPACING), "--no-out"], df_merged)
 
+        return df
+
+    def _dataframe_create_classes(self, df: pd.DataFrame):
+        """
+        Args:
+            dataframe: path to the cached dataframe e.g. data/csv_decorated/data__spacing_0.2__num_class_231.csv
+        """
         df = df[df["uuid"].isna() == False]  # remove rows for which the image doesn't exist
         map_poly_index_to_y = df.filter(["polygon_index"]).drop_duplicates().sort_values("polygon_index")
         map_poly_index_to_y["y"] = np.arange(len(map_poly_index_to_y))  # cols: polygon_index, y
         df = df.merge(map_poly_index_to_y, on="polygon_index")
         return df
 
-    def _get_class_to_centroid_list(self, num_classes: int):
+    def min_max_scale_crs_coords(self, df: pd.DataFrame):
+        """Scales all crs columns to [0, 1] using only the training data"""
+        df_train = filter_df_by_dataset_split(df, self.dataset_dirs, DatasetSplitType.TRAIN)
+        crs_scaler = MinMaxScaler()
+        crs_scaler.fit(df_train.loc[:, ["crs_x", "crs_y"]])
+
+        df.loc[:, ["crs_x_minmax", "crs_y_minmax"]] = crs_scaler.transform(df.loc[:, ["crs_x", "crs_y"]])
+        df.loc[:, ["crs_centroid_x_minmax", "crs_centroid_y_minmax"]] = crs_scaler.transform(
+            df.loc[:, ["crs_centroid_x", "crs_centroid_y"]]
+        )
+        return df, crs_scaler
+
+    def un_min_max_crs_coords(self, df: pd.DataFrame, columns: pd.Series):
+        """Scales all crs columns to [0, 1] using only the training data"""
+        df_train = filter_df_by_dataset_split(df, self.dataset_dirs, DatasetSplitType.TRAIN)
+        crs_scaler = MinMaxScaler()
+        crs_scaler.fit(df_train.loc[:, ["crs_x", "crs_y"]])
+
+        df.loc[:, ["crs_x_minmax", "crs_y_minmax"]] = crs_scaler.transform(df.loc[:, ["crs_x", "crs_y"]])
+        df.loc[:, ["crs_centroid_x_minmax", "crs_centroid_y_minmax"]] = crs_scaler.transform(
+            df.loc[:, ["crs_centroid_x", "crs_centroid_y"]]
+        )
+        return df, crs_scaler
+
+    def _get_class_to_crs_centroid_list(self, num_classes: int):
 
         """
         Args:
             num_classes: number of classes that were recounted ("y" column)
-        Itterate over the information of each valid polygon/class and return it's centroids
+        Itterate over the information of each valid polygon/class and return it's centroids.
+
+        In the for loop, we take only 1 row with concrete class class. Then we extract the coords from that row.
         """
 
         df_class_info = self.df.loc[
-            :,
-            [
-                "polygon_index",
-                "y",
-                "crs_centroid_x",
-                "crs_centroid_y",
-                "is_true_centroid",
-            ],
+            :, ["polygon_index", "y", "crs_centroid_x_minmax", "crs_centroid_y_minmax"]
         ].drop_duplicates()
-        _class_to_centroid_map = []
+        _class_to_crs_centroid_map = []
         for class_idx in range(num_classes):
             row = df_class_info.loc[df_class_info["y"] == class_idx].head(1)  # ensure that only one row is taken
             polygon_lat, polygon_lng = (
-                row["crs_centroid_x"].values[0],
-                row["crs_centroid_y"].values,
-            )  # values -> ndarray with 1 dim
+                row["crs_centroid_x_minmax"].values[0],
+                row["crs_centroid_y_minmax"].values[0],
+            )  # values extracts values as numpy array
             point = [polygon_lat, polygon_lng]
-            _class_to_centroid_map.append(point)
-        return _class_to_centroid_map
+            _class_to_crs_centroid_map.append(point)
+        return _class_to_crs_centroid_map
 
     def _validate_sizes(self, train_frac, val_frac, test_frac):
         if sum([train_frac, val_frac, test_frac]) != 1:
@@ -229,7 +213,10 @@ class GeoguesserDataModule(pl.LightningDataModule):
         dataset_test_indices: np.ndarray,
     ):
         for ind_a, ind_b in combinations([dataset_train_indices, dataset_val_indices, dataset_test_indices], 2):
-            assert len(np.intersect1d(ind_a, ind_b)) == 0, "Some indices share an index"
+
+            assert len(np.intersect1d(ind_a, ind_b)) == 0, "Some indices share an index {}".format(
+                np.intersect1d(ind_a, ind_b)
+            )
         set_ind = set(dataset_train_indices)
         set_ind.update(dataset_val_indices)
         set_ind.update(dataset_test_indices)
@@ -242,15 +229,9 @@ class GeoguesserDataModule(pl.LightningDataModule):
 
     def setup(self, stage: Optional[str] = None):
 
-        dataset_train_indices = self.df.index[
-            self.df["uuid"].isin(self.train_dataset.uuids)
-        ].to_list()  # type: ignore # [indices can be converted to list]
-        dataset_val_indices = self.df.index[
-            self.df["uuid"].isin(self.val_dataset.uuids)
-        ].to_list()  # type: ignore # [indices can be converted to list]
-        dataset_test_indices = self.df.index[
-            self.df["uuid"].isin(self.test_dataset.uuids)
-        ].to_list()  # type: ignore # [indices can be converted to list]
+        dataset_train_indices = self.df.index[self.df["uuid"].isin(self.train_dataset.uuids)].to_list()  # type: ignore # [indices can be converted to list]
+        dataset_val_indices = self.df.index[self.df["uuid"].isin(self.val_dataset.uuids)].to_list()  # type: ignore # [indices can be converted to list]
+        dataset_test_indices = self.df.index[self.df["uuid"].isin(self.test_dataset.uuids)].to_list()  # type: ignore # [indices can be converted to list]
         self._sanity_check_indices(dataset_train_indices, dataset_val_indices, dataset_test_indices)
 
         if self.shuffle_before_splitting:
@@ -293,4 +274,9 @@ class GeoguesserDataModule(pl.LightningDataModule):
 
 
 if __name__ == "__main__":
+    dm = GeoguesserDataModule(
+        cached_df=Path(PATH_DATA_COMPLETE, "data__spacing_0.5__num_class_55.csv"),
+        dataset_dirs=[PATH_DATA_RAW, PATH_DATA_EXTERNAL],
+    )
+    dm.setup()
     pass
