@@ -70,7 +70,7 @@ Python packages
 
 # Data and feature engineering
 
-This problem can be approached from two distinct perspectives. We will call them **Classification approach** and **Regression approach**. In the Classification approach, we classify images to fixed set of regions of the Croatia (notice: here we lose the information about image's exact location) while in the Regression approach we try regressing the image coordinates to a continuous output from the model that will be restricted by the minimum and maximum possible coordinates (bounds of the Croatia).
+This problem can be approached from two different angles. We will call them the **Classification approach** and the **Regression approach**. In the classification approach, we classify images into a fixed set of regions of Croatia (notice: we lose the information about the image's exact location here) while in the regression approach we try regressing the image coordinates to a continuous output from the model that will be restricted by the minimum and maximum possible coordinates (bounds of Croatia).
 
 ## Classification approach
 
