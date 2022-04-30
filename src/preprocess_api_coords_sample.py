@@ -19,8 +19,13 @@ E.g.
 
 import argparse
 import asyncio
+import base64
+import hashlib
+import hmac
 import os
 import sys
+import urllib.parse as urlparse
+import uuid
 from pathlib import Path
 from time import sleep
 from typing import Any, Dict, List
@@ -32,11 +37,6 @@ from tqdm import tqdm
 
 from utils_functions import get_timestamp
 from utils_paths import PATH_DATA_SAMPLER
-import hashlib
-import hmac
-import base64
-import urllib.parse as urlparse
-import uuid
 
 
 def parse_args(args):

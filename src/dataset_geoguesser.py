@@ -12,7 +12,7 @@ from torch.utils.data import Dataset
 from torchvision import transforms
 
 from defaults import DEFAULT_LOAD_DATASET_IN_RAM
-from utils_dataset import DatasetSplitType
+from utils_dataset import DatasetSplitType, get_dataset_dirs_uuid_paths
 from utils_functions import flatten, one_hot_encode
 
 
@@ -30,7 +30,7 @@ class GeoguesserDataset(Dataset):
         df: pd.DataFrame,
         num_classes,
         dataset_dirs: List[Path],
-        coordinate_transform: Callable = lambda lat, lng: torch.tensor([lat, lng]).float(),
+        crs_coords_transform: Callable = lambda crs_x, crs_y: torch.tensor([crs_x, crs_y]).float(),
         image_transform: transforms.Compose = transforms.Compose([transforms.ToTensor()]),
         load_dataset_in_ram=DEFAULT_LOAD_DATASET_IN_RAM,
         dataset_type: DatasetSplitType = DatasetSplitType.TRAIN,
@@ -39,11 +39,10 @@ class GeoguesserDataset(Dataset):
         super().__init__()
         self.degrees = ["0", "90", "180", "270"]
         self.image_transform = image_transform
-        self.coordinate_transform = coordinate_transform
+        self.crs_coords_transform = crs_coords_transform
 
-        self.uuid_dir_paths = flatten(
-            [glob(str(Path(dataset_dir, "images", dataset_type.value, "*"))) for dataset_dir in dataset_dirs]
-        )
+        self.uuid_dir_paths = get_dataset_dirs_uuid_paths(dataset_dirs=dataset_dirs, dataset_split_types=dataset_type)
+        print("self.uuid_dir_paths", len(self.uuid_dir_paths))
         self.uuids = [Path(uuid_dir_path).stem for uuid_dir_path in self.uuid_dir_paths]
         self.df_csv = df
         self.num_classes = num_classes
@@ -93,14 +92,10 @@ class GeoguesserDataset(Dataset):
         return one_hot_encode(label, self.num_classes)
 
     def _get_row_attributes(self, row: pd.Series) -> Tuple[str, float, float, int]:
-        return str(row["uuid"]), row["latitude"], row["longitude"], int(row["y"])
-
-    def _get_row_attributes_cart(self, row: pd.Series) -> Tuple[str, float, float, float, int]:
         return (
             str(row["uuid"]),
-            float(row["cart_x"]),
-            float(row["cart_y"]),
-            float(row["cart_z"]),
+            float(row["crs_x_minmax"]),
+            float(row["crs_y_minmax"]),
             int(row["y"]),
         )
 
@@ -109,7 +104,7 @@ class GeoguesserDataset(Dataset):
 
     def __getitem__(self, index: int):
         row = self.df_csv.iloc[index, :]
-        uuid, image_latitude, image_longitude, label = self._get_row_attributes(row)
+        uuid, crs_x, crs_y, label = self._get_row_attributes(row)
 
         images = self.image_cache[uuid]
         if not self.load_dataset_in_ram:
@@ -118,8 +113,8 @@ class GeoguesserDataset(Dataset):
         label = self.one_hot_encode_label(label)
 
         images = [self.image_transform(image) for image in images]
-        image_coords = self.coordinate_transform(image_latitude, image_longitude)
-        return images, label, image_coords
+        crs_coords = self.crs_coords_transform(crs_x, crs_y)
+        return images, label, crs_coords
 
 
 if __name__ == "__main__":
