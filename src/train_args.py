@@ -8,33 +8,19 @@ from typing import Dict, Tuple
 
 import pytorch_lightning as pl
 
-from defaults import (
-    DEAFULT_NUM_WORKERS,
-    DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING,
-    DEFAULT_BATCH_SIZE,
-    DEFAULT_DATASET_SIZE,
-    DEFAULT_FINETUNING_EPOCH_PERIOD,
-    DEFAULT_IMAGE_SIZE,
-    DEFAULT_LOAD_DATASET_IN_RAM,
-    DEFAULT_LR,
-    DEFAULT_MODEL,
-    DEFAULT_PRETRAINED,
-    DEFAULT_TEST_FRAC,
-    DEFAULT_TRAIN_FRAC,
-    DEFAULT_UNFREEZE_LAYERS_NUM,
-    DEFAULT_VAL_FRAC,
-    DEFAULT_WEIGHT_DECAY,
-    LOG_EVERY_N,
-)
+from defaults import (DEAFULT_NUM_WORKERS,
+                      DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING,
+                      DEFAULT_AUTO_LR, DEFAULT_BATCH_SIZE,
+                      DEFAULT_DATASET_SIZE, DEFAULT_FINETUNING_EPOCH_PERIOD,
+                      DEFAULT_IMAGE_SIZE, DEFAULT_LOAD_DATASET_IN_RAM,
+                      DEFAULT_LR, DEFAULT_MODEL, DEFAULT_PRETRAINED,
+                      DEFAULT_TEST_FRAC, DEFAULT_TRAIN_FRAC,
+                      DEFAULT_UNFREEZE_LAYERS_NUM, DEFAULT_VAL_FRAC,
+                      DEFAULT_WEIGHT_DECAY, LOG_EVERY_N)
 from model import allowed_models
-from utils_functions import (
-    is_between_0_1,
-    is_positive_int,
-    is_valid_dir,
-    is_valid_fractions_array,
-    is_valid_image_size,
-    is_valid_unfreeze_arg,
-)
+from utils_functions import (is_between_0_1, is_positive_int, is_valid_dir,
+                             is_valid_fractions_array, is_valid_image_size,
+                             is_valid_unfreeze_arg)
 from utils_paths import PATH_DATA_EXTERNAL, PATH_DATA_RAW, PATH_REPORT
 
 ARGS_GROUP_NAME = "General arguments"
@@ -191,6 +177,13 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
         "--use-single-images",
         action="store_true",
         help="Use single image as an input to the model",
+    )
+
+    user_group.add_argument(
+        "--auto-lr",
+        action="store_true",
+        help="Use Lightning's automatic LR finder",
+        default=DEFAULT_AUTO_LR,
     )
 
     args = parser.parse_args()

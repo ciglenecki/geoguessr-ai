@@ -6,8 +6,8 @@ import torch
 from PIL import Image
 from torchvision.transforms import transforms
 
-from utils_functions import flatten
 from utils_dataset import DatasetSplitType
+from utils_functions import flatten
 
 
 def calculate_norm_std(dataset_dirs: List[Path]):

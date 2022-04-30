@@ -1,0 +1,6 @@
+2022/05/01 01:06:20 Micro started
+2022/05/01 01:08:29 train.py train.py
+2022/05/01 01:08:30 train.py train.py
+2022/05/01 01:08:44 train.py train.py
+2022/05/01 01:08:44 train.py train.py
+2022/05/01 01:08:46 train.py train.py
