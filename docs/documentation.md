@@ -1,4 +1,4 @@
----
+﻿---
 # to transform this file to .pdf run the following command: pandoc --standalone --toc  docs/documentation.md --pdf-engine=xelatex --resource-path=docs -o docs/pdf-documentation.pdf
 
 # https://pandoc-discuss.narkive.com/m4QmhNgm/fetch-images-when-creating-pdf
@@ -28,45 +28,45 @@ numbersections: true
 
 # The problem
 
-We were given a set of Google Street View images taken in Croatia. This problem is inspired by the game called [GeoGuessr](https://en.wikipedia.org/wiki/GeoGuessr). In GeoGuessr, you are given an random image of the Google Street View location for which you have to infer the coordinates. In this competition, we were given images that come in quadruples which form a non-continuous 360° view of the location. Non-continuous 360° view means that images can't be connected together to from a perfect 360° panorama. <TODO: insert image>. Each image represents a cardinal direction (north, south, west, east) from the Street View car. Alongside images themselves, we also received location in the form of latitude and longitude pair for each image quadruple.
+We were given a set of Google Street View images taken on Croatian roads with the task of determining their coordinates. This problem was inspired by the popular online game [GeoGuessr](https://en.wikipedia.org/wiki/GeoGuessr). In the game, you are positioned at a random location using Google Street View for which you have to infer its location. Our task in this competition is slightly different. The images we were given came in quadruples forming a non-continuous 360° view of the location. This means that the images can't be connected together to from a perfect 360° panorama. <TODO: insert image>. Each image represents a cardinal direction (north, south, west, east) from the Street View car. Alongside the images themselves, we also received their locations in the form of latitude and longitude pairs for each set of four image.
 
-Our task is to predict the coordinates of the images we will receive in the last week of the competition. Although obvious, it's important to note that we will not receive coordinates for those images. After we provide predicted coordinates for each image quadruple, the error will be measured using the [Great-circle distance](https://en.wikipedia.org/wiki/Great-circle_distance) between predicted and true coordinates. The great-circle distance measures the distance between two points over a curved surface (e.g. distance between two cities where the curved surface is the Earth). Total error is calculated as the mean of all great-circle distances between true and predicted coordinates. It's also possible the explain the error in the following way: the further we have to drive the imaginary car from the predicted coordinate to the true coordinate, the larger the error. The total error will be used to determine how successful our method is compared to our competitors' methods.
+As we previously stated, our task is to predict the coordinates of the images, specifically, the coordinates of the test images we will receive in the last week of the competition. It's important to note that we will not receive coordinates for these test images. After providing predicted coordinates for each set of four images, the error is measured using the [Great-circle distance](https://en.wikipedia.org/wiki/Great-circle_distance) between the predicted and true coordinates. The great-circle distance measures the distance between two points over a curved surface, e.g. the distance between two cities on the Earth’s curved surface. Total error is calculated as the mean of all great-circle distances between true and predicted coordinates. It's also possible to explain the error in the following way: the further a bird needs to fly from the predicted coordinates to the true coordinates, the larger the error. The total error will be used to determine how successful one method is compared to the other.
 
-On paper, the problem sounds fairly simple and is not unlike many other computer vision tasks. However, let's explore the following situation: a country can look very similar over large swathes of land. If we were randomly placed somewhere in the area of [Gorski Kotar](https://en.wikipedia.org/wiki/Gorski_Kotar) it might feel impossible to predict our exact (or even approximate) location in the area of Gorski Kotar. Unless we recognize the landscape we've already seen or we notice some obvious features of the location, such as a town sign or a famous statue. There is a silver lining to this though. Croatia, although small, is very geologically and culturally diverse. Mountains, houses, forests and even fields can look different depending on the region of the country, giving precedence to the idea that the model could catch these differences. That being said, it is still a difficult problem to solve and requires clever feature engineering and careful network setups in order to work, which we will talk about in the coming chapters.
+On paper, the problem sounds fairly simple and is not unlike many other computer vision tasks. However, the following problem arises: a country can look very similar over large swathes of land. If we were randomly placed somewhere in the area of [Gorski Kotar](https://en.wikipedia.org/wiki/Gorski_Kotar) it might feel impossible to predict our exact (or even approximate) location. Unless we’ve already seen the landscape or we notice some obvious features of the location, such as a town sign or a famous statue, there is little chance for us to correctly predict our whereabouts. There is a silver lining to this though. Croatia, although small, is very geologically and culturally diverse. Mountains, houses, forests and even fields can look different depending on the region of the country, giving precedence to the idea that the model could catch these differences. That being said, it is still a difficult problem to solve and requires clever feature engineering and careful neural network setups in order to work, which we will talk about in the coming chapters.
 
 ![\ ](./geoguesser-logo.png){ width=150; margin=auto }
 
 ## Computer Vision
 
-Computer vision is an area of research that has seen the most growth from the advent of deep learning. Over the past decade, it grew from a niche research area to one of the most widely applicable fields within machine learning. In computer vision, we use neural networks to somehow analyze a large number of images, extract some potentially useful information from them, and use that information to classify those images into predefined classes. The problem we were tasked with solving in this competition falls neatly into this category.
+Computer vision is an area of research that has arguably seen the most growth from the advent of deep learning. Over the past decade, it grew from a niche research area to one of the most widely applicable fields within machine learning. In computer vision, we use neural networks to analyze a large number of images, extract some potentially useful information from them, and use that information to classify those images into predefined classes or predict a number. The problem we were tasked with solving in this competition falls neatly into this category.
 
 # Solution
 
 ## Technology stack
 
-Before diving in various components of the solution, technology stack we used will be described briefly.
+Before diving into various components of our model, the technology stack we used will be described briefly.
 
-- [`python3.8`](https://www.python.org/) - the main programing language used for the project
-- [`git`]() - version control system
+- [`python3.8`](https://www.python.org/) - the main programming language used for the project
+- [`git`](https://hr.wikipedia.org/wiki/Git) - version control system
 
 Python packages
 
-- [`PyTorch`](https://pytorch.org/) - The open source machine learning framework based on the Torch library, used for applications such as computer vision and natural language processing, primarily developed by Facebook's AI Research lab
-- [`PyTorch Lightning`](https://www.pytorchlightning.ai/) - PyTorch framework which is integral library that allowed us to skip the boilerplate and organize PyTorch code in a sensible and efficient way
+- [`PyTorch`](https://pytorch.org/) - an open source deep learning framework based on the Torch library used for applications such as computer vision and natural language processing. Primarily developed by Facebook's AI Research lab
+- [`PyTorch Lightning`](https://www.pytorchlightning.ai/) - a PyTorch framework which allowed us to skip a lot of boilerplate code and organize PyTorch code in a sensible and efficient way
 - [`black`](https://github.com/psf/black) - code formatter
-- [`aiohttp`](https://docs.aiohttp.org/en/stable/) - Asynchronous HTTP Client/Server for asyncio and Python. Used for sending/receiving  asynchronous requests when calling Google's Street View API
-- [`geopandas`](https://geopandas.org/en/stable/) - Pandas for geospatial data. Used to wrangle, manage and generate geospatial data
-- [`imageio`](https://imageio.readthedocs.io/en/stable/) - Write and read image files
-- [`isort`](https://github.com/PyCQA/isort) - Sort *.py imports
-- [`matplotlib`](https://matplotlib.org/) - Visualization with Python
-- [`NumPy`](https://numpy.org/) - mathematical functions and managing multi-dimensional arrays. Used for everything
-- [`Pandas`](https://pandas.pydata.org/) - Python Data Analysis Library. Used for loading, managing and decorating *.csv files
-- `requests`
-- `scikit-learn`
-- `Shapely`
-- `tabulate`
-- `tensorboard`
-- `tqdm`
+- [`aiohttp`](https://docs.aiohttp.org/en/stable/) - Asynchronous HTTP Client/Server for asyncio and Python. Used for sending/receiving asynchronous requests when calling Google's Street View API
+- [`Pandas`](https://pandas.pydata.org/) - Python data analysis library. Used for loading, managing and decorating *.csv files
+- [`geopandas`](https://geopandas.org/en/stable/) - Pandas version used for geospatial data. Used to wrangle, manage and generate geospatial data
+- [`imageio`](https://imageio.readthedocs.io/en/stable/) - write and read image files
+- [`isort`](https://github.com/PyCQA/isort) - sort *.py imports
+- [`matplotlib`](https://matplotlib.org/) - visualization with Python
+- [`NumPy`](https://numpy.org/) - mathematical functions and management of multi-dimensional arrays. Used for pretty much everything
+- `requests` - a HTTP library for Python. The goal of the project is to make HTTP requests simpler and more human-friendly
+- `scikit-learn` - a free machine learning library for Python. It features various classification, regression and clustering algorithms
+- `Shapely` - a BSD-licensed Python package for manipulation and analysis of planar geometric objects. It is based on the widely deployed GEOS (the engine of PostGIS) and JTS (from which GEOS is ported) libraries
+- `tabulate` - easy and pretty Python tables
+- `tensorboard` - library used for fetching and visualizing machine learning model training data in a browser
+- `tqdm` - easy Python progress bars
 
 # Data and feature engineering
 
