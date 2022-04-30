@@ -1,12 +1,12 @@
 from typing import Iterable, List, Optional, Union
 
-from pytorch_lightning.callbacks import BackboneFinetuning
+import pytorch_lightning as pl
+from pytorch_lightning.callbacks import BackboneFinetuning, Callback
+from pytorch_lightning.callbacks.progress.tqdm_progress import TQDMProgressBar
 from torch.nn import Module
 from torch.optim.optimizer import Optimizer
-from pytorch_lightning.callbacks import Callback
-import pytorch_lightning as pl
-from pytorch_lightning.callbacks.progress.tqdm_progress import TQDMProgressBar
 from tqdm import tqdm
+
 from utils_model import get_last_layer, get_model_blocks
 
 

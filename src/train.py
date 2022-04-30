@@ -5,36 +5,25 @@ from pprint import pprint
 
 import pytorch_lightning as pl
 from pytorch_lightning import loggers as pl_loggers
+from pytorch_lightning.callbacks import BackboneFinetuning
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
-from pytorch_lightning.callbacks.model_summary import ModelSummary
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
+from pytorch_lightning.callbacks.model_summary import ModelSummary
 from pytorch_lightning.callbacks.progress.tqdm_progress import TQDMProgressBar
 from torchvision import transforms
 from torchvision.transforms import AutoAugmentPolicy
-from pytorch_lightning.callbacks import BackboneFinetuning
 
-from train_args import parse_args_train
+from calculate_norm_std import calculate_norm_std
 from datamodule_geoguesser import GeoguesserDataModule
 from defaults import DEFAULT_EARLY_STOPPING_EPOCH_FREQ
-from model import (
-    LitModelClassification,
-    LitSingleModel,
-    LitModelRegression,
-)
-from model_callbacks import (
-    LogMetricsAsHyperparams,
-    OnTrainEpochStartLogCallback,
-    BackboneFinetuningLastLayers,
-    OverrideEpochMetricCallback,
-)
-from utils_functions import (
-    add_prefix_to_keys,
-    get_timestamp,
-    is_primitive,
-    random_codeword,
-    stdout_to_file,
-)
-from calculate_norm_std import calculate_norm_std
+from model import LitModelClassification, LitModelRegression, LitSingleModel
+from model_callbacks import (BackboneFinetuningLastLayers,
+                             LogMetricsAsHyperparams,
+                             OnTrainEpochStartLogCallback,
+                             OverrideEpochMetricCallback)
+from train_args import parse_args_train
+from utils_functions import (add_prefix_to_keys, get_timestamp, is_primitive,
+                             random_codeword, stdout_to_file)
 from utils_paths import PATH_REPORT
 
 if __name__ == "__main__":
@@ -177,9 +166,10 @@ if __name__ == "__main__":
             # print("Results from the lr_finder:", lr_finder.results, sep="\n")
             # lr_finder.plot(suggest=True, show=True)
             new_lr = lr_finder.suggestion()
-            print("New learning rate found by lr_finder:", new_lr)
-            model.hparams.lr = new_lr  # type: ignore
-            model.learning_rate = new_lr
+            if new_lr:
+                print("New learning rate found by lr_finder:", new_lr)
+                model.hparams.lr = new_lr  # type: ignore
+                model.learning_rate = new_lr
 
         trainer.fit(model, datamodule, ckpt_path=trainer_checkpoint)
         trainer.test(model, datamodule)

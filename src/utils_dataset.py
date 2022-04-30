@@ -1,10 +1,12 @@
 from enum import Enum
 from glob import glob
+from itertools import product
 from pathlib import Path
 from typing import List, Union
-from itertools import product
-from utils_functions import flatten
+
 import pandas as pd
+
+from utils_functions import flatten
 
 
 class DatasetSplitType(Enum):

@@ -1,14 +1,13 @@
+import os
 import random
+from glob import glob
 
 import numpy as np
+import pandas as pd
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
 from torchvision.models.resnet import ResNet
-import pandas as pd
-import os
-from glob import glob
 
 torch.autograd.set_detect_anomaly(True)
 torch.set_printoptions(threshold=10_000, sci_mode=False)

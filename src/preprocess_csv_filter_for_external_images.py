@@ -20,13 +20,15 @@ Saves the csv:
     dxa,"teab1"
 """
 
-from pathlib import Path
-import pandas as pd
-from utils_paths import PATH_DATA_EXTERNAL, PATH_DATA_SAMPLER
-import os
 import argparse
-from utils_functions import is_valid_dir
+import os
 import sys
+from pathlib import Path
+
+import pandas as pd
+
+from utils_functions import is_valid_dir
+from utils_paths import PATH_DATA_EXTERNAL, PATH_DATA_SAMPLER
 
 
 def parse_args(args):

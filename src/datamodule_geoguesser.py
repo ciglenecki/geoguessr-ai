@@ -14,6 +14,7 @@ import pandas as pd
 import pytorch_lightning as pl
 import torch
 from PIL import Image
+from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
 from torchvision import transforms
@@ -21,21 +22,14 @@ from torchvision import transforms
 import preprocess_csv_concat
 import preprocess_csv_create_polygons
 from dataset_geoguesser import GeoguesserDataset
-from defaults import (
-    DEAFULT_DROP_LAST,
-    DEAFULT_NUM_WORKERS,
-    DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING,
-    DEFAULT_BATCH_SIZE,
-    DEFAULT_LOAD_DATASET_IN_RAM,
-    DEFAULT_SPACING,
-    DEFAULT_TEST_FRAC,
-    DEFAULT_TRAIN_FRAC,
-    DEFAULT_VAL_FRAC,
-)
-from utils_functions import print_df_sample
+from defaults import (DEAFULT_DROP_LAST, DEAFULT_NUM_WORKERS,
+                      DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING,
+                      DEFAULT_BATCH_SIZE, DEFAULT_LOAD_DATASET_IN_RAM,
+                      DEFAULT_SPACING, DEFAULT_TEST_FRAC, DEFAULT_TRAIN_FRAC,
+                      DEFAULT_VAL_FRAC)
 from utils_dataset import DatasetSplitType, filter_df_by_dataset_split
+from utils_functions import print_df_sample
 from utils_paths import PATH_DATA_COMPLETE, PATH_DATA_EXTERNAL, PATH_DATA_RAW
-from sklearn.preprocessing import MinMaxScaler
 
 
 class InvalidSizes(Exception):

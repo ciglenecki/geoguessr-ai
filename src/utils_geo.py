@@ -7,12 +7,12 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 import torch
+from pyproj import Transformer
 from shapely.geometry import Polygon, box
 from shapely.geometry.point import Point
 from shapely.ops import nearest_points
-from tqdm import tqdm
-from pyproj import Transformer
 from sklearn.metrics.pairwise import haversine_distances
+from tqdm import tqdm
 
 from defaults import DEFAULT_CROATIA_CRS, DEFAULT_GLOBAL_CRS
 

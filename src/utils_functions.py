@@ -1,19 +1,20 @@
 import argparse
-from glob import glob
 import os
+import random
+import string
 import sys
+import time
 from datetime import datetime
+from glob import glob
 from math import floor
 from pathlib import Path
 from typing import List, Tuple, TypeVar, Union
-import time
+
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import torch
 from torch.utils.data import Dataset
-import random
-import string
-import pandas as pd
 
 
 class InvalidRatios(Exception):
