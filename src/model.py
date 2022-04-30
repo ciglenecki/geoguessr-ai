@@ -1,53 +1,42 @@
 from __future__ import annotations, division, print_function
 
-import math
 from typing import Any, List
 import random
 
-import geopandas
-import numpy as np
-import pandas as pd
 import pytorch_lightning as pl
 import torch
 import torch.nn.functional as F
-from pyproj import Transformer
 from pytorch_lightning.loggers import TensorBoardLogger
 from torch import nn
 from torchvision.models.efficientnet import EfficientNet
 from torchvision.models.efficientnet import model_urls as efficientnet_model_urls
 from torchvision.models.resnet import model_urls as resnet_model_urls
 from sklearn.preprocessing import MinMaxScaler
-from data_module_geoguesser import GeoguesserDataModule
+from datamodule_geoguesser import GeoguesserDataModule
 from defaults import (
     DEFAULT_EARLY_STOPPING_EPOCH_FREQ,
     DEFAULT_TORCHVISION_VERSION,
-    DEFAULT_GLOBAL_CRS,
-    DEFAULT_CROATIA_CRS,
 )
-from preprocess_sample_coords import reproject_dataframe
-from utils_functions import haversine_distance_neighbour, timeit
-from utils_geo import crs_coords_to_degree
+from utils_geo import crs_coords_to_degree, haversine_from_degs
 from utils_model import crs_coords_weighed_mean, model_remove_fc
 from utils_train import multi_acc
 
 allowed_models = list(resnet_model_urls.keys()) + list(efficientnet_model_urls.keys())
 
 
-class OnTrainEpochStartLogCallback(pl.Callback):
-    def on_train_epoch_start(self, trainer, pl_module: LitModel):
-        current_lr = trainer.optimizers[0].param_groups[0]["lr"]
-        data_dict = {
-            "trainable_params_num": float(pl_module.get_num_of_trainable_params()),
-            "current_lr": float(current_lr),
-            "step": trainer.current_epoch,
-        }
-        pl_module.log_dict(data_dict)
+def get_haversine_from_predictions(
+    crs_scaler: MinMaxScaler, pred_crs_coord: torch.Tensor, image_true_crs_coords: torch.Tensor
+):
 
-    def on_train_start(self, trainer, pl_module: LitModel):
-        self.on_train_epoch_start(trainer, pl_module)
+    pred_crs_coord_transformed = crs_scaler.inverse_transform(pred_crs_coord)
+    true_crs_coord_transformed = crs_scaler.inverse_transform(image_true_crs_coords)
+
+    pred_degree_coords = crs_coords_to_degree(pred_crs_coord_transformed)
+    true_degree_coords = crs_coords_to_degree(true_crs_coord_transformed)
+    return haversine_from_degs(pred_degree_coords, true_degree_coords)
 
 
-class LitModel(pl.LightningModule):
+class LitModelClassification(pl.LightningModule):
     """
     A LightningModule organizes PyTorch code into 6 sections:
     1. Model and computations (init).
@@ -62,10 +51,9 @@ class LitModel(pl.LightningModule):
 
     loggers: List[TensorBoardLogger]
 
-    # send class to centroid map instead of data module!, and cl,one it before
     def __init__(
         self,
-        data_module: GeoguesserDataModule,
+        datamodule: GeoguesserDataModule,
         num_classes: int,
         model_name,
         pretrained,
@@ -76,7 +64,7 @@ class LitModel(pl.LightningModule):
     ):
         super().__init__()
         self.register_buffer(
-            "class_to_crs_centroid_map", data_module.class_to_crs_centroid_map.clone().detach()
+            "class_to_crs_centroid_map", datamodule.class_to_crs_centroid_map.clone().detach()
         )  # set self.class_to_crs_centroid_map on gpu
 
         self.learning_rate = learning_rate
@@ -84,14 +72,14 @@ class LitModel(pl.LightningModule):
         self.batch_size = batch_size
         self.image_size = image_size
         self.num_classes = num_classes
-        self.data_module = data_module
+        self.datamodule = datamodule
 
         backbone = torch.hub.load(DEFAULT_TORCHVISION_VERSION, model_name, pretrained=pretrained)
         self.backbone = model_remove_fc(backbone)
         self.fc = nn.Linear(self._get_last_fc_in_channels(), num_classes)
 
         self._set_example_input_array()
-        self.save_hyperparameters(ignore=["data_module"])
+        self.save_hyperparameters(ignore=["datamodule"])
 
     def _set_example_input_array(self):
         num_channels = 3
@@ -127,20 +115,6 @@ class LitModel(pl.LightningModule):
         out = self.fc(out_flatten)
         return out
 
-    def _get_haversine_from_predictions(self, pred_crs_coord, image_true_crs_coords):
-
-        pred_crs_coord_transformed = self.data_module.crs_scaler.inverse_transform(pred_crs_coord)
-        true_crs_coord_transformed = self.data_module.crs_scaler.inverse_transform(image_true_crs_coords)
-
-        pred_degree_coords = crs_coords_to_degree(pred_crs_coord_transformed)
-        true_degree_coords = crs_coords_to_degree(true_crs_coord_transformed)
-
-        pred_radian_coords = np.deg2rad(pred_degree_coords)
-        true_radian_coords = np.deg2rad(true_degree_coords)
-
-        haver_dist = np.mean(haversine_distance_neighbour(pred_radian_coords, true_radian_coords))
-        return haver_dist
-
     def training_step(self, batch, batch_idx):
         image_list, y, _ = batch
         y_pred = self(image_list)  # same as self.forward
@@ -163,7 +137,7 @@ class LitModel(pl.LightningModule):
         y_pred = self(image_list)
 
         pred_crs_coord = crs_coords_weighed_mean(y_pred, self.class_to_crs_centroid_map, top_k=5)
-        haver_dist = self._get_haversine_from_predictions(pred_crs_coord, image_true_crs_coords)
+        haver_dist = get_haversine_from_predictions(self.datamodule.crs_scaler, pred_crs_coord, image_true_crs_coords)
 
         loss = F.cross_entropy(y_pred, y_true)
         acc = multi_acc(y_pred, y_true)
@@ -183,7 +157,7 @@ class LitModel(pl.LightningModule):
         y_pred = self(image_list)
 
         pred_crs_coord = crs_coords_weighed_mean(y_pred, self.class_to_crs_centroid_map, top_k=5)
-        haver_dist = self._get_haversine_from_predictions(pred_crs_coord, image_true_crs_coords)
+        haver_dist = get_haversine_from_predictions(self.datamodule.crs_scaler, pred_crs_coord, image_true_crs_coords)
 
         loss = F.cross_entropy(y_pred, y_true)
         acc = multi_acc(y_pred, y_true)
@@ -234,7 +208,7 @@ class LitModelRegression(pl.LightningModule):
 
     def __init__(
         self,
-        data_module,
+        datamodule,
         num_classes: int,
         model_name: str,
         pretrained: bool,
@@ -249,14 +223,14 @@ class LitModelRegression(pl.LightningModule):
         self.weight_decay = weight_decay
         self.batch_size = batch_size
         self.image_size = image_size
-        self.data_module = data_module
+        self.datamodule = datamodule
 
         backbone = torch.hub.load(DEFAULT_TORCHVISION_VERSION, model_name, pretrained=pretrained)
         self.backbone = model_remove_fc(backbone)
         self.fc = nn.Linear(self._get_last_fc_in_channels(), LitModelRegression.num_of_outputs)
 
         self._set_example_input_array()
-        self.save_hyperparameters()
+        self.save_hyperparameters(ignore=["datamodule"])
 
     def _set_example_input_array(self):
         num_channels = 3
@@ -285,7 +259,7 @@ class LitModelRegression(pl.LightningModule):
     def get_num_of_trainable_params(self):
         return sum(param.numel() for param in self.parameters() if param.requires_grad)
 
-    def forward(self, image_list, *args, **kwargs) -> Any:
+    def forward(self, image_list) -> Any:
         outs_backbone = [self.backbone(image) for image in image_list]
         out_backbone_cat = torch.cat(outs_backbone, dim=1)
         out_flatten = torch.flatten(out_backbone_cat, 1)
@@ -309,17 +283,11 @@ class LitModelRegression(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         image_list, _, image_true_crs_coords = batch
-        y_pred = self(image_list)
-        # crs_coords_to_degree()
-        y_pred_changed, image_true_crs_coords_transformed = self.crs_to_lat_long(y_pred, image_true_crs_coords)
+        pred_crs_coord = self(image_list)
 
-        haver_dist = np.mean(
-            haversine_distance_neighbour(
-                torch.deg2rad(y_pred_changed), torch.deg2rad(image_true_crs_coords_transformed)
-            )
-        )
+        haver_dist = get_haversine_from_predictions(self.datamodule.crs_scaler, pred_crs_coord, image_true_crs_coords)
 
-        loss = F.mse_loss(y_pred, image_true_crs_coords)
+        loss = F.mse_loss(pred_crs_coord, image_true_crs_coords)
         data_dict = {
             "loss": loss,  # the 'loss' key needs to be present
             "val/loss": loss,
@@ -332,16 +300,11 @@ class LitModelRegression(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         image_list, _, image_true_crs_coords = batch
-        y_pred = self(image_list)
-        y_pred_changed, image_true_crs_coords_transformed = self.crs_to_lat_long(y_pred, image_true_crs_coords)
+        pred_crs_coord = self(image_list)
 
-        haver_dist = np.mean(
-            haversine_distance_neighbour(
-                torch.deg2rad(y_pred_changed), torch.deg2rad(image_true_crs_coords_transformed)
-            )
-        )
+        haver_dist = get_haversine_from_predictions(self.datamodule.crs_scaler, pred_crs_coord, image_true_crs_coords)
 
-        loss = F.mse_loss(y_pred, image_true_crs_coords)
+        loss = F.mse_loss(pred_crs_coord, image_true_crs_coords)
         data_dict = {
             "loss": loss,  # the 'loss' key needs to be present
             "test/loss": loss,
@@ -379,35 +342,8 @@ class LitModelRegression(pl.LightningModule):
             },
         }
 
-    def normalize_output(self, y, coords):
-        y[:, 0] = y[:, 0] * self.data_module.lat_max_sin + self.data_module.lat_min_sin
-        y[:, 1] = y[:, 1] * self.data_module.lng_max_sin + self.data_module.lng_min_sin
 
-        coords[:, 0] = coords[:, 0] * self.data_module.lat_max_sin + self.data_module.lat_min_sin
-        coords[:, 1] = coords[:, 1] * self.data_module.lng_max_sin + self.data_module.lng_min_sin
-
-        return y, coords
-
-    # def crs_to_lat_long(self, y, images):
-
-    #     """
-    #     Returns: torch tensor of lat and long in radians.
-    #     """
-
-    #     transformer = Transformer.from_crs("epsg:3766", "epsg:4326")
-
-    #     y[:, 0] = y[:, 0] * self.data_module.lat_max + self.data_module.lat_min
-    #     y[:, 1] = y[:, 1] * self.data_module.lng_max + self.data_module.lng_min
-
-    #     images[:, 0] = images[:, 0] * self.data_module.lat_max + self.data_module.lat_min
-    #     images[:, 1] = images[:, 1] * self.data_module.lng_max + self.data_module.lng_min
-    #     images1, images2 = transformer.transform(images[:, 1].cpu(), images[:, 0].cpu())
-    #     y1, y2 = transformer.transform(y[:, 1].cpu(), y[:, 0].cpu())
-
-    #     return torch.tensor(np.dstack([y1, y2])[0]), torch.tensor(np.dstack([images1, images2])[0])
-
-
-class LitSingleModel(LitModel):
+class LitSingleModel(LitModelClassification):
     def __init__(self, *args: Any, **kwargs: Any):
         print("LitSingleModel init")
         super().__init__(*args, **kwargs)

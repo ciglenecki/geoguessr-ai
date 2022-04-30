@@ -11,6 +11,7 @@ import pytorch_lightning as pl
 from defaults import (
     DEAFULT_NUM_WORKERS,
     DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING,
+    DEFAULT_AUTO_LR,
     DEFAULT_BATCH_SIZE,
     DEFAULT_DATASET_SIZE,
     DEFAULT_FINETUNING_EPOCH_PERIOD,
@@ -191,6 +192,13 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
         "--use-single-images",
         action="store_true",
         help="Use single image as an input to the model",
+    )
+
+    user_group.add_argument(
+        "--auto-lr",
+        action="store_true",
+        help="Use Lightning's automatic LR finder",
+        default=DEFAULT_AUTO_LR,
     )
 
     args = parser.parse_args()

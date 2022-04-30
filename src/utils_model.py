@@ -53,7 +53,13 @@ def freeze_but_last_n_blocks(model, leave_last_n):
     return model
 
 
-def crs_coords_weighed_mean(y_pred, class_map, top_k):
+def crs_coords_weighed_mean(y_pred: torch.Tensor, class_map, top_k: int) -> torch.Tensor:
+    """
+    Args:
+        y_pred: tensor of shape (N, C)
+        class_map: tensor of shape (N). Hold crs for each class
+    Returns
+    """
     preds, indices = torch.topk(F.softmax(y_pred, dim=-1), k=top_k)
     preds = tensor_sum_of_elements_to_one(preds, dim=1)
     preds = preds.unsqueeze(dim=-1)  # [[0.2, 0.2, 0.6], [0.4, 0.5, 0.1]]

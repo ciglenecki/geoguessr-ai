@@ -13,7 +13,7 @@ import torch
 from torch.utils.data import Dataset
 import random
 import string
-from sklearn.metrics.pairwise import haversine_distances
+import pandas as pd
 
 
 class InvalidRatios(Exception):
@@ -21,11 +21,6 @@ class InvalidRatios(Exception):
 
 
 T = TypeVar("T")
-
-
-def haversine_distance_neighbour(a: Union[np.ndarray, torch.Tensor], b: Union[np.ndarray, torch.Tensor]):
-    """haversine_distances gives pairwise distances, however, we are only interested in ones where indices match (elements that are neighbours). Since indices i and j must match (i=j) diagonal is returned"""
-    return np.diag(haversine_distances(a, b))
 
 
 def tensor_sum_of_elements_to_one(ten: torch.Tensor, dim):
@@ -227,6 +222,23 @@ def is_primitive(obj):
 
 def flatten(t):
     return [item for sublist in t for item in sublist]
+
+
+def print_df_sample(df: pd.DataFrame):
+    pd.set_option("display.max_columns", None)
+    print(
+        "\nSample of the dataframe:",
+        "First 3 rows:",
+        df.head(n=3),
+        "Random 3 rows:",
+        df.sample(n=3),
+        "Last 3 rows:",
+        df.tail(n=3),
+        "Dataframe stats:",
+        df.describe(),
+        sep="\n\n\n",
+    )
+    pd.reset_option("display.max_columns")
 
 
 nato_alphabet = {
