@@ -55,6 +55,7 @@ if __name__ == "__main__":
     use_single_images = args.use_single_images
     is_regression = args.regression
     auto_lr = not args.no_auto_lr
+    scheduler_name = args.scheduler
 
     # mean, std = calculate_norm_std(dataset_dirs)
     mean, std = [0.5006, 0.5116, 0.4869], [0.1966, 0.1951, 0.2355]
@@ -144,6 +145,7 @@ if __name__ == "__main__":
             weight_decay=weight_decay,
             batch_size=batch_size,
             image_size=image_size,
+            scheduler_name=scheduler_name,
         )
 
         tb_logger = pl_loggers.TensorBoardLogger(

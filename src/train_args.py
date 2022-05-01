@@ -20,6 +20,7 @@ from defaults import (
     DEFAULT_LR,
     DEFAULT_MODEL,
     DEFAULT_PRETRAINED,
+    DEFAULT_SCHEDULER,
     DEFAULT_TEST_FRAC,
     DEFAULT_TRAIN_FRAC,
     DEFAULT_UNFREEZE_LAYERS_NUM,
@@ -201,6 +202,12 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
         default=not DEFAULT_AUTO_LR,
     )
 
+    user_group.add_argument(
+        "--scheduler",
+        default=DEFAULT_SCHEDULER,
+        type=str,
+        choices=["plateau", "onecycle"],
+    )
     args = parser.parse_args()
 
     """Separate Namespace into two Namespaces"""

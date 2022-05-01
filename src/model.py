@@ -55,12 +55,13 @@ class LitModelClassification(pl.LightningModule):
         self,
         datamodule: GeoguesserDataModule,
         num_classes: int,
-        model_name,
-        pretrained,
-        learning_rate,
-        weight_decay,
-        batch_size,
-        image_size,
+        model_name: str,
+        pretrained: bool,
+        learning_rate: float,
+        weight_decay: float,
+        batch_size: int,
+        image_size: int,
+        scheduler_name: str,
     ):
         super().__init__()
         self.register_buffer(
@@ -73,6 +74,7 @@ class LitModelClassification(pl.LightningModule):
         self.image_size = image_size
         self.num_classes = num_classes
         self.datamodule = datamodule
+        self.scheduler_name = scheduler_name
 
         backbone = torch.hub.load(DEFAULT_TORCHVISION_VERSION, model_name, pretrained=pretrained)
         self.backbone = model_remove_fc(backbone)
@@ -173,28 +175,25 @@ class LitModelClassification(pl.LightningModule):
         return data_dict
 
     def configure_optimizers(self):
-        optimizer = (
-            torch.optim.RMSprop(
-                self.parameters(),
-                lr=self.learning_rate,
-                weight_decay=self.weight_decay,
-                momentum=0.2,
+        optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
+
+        if self.scheduler_name == "onecycle":
+            scheduler = torch.optim.lr_scheduler.OneCycleLR(
+                optimizer, max_lr=0.01, steps_per_epoch=len(self.datamodule.train_dataloader()), epochs=20
             )
-            if type(self.backbone) is EfficientNet
-            else torch.optim.Adam(self.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
-        )
-        scheduler = torch.optim.lr_scheduler.OneCycleLR(
-            optimizer, max_lr=0.01, steps_per_epoch=len(self.datamodule.train_dataloader()), epochs=20
-        )
-        # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        #     optimizer, "min", patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ // 2) - 1
-        # )
+            interval = "step"
+        else:
+            scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+                optimizer, "min", patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ // 2) - 1
+            )
+            interval = "epoch"
+
         return {
             "optimizer": optimizer,
             "lr_scheduler": {
                 "scheduler": scheduler,
                 # The unit of the scheduler's step size, could also be 'step', 'epoch' updates the scheduler on epoch end whereas 'step', updates it after a optimizer update
-                "interval": "epoch",
+                "interval": interval,
                 "monitor": "val/loss",
                 # How many epochs/steps should pass between calls to `scheduler.step()`.1 corresponds to updating the learning  rate after every epoch/step.
                 # If "monitor" references validation metrics, then "frequency" should be set to a multiple of "trainer.check_val_every_n_epoch".
@@ -211,7 +210,7 @@ class LitModelRegression(pl.LightningModule):
 
     def __init__(
         self,
-        datamodule,
+        datamodule: GeoguesserDataModule,
         num_classes: int,
         model_name: str,
         pretrained: bool,
@@ -219,6 +218,7 @@ class LitModelRegression(pl.LightningModule):
         weight_decay: float,
         batch_size: int,
         image_size: int,
+        scheduler_name: str,
     ):
         super().__init__()
 
@@ -227,6 +227,7 @@ class LitModelRegression(pl.LightningModule):
         self.batch_size = batch_size
         self.image_size = image_size
         self.datamodule = datamodule
+        self.scheduler_name = scheduler_name
 
         backbone = torch.hub.load(DEFAULT_TORCHVISION_VERSION, model_name, pretrained=pretrained)
         self.backbone = model_remove_fc(backbone)
