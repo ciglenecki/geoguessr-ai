@@ -171,6 +171,7 @@ if __name__ == "__main__":
         )
 
         if scheduler_type == SchedulerType.AUTO_LR.value:
+            # "early_stop_threshold": None might also work
             trainer.tune(model, datamodule=datamodule, lr_find_kwargs={"num_training": 30})
 
         trainer.fit(model, datamodule, ckpt_path=trainer_checkpoint)

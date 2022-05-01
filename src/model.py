@@ -177,7 +177,7 @@ class LitModelClassification(pl.LightningModule):
         return data_dict
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
+        optimizer = torch.optim.Adam(self.parameters(), lr=float(self.learning_rate), weight_decay=self.weight_decay)
         if self.scheduler_type is SchedulerType.AUTO_LR.value:
             """SchedulerType.AUTO_LR sets it's own scheduler. Only the optimizer has to be returned"""
             return optimizer
@@ -227,7 +227,7 @@ class LitModelRegression(pl.LightningModule):
     ):
         super().__init__()
 
-        self.learning_rate = learning_rate
+        self.learning_rate = torch.tensor(learning_rate)
         self.weight_decay = weight_decay
         self.batch_size = batch_size
         self.image_size = image_size
@@ -326,7 +326,7 @@ class LitModelRegression(pl.LightningModule):
         return data_dict
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
+        optimizer = torch.optim.Adam(self.parameters(), lr=float(self.learning_rate), weight_decay=self.weight_decay)
 
         if self.scheduler_type is SchedulerType.AUTO_LR.value:
             """SchedulerType.AUTO_LR sets it's own scheduler. Only the optimizer has to be returned"""
