@@ -163,7 +163,7 @@ if __name__ == "__main__":
         )
 
         if auto_lr:
-            lr_finder = trainer.tuner.lr_find(model, datamodule=datamodule, num_training=30)
+            lr_finder = trainer.tuner.lr_find(model, datamodule=datamodule, num_training=5)
             if lr_finder:
                 # print("Results from the lr_finder:", lr_finder.results, sep="\n")
                 # lr_finder.plot(suggest=True, show=True)
