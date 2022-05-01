@@ -1,17 +1,20 @@
 import argparse
 import os
+import random
+import string
 import sys
+import time
 from datetime import datetime
+from glob import glob
 from math import floor
 from pathlib import Path
 from typing import List, Tuple, TypeVar, Union
-import time
+
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import torch
 from torch.utils.data import Dataset
-import random
-import string
 
 
 class InvalidRatios(Exception):
@@ -19,6 +22,11 @@ class InvalidRatios(Exception):
 
 
 T = TypeVar("T")
+
+
+def tensor_sum_of_elements_to_one(ten: torch.Tensor, dim):
+    """Scales elements of the tensor so that the sum is 1"""
+    return ten / torch.sum(ten, dim=dim, keepdim=True)
 
 
 def name_without_extension(filename: Union[Path, str]):
@@ -170,10 +178,10 @@ def is_valid_unfreeze_arg(arg):
     if type(arg) is str and arg == "all":
         return arg
     try:
-        return is_positive_int(arg)  # is_positive_int's raise will be caught by the except
+        if is_positive_int(arg):  # is_positive_int's raise will be caught by the except
+            return int(arg)
     except:
         raise argparse.ArgumentTypeError("%s has to be positive int or 'all'" % arg)
-    return args
 
 
 def is_valid_dir(arg):
@@ -215,6 +223,23 @@ def is_primitive(obj):
 
 def flatten(t):
     return [item for sublist in t for item in sublist]
+
+
+def print_df_sample(df: pd.DataFrame):
+    pd.set_option("display.max_columns", None)
+    print(
+        "\nSample of the dataframe:",
+        "First 3 rows:",
+        df.head(n=3),
+        "Random 3 rows:",
+        df.sample(n=3),
+        "Last 3 rows:",
+        df.tail(n=3),
+        "Dataframe stats:",
+        df.describe(),
+        sep="\n\n\n",
+    )
+    pd.reset_option("display.max_columns")
 
 
 nato_alphabet = {

@@ -1,19 +1,67 @@
 from __future__ import annotations, division, print_function
 
 from itertools import product
-from typing import List
+from typing import List, Union
 
 import geopandas as gpd
 import numpy as np
+import pandas as pd
+import torch
+from pyproj import Transformer
 from shapely.geometry import Polygon, box
 from shapely.geometry.point import Point
 from shapely.ops import nearest_points
+from sklearn.metrics.pairwise import haversine_distances
 from tqdm import tqdm
+
+from defaults import DEFAULT_CROATIA_CRS, DEFAULT_GLOBAL_CRS
 
 
 class ClippedCentroid:
     point: Point
     is_true_centroid: bool
+
+
+def haversine_distance_neighbour(a: Union[np.ndarray, torch.Tensor], b: Union[np.ndarray, torch.Tensor]) -> np.ndarray:
+    """haversine_distances gives pairwise distances, however, we are only interested in ones where indices match (elements that are neighbours). Since indices i and j must match (i=j) diagonal is returned"""
+    return np.diag(haversine_distances(a, b))
+
+
+def haversine_from_degs(
+    deg_a: Union[np.ndarray, torch.Tensor, pd.Series], deg_b: Union[np.ndarray, torch.Tensor, pd.Series]
+) -> np.ndarray:
+    pred_radian_coords = np.deg2rad(deg_a)
+    true_radian_coords = np.deg2rad(deg_b)
+    haver_dist = np.mean(haversine_distance_neighbour(pred_radian_coords, true_radian_coords))
+    return haver_dist
+
+
+def crs_coords_to_degree(xy: Union[pd.Series, np.ndarray, torch.Tensor]) -> Union[pd.Series, np.ndarray, torch.Tensor]:
+    transformer = Transformer.from_crs(DEFAULT_CROATIA_CRS, DEFAULT_GLOBAL_CRS)
+    x = xy[:, 0]
+    y = xy[:, 1]
+    lng, lat = transformer.transform(x, y)
+    return np.stack([lat, lng], axis=-1)
+
+
+def angle_to_crs_coords(lat: Union[pd.Series, np.ndarray], lng: Union[pd.Series, np.ndarray]):
+    transformer = Transformer.from_crs(DEFAULT_GLOBAL_CRS, DEFAULT_CROATIA_CRS)
+    x, y = transformer.transform(lng, lat)
+    return x, y
+
+
+def coords_transform(lat: pd.Series, lng: pd.Series):
+
+    lat_min, lat_max, lng_min, lng_max = lat_lng_bounds(lat, lng)
+
+    min_max_lat = (lat - lat_min) / lat_max
+    min_max_lng = (lng - lng_min) / lng_max
+
+    return [min_max_lat, min_max_lng]
+
+
+def lat_lng_bounds(lat, lng):
+    return lat.min(), lat.max(), lng.min(), lng.max()
 
 
 def get_grid(x_min, y_min, x_max, y_max, spacing):
