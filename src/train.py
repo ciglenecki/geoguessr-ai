@@ -167,17 +167,10 @@ if __name__ == "__main__":
             logger=[tb_logger],
             default_root_dir=PATH_REPORT,
             callbacks=callbacks,
+            auto_lr_find=scheduler_type == SchedulerType.AUTO_LR.value,
         )
 
         if scheduler_type == SchedulerType.AUTO_LR.value:
-            lr_finder = trainer.tuner.lr_find(model, datamodule=datamodule, num_training=5)
-            if lr_finder:
-                # print("Results from the lr_finder:", lr_finder.results, sep="\n")
-                # lr_finder.plot(suggest=True, show=True)
-                new_lr = lr_finder.suggestion()
-                if new_lr:
-                    print("New learning rate found by lr_finder:", new_lr)
-                    model.hparams.learning_rate = new_lr  # type: ignore
-
+            trainer.tune(model, datamodule=datamodule, lr_find_kwargs={"num_training": 30})
         trainer.fit(model, datamodule, ckpt_path=trainer_checkpoint)
         trainer.test(model, datamodule)
