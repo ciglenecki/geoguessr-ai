@@ -11,6 +11,7 @@ import pytorch_lightning as pl
 from defaults import (
     DEAFULT_NUM_WORKERS,
     DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING,
+    DEFAULT_AUTO_LR,
     DEFAULT_BATCH_SIZE,
     DEFAULT_DATASET_SIZE,
     DEFAULT_FINETUNING_EPOCH_PERIOD,
@@ -193,6 +194,13 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
         help="Use single image as an input to the model",
     )
 
+    user_group.add_argument(
+        "--no-auto-lr",
+        action="store_true",
+        help="Use Lightning's automatic LR finder",
+        default=not DEFAULT_AUTO_LR,
+    )
+
     args = parser.parse_args()
 
     """Separate Namespace into two Namespaces"""
@@ -211,12 +219,13 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
         pl_args.limit_test_batches = args.dataset_frac
 
     if args.quick:
-        pl_args.limit_train_batches = 15
-        pl_args.limit_val_batches = 15
-        pl_args.limit_test_batches = 15
+        pl_args.limit_train_batches = 8
+        pl_args.limit_val_batches = 8
+        pl_args.limit_test_batches = 8
         pl_args.log_every_n_steps = 1
         args.image_size = 28
         args.batch_size = 2
+        args.unfreeze_backbone_at_epoch = 1
     return args, pl_args
 
 

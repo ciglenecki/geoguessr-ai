@@ -1,7 +1,8 @@
 """Concaternates rows and columns of multiple csv dataframes"""
 import argparse
-import pandas as pd
 import sys
+
+import pandas as pd
 
 
 def parse_args(args):
