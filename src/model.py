@@ -183,22 +183,25 @@ class LitModelClassification(pl.LightningModule):
             if type(self.backbone) is EfficientNet
             else torch.optim.Adam(self.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
         )
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer, "min", patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ // 2) - 1
+        scheduler = torch.optim.lr_scheduler.OneCycleLR(
+            optimizer, max_lr=0.01, steps_per_epoch=len(self.datamodule.train_dataloader(), epochs=20)
         )
+        # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        #     optimizer, "min", patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ // 2) - 1
+        # )
         return {
             "optimizer": optimizer,
-            # "lr_scheduler": {
-            #     "scheduler": scheduler,
-            #     # The unit of the scheduler's step size, could also be 'step', 'epoch' updates the scheduler on epoch end whereas 'step', updates it after a optimizer update
-            #     "interval": "epoch",
-            #     "monitor": "val/loss",
-            #     # How many epochs/steps should pass between calls to `scheduler.step()`.1 corresponds to updating the learning  rate after every epoch/step.
-            #     # If "monitor" references validation metrics, then "frequency" should be set to a multiple of "trainer.check_val_every_n_epoch".
-            #     "frequency": 1,
-            #     # If using the `LearningRateMonitor` callback to monitor the learning rate progress, this keyword can be used to specify a custom logged name
-            #     "name": None,
-            # },
+            "lr_scheduler": {
+                "scheduler": scheduler,
+                # The unit of the scheduler's step size, could also be 'step', 'epoch' updates the scheduler on epoch end whereas 'step', updates it after a optimizer update
+                "interval": "epoch",
+                "monitor": "val/loss",
+                # How many epochs/steps should pass between calls to `scheduler.step()`.1 corresponds to updating the learning  rate after every epoch/step.
+                # If "monitor" references validation metrics, then "frequency" should be set to a multiple of "trainer.check_val_every_n_epoch".
+                "frequency": 1,
+                # If using the `LearningRateMonitor` callback to monitor the learning rate progress, this keyword can be used to specify a custom logged name
+                "name": None,
+            },
         }
 
 
