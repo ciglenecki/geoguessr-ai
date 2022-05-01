@@ -189,7 +189,7 @@ class LitModelClassification(pl.LightningModule):
         return {
             "optimizer": optimizer,
             "lr_scheduler": {
-                "scheduler": scheduler,
+                # "scheduler": scheduler,
                 # The unit of the scheduler's step size, could also be 'step', 'epoch' updates the scheduler on epoch end whereas 'step', updates it after a optimizer update
                 "interval": "epoch",
                 "monitor": "val/loss",
