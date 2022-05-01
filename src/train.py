@@ -32,9 +32,9 @@ from utils_train import SchedulerType
 if __name__ == "__main__":
     args, pl_args = parse_args_train()
 
-    study_name = get_timestamp() + "-" + random_codeword()
-    study_name_extended = "{}{}".format(study_name, "-regression" if args.regression else "")
-    filename_report = Path(args.output_report, "-".join(["train", study_name_extended]) + ".txt")
+    timestamp = get_timestamp()
+    experiment_codeword = random_codeword()
+    filename_report = Path(args.output_report, "-".join(["train", experiment_codeword, timestamp]) + ".txt")
     stdout_to_file(filename_report)
     print(str(filename_report))
     pprint([vars(args), vars(pl_args)])
@@ -153,7 +153,9 @@ if __name__ == "__main__":
 
         tb_logger = pl_loggers.TensorBoardLogger(
             save_dir=str(PATH_REPORT),
-            name="{}{}".format(study_name, "-regression" if is_regression else "-num_classes_" + str(num_classes)),
+            name="{}-{}{}".format(
+                experiment_codeword, timestamp, "-regression" if is_regression else "-num_classes_" + str(num_classes)
+            ),
             default_hp_metric=False,
             log_graph=True,
         )
