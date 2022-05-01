@@ -96,12 +96,12 @@ if __name__ == "__main__":
         # The EarlyStopping callback runs at the end of every validation epoch, which, under the default
         # configuration, happen after every training epoch.
         callback_early_stopping = EarlyStopping(
-            monitor="val/loss_epoch",
+            monitor="val/loss",
             patience=DEFAULT_EARLY_STOPPING_EPOCH_FREQ,
             verbose=True,
         )
         callback_checkpoint = ModelCheckpoint(
-            monitor="val/haversine_distance_epoch",
+            monitor="val/haversine_distance",
             filename=model_name
             + "__haversine_{val/haversine_distance_epoch:.4f}__val_acc_{val/acc_epoch:.2f}__val_loss_{val/loss_epoch:.2f}",
             auto_insert_metric_name=False,
@@ -112,10 +112,10 @@ if __name__ == "__main__":
             callback_early_stopping,
             callback_checkpoint,
             TQDMProgressBar(refresh_rate=bar_refresh_rate),
+            LogMetricsAsHyperparams(),
             OnTrainEpochStartLogCallback(),
             ModelSummary(max_depth=2),
             OverrideEpochMetricCallback(),
-            LogMetricsAsHyperparams(),
         ]
 
         if unfreeze_backbone_at_epoch:

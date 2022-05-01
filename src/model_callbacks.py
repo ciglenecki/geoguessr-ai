@@ -14,10 +14,9 @@ class InvalidArgument(Exception):
     pass
 
 
-min_value = float(1e-9)
+min_value = float(0)
 max_value = float(1e9)
 hyperparameter_metrics_init = {
-    "trainable_params_num": min_value,
     "train/loss_epoch": max_value,
     "train/acc_epoch": min_value,
     "val/loss_epoch": max_value,
@@ -40,22 +39,31 @@ class LogMetricsAsHyperparams(pl.Callback):
         if pl_module.loggers:
             for logger in pl_module.loggers:
                 logger.log_hyperparams(pl_module.hparams, hyperparameter_metrics_init)  # type: ignore
-        # pl_module.log_dict(hyperparameter_metrics_init)
 
 
 class OnTrainEpochStartLogCallback(pl.Callback):
     """Logs metrics. pl_module has to implement get_num_of_trainable_params function"""
 
     def on_train_start(self, trainer, pl_module: pl.LightningModule):
+        log_dict_fix = {
+            "train/loss": max_value,
+            "train/acc": min_value,
+            "val/loss": max_value,
+            "val/acc": min_value,
+            "val/haversine_distance": max_value,
+            "test/loss": max_value,
+            "test/acc": min_value,
+            "test/haversine_distance": max_value,
+        }
 
         current_lr = trainer.optimizers[0].param_groups[0]["lr"]
         data_dict = {
             "trainable_params_num": float(pl_module.get_num_of_trainable_params()),  # type: ignore
             "current_lr": float(current_lr),
             "step": trainer.current_epoch,
-            # **hyperparameter_metrics_init
+            **log_dict_fix,
         }
-        pl_module.log_dict(data_dict)
+        pl_module.log_dict(data_dict, logger=False)
 
 
 class OverrideEpochMetricCallback(Callback):

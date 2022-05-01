@@ -192,7 +192,7 @@ class LitModelClassification(pl.LightningModule):
                 "scheduler": scheduler,
                 # The unit of the scheduler's step size, could also be 'step', 'epoch' updates the scheduler on epoch end whereas 'step', updates it after a optimizer update
                 "interval": "epoch",
-                "monitor": "val/loss_epoch",
+                "monitor": "val/loss",
                 # How many epochs/steps should pass between calls to `scheduler.step()`.1 corresponds to updating the learning  rate after every epoch/step.
                 # If "monitor" references validation metrics, then "frequency" should be set to a multiple of "trainer.check_val_every_n_epoch".
                 "frequency": 1,
@@ -333,7 +333,7 @@ class LitModelRegression(pl.LightningModule):
                 "scheduler": scheduler,
                 # The unit of the scheduler's step size, could also be 'step', 'epoch' updates the scheduler on epoch end whereas 'step', updates it after a optimizer update
                 "interval": "epoch",
-                "monitor": "val/loss_epoch",
+                "monitor": "val/loss",
                 # How many epochs/steps should pass between calls to `scheduler.step()`.1 corresponds to updating the learning  rate after every epoch/step.
                 # If "monitor" references validation metrics, then "frequency" should be set to a multiple of "trainer.check_val_every_n_epoch".
                 "frequency": 1,
