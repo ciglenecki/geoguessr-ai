@@ -14,8 +14,8 @@ class InvalidArgument(Exception):
     pass
 
 
-min_value = float(-1e-9)
-max_value = float(1e-9)
+min_value = float(1e-9)
+max_value = float(1e9)
 hyperparameter_metrics_init = {
     "trainable_params_num": min_value,
     "train/loss_epoch": max_value,
@@ -40,7 +40,7 @@ class LogMetricsAsHyperparams(pl.Callback):
         if pl_module.loggers:
             for logger in pl_module.loggers:
                 logger.log_hyperparams(pl_module.hparams, hyperparameter_metrics_init)  # type: ignore
-        pl_module.log_dict(hyperparameter_metrics_init)
+        # pl_module.log_dict(hyperparameter_metrics_init)
 
 
 class OnTrainEpochStartLogCallback(pl.Callback):
@@ -62,16 +62,16 @@ class OverrideEpochMetricCallback(Callback):
     def __init__(self) -> None:
         super().__init__()
 
-    def training_epoch_end(self, trainer, pl_module):
+    def training_epoch_end(self, trainer, pl_module: pl.LightningModule):
         self._log_step_as_current_epoch(trainer, pl_module)
 
-    def test_epoch_end(self, trainer, pl_module):
+    def test_epoch_end(self, trainer, pl_module: pl.LightningModule):
         self._log_step_as_current_epoch(trainer, pl_module)
 
-    def validation_epoch_end(self, trainer, pl_module):
+    def validation_epoch_end(self, trainer, pl_module: pl.LightningModule):
         self._log_step_as_current_epoch(trainer, pl_module)
 
-    def _log_step_as_current_epoch(self, trainer, pl_module):
+    def _log_step_as_current_epoch(self, trainer, pl_module: pl.LightningModule):
         pl_module.log("step", trainer.current_epoch)
 
 
