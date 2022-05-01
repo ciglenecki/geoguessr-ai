@@ -59,7 +59,7 @@ class OnTrainEpochStartLogCallback(pl.Callback):
         data_dict = {
             "trainable_params_num": float(pl_module.get_num_of_trainable_params()),  # type: ignore
             "current_lr": float(current_lr),
-            "step": trainer.current_epoch,
+            "step": float(trainer.current_epoch),
             **log_dict_fix,
         }
         pl_module.log_dict(data_dict, logger=False)
