@@ -47,8 +47,7 @@ class OnTrainEpochStartLogCallback(pl.Callback):
     ) -> None:
         current_lr = trainer.optimizers[0].param_groups[0]["lr"]
         data_dict = {
-            "trainable_params_num": float(pl_module.get_num_of_trainable_params()),  # type: ignore
-            "current_lr": float(current_lr),
+            "current_lr_batch": float(current_lr),
         }
         pl_module.log_dict(data_dict)
 
