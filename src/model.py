@@ -1,44 +1,42 @@
 from __future__ import annotations, division, print_function
 
-from typing import Any, List
 import random
+from typing import Any, List
 
-import numpy as np
 import pytorch_lightning as pl
 import torch
 import torch.nn.functional as F
 from pytorch_lightning.loggers import TensorBoardLogger
-from sklearn.metrics.pairwise import haversine_distances
+from sklearn.preprocessing import MinMaxScaler
 from torch import nn
 from torchvision.models.efficientnet import EfficientNet
 from torchvision.models.efficientnet import model_urls as efficientnet_model_urls
 from torchvision.models.resnet import model_urls as resnet_model_urls
 
-from data_module_geoguesser import GeoguesserDataModule
+from datamodule_geoguesser import GeoguesserDataModule
 from defaults import DEFAULT_EARLY_STOPPING_EPOCH_FREQ, DEFAULT_TORCHVISION_VERSION
-from utils_functions import timeit
-from utils_model import lat_lng_weighted_mean, model_remove_fc
+from utils_geo import crs_coords_to_degree, haversine_from_degs
+from utils_model import crs_coords_weighed_mean, model_remove_fc
 from utils_train import multi_acc
 
 allowed_models = list(resnet_model_urls.keys()) + list(efficientnet_model_urls.keys())
 
 
-class OnTrainEpochStartLogCallback(pl.Callback):
-    def on_train_epoch_start(self, trainer, pl_module: LitModel):
+def get_haversine_from_predictions(
+    crs_scaler: MinMaxScaler, pred_crs_coord: torch.Tensor, image_true_crs_coords: torch.Tensor
+):
+    pred_crs_coord = pred_crs_coord.cpu()
+    image_true_crs_coords = image_true_crs_coords.cpu()
 
-        current_lr = trainer.optimizers[0].param_groups[0]["lr"]
-        data_dict = {
-            "trainable_params_num": float(pl_module.get_num_of_trainable_params()),
-            "current_lr": float(current_lr),
-            "step": trainer.current_epoch,
-        }
-        pl_module.log_dict(data_dict)
+    pred_crs_coord_transformed = crs_scaler.inverse_transform(pred_crs_coord)
+    true_crs_coord_transformed = crs_scaler.inverse_transform(image_true_crs_coords)
 
-    def on_train_start(self, trainer, pl_module: LitModel):
-        self.on_train_epoch_start(trainer, pl_module)
+    pred_degree_coords = crs_coords_to_degree(pred_crs_coord_transformed)
+    true_degree_coords = crs_coords_to_degree(true_crs_coord_transformed)
+    return haversine_from_degs(pred_degree_coords, true_degree_coords)
 
 
-class LitModel(pl.LightningModule):
+class LitModelClassification(pl.LightningModule):
     """
     A LightningModule organizes PyTorch code into 6 sections:
     1. Model and computations (init).
@@ -53,28 +51,42 @@ class LitModel(pl.LightningModule):
 
     loggers: List[TensorBoardLogger]
 
-    def __init__(self, data_module: GeoguesserDataModule, num_classes: int, model_name, pretrained, learning_rate, weight_decay, batch_size, image_size):
-        super(LitModel, self).__init__()
-        self.register_buffer("class_to_centroid_map", data_module.class_to_centroid_map.clone().detach()) # set self.class_to_centroid_map on gpu
+    def __init__(
+        self,
+        datamodule: GeoguesserDataModule,
+        num_classes: int,
+        model_name,
+        pretrained,
+        learning_rate,
+        weight_decay,
+        batch_size,
+        image_size,
+    ):
+        super().__init__()
+        self.register_buffer(
+            "class_to_crs_centroid_map", datamodule.class_to_crs_centroid_map.clone().detach()
+        )  # set self.class_to_crs_centroid_map on gpu
 
         self.learning_rate = learning_rate
         self.weight_decay = weight_decay
         self.batch_size = batch_size
         self.image_size = image_size
         self.num_classes = num_classes
+        self.datamodule = datamodule
 
         backbone = torch.hub.load(DEFAULT_TORCHVISION_VERSION, model_name, pretrained=pretrained)
         self.backbone = model_remove_fc(backbone)
         self.fc = nn.Linear(self._get_last_fc_in_channels(), num_classes)
 
         self._set_example_input_array()
-        self.save_hyperparameters(ignore=["data_module"])
-
+        self.save_hyperparameters(ignore=["datamodule"])
 
     def _set_example_input_array(self):
         num_channels = 3
         num_of_image_sides = 4
-        list_of_images = [torch.rand(self.batch_size, num_channels, self.image_size, self.image_size)] * num_of_image_sides
+        list_of_images = [
+            torch.rand(self.batch_size, num_channels, self.image_size, self.image_size)
+        ] * num_of_image_sides
         self.example_input_array = torch.stack(list_of_images)
 
     def _get_last_fc_in_channels(self) -> Any:
@@ -85,7 +97,9 @@ class LitModel(pl.LightningModule):
         num_channels = 3
         num_image_sides = 4
         with torch.no_grad():
-            image_batch_list = [torch.rand(self.batch_size, num_channels, self.image_size, self.image_size)] * num_image_sides
+            image_batch_list = [
+                torch.rand(self.batch_size, num_channels, self.image_size, self.image_size)
+            ] * num_image_sides
             outs_backbone = [self.backbone(image) for image in image_batch_list]
             out_backbone_cat = torch.cat(outs_backbone, dim=1)
             flattened_output = torch.flatten(out_backbone_cat, 1)  # shape (batch_size x some_number)
@@ -94,7 +108,7 @@ class LitModel(pl.LightningModule):
     def get_num_of_trainable_params(self):
         return sum(param.numel() for param in self.parameters() if param.requires_grad)
 
-    def forward(self, image_list, *args, **kwargs) -> Any:
+    def forward(self, image_list) -> Any:
         outs_backbone = [self.backbone(image) for image in image_list]
         out_backbone_cat = torch.cat(outs_backbone, dim=1)
         out_flatten = torch.flatten(out_backbone_cat, 1)
@@ -103,7 +117,7 @@ class LitModel(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         image_list, y, _ = batch
-        y_pred = self(image_list)
+        y_pred = self(image_list)  # same as self.forward
 
         loss = F.cross_entropy(y_pred, y)
         acc = multi_acc(y_pred, y)
@@ -118,23 +132,12 @@ class LitModel(pl.LightningModule):
         self.log_dict(log_dict, on_step=True, on_epoch=True, logger=True, prog_bar=True)
         return data_dict
 
-    def training_epoch_end(self, outs):
-        loss = sum(map(lambda x: x["train/loss"], outs)) / len(outs)
-        acc = sum(map(lambda x: x["train/acc"], outs)) / len(outs)
-        log_dict = {
-            "train/loss_epoch": loss,
-            "train/acc_epoch": acc,
-            "step": self.current_epoch,  # explicitly set the x axis
-        }
-
-        self.log_dict(log_dict)
-
     def validation_step(self, batch, batch_idx):
-        image_list, y_true, image_true_coords = batch
+        image_list, y_true, image_true_crs_coords = batch
         y_pred = self(image_list)
-        coord_pred = lat_lng_weighted_mean(y_pred,  self.class_to_centroid_map, top_k=5)
-        print(coord_pred, image_true_coords)
-        haver_dist = np.mean(haversine_distances(coord_pred.cpu(), image_true_coords.cpu()))
+
+        pred_crs_coord = crs_coords_weighed_mean(y_pred, self.class_to_crs_centroid_map, top_k=5)
+        haver_dist = get_haversine_from_predictions(self.datamodule.crs_scaler, pred_crs_coord, image_true_crs_coords)
 
         loss = F.cross_entropy(y_pred, y_true)
         acc = multi_acc(y_pred, y_true)
@@ -149,25 +152,15 @@ class LitModel(pl.LightningModule):
         self.log_dict(log_dict, on_step=True, on_epoch=True, logger=True, prog_bar=True)
         return data_dict
 
-    def validation_epoch_end(self, outs):
-        loss = sum(map(lambda x: x["val/loss"], outs)) / len(outs)
-        acc = sum(map(lambda x: x["val/acc"], outs)) / len(outs)
-        log_dict = {
-            "val/loss_epoch": loss,
-            "val/acc_epoch": acc,
-            "step": self.current_epoch,
-        }
-        self.log_dict(log_dict)
-
     def test_step(self, batch, batch_idx):
-        image_list, y, image_true_coords = batch
+        image_list, y_true, image_true_crs_coords = batch
         y_pred = self(image_list)
 
-        coord_pred = lat_lng_weighted_mean(y_pred,  self.class_to_centroid_map, top_k=5)
-        haver_dist = np.mean(haversine_distances(coord_pred.cpu(), image_true_coords.cpu()))
+        pred_crs_coord = crs_coords_weighed_mean(y_pred, self.class_to_crs_centroid_map, top_k=5)
+        haver_dist = get_haversine_from_predictions(self.datamodule.crs_scaler, pred_crs_coord, image_true_crs_coords)
 
-        loss = F.cross_entropy(y_pred, y)
-        acc = multi_acc(y_pred, y)
+        loss = F.cross_entropy(y_pred, y_true)
+        acc = multi_acc(y_pred, y_true)
         data_dict = {
             "loss": loss,  # the 'loss' key needs to be present
             "test/loss": loss,
@@ -179,27 +172,20 @@ class LitModel(pl.LightningModule):
         self.log_dict(log_dict, on_step=True, on_epoch=True, logger=True, prog_bar=True)
         return data_dict
 
-    def test_epoch_end(self, outs):
-        loss = sum(map(lambda x: x["test/loss"], outs)) / len(outs)
-        acc = sum(map(lambda x: x["test/acc"], outs)) / len(outs)
-        log_dict = {
-            "test/loss_epoch": loss,
-            "test/acc_epoch": acc,
-            "step": self.current_epoch,
-        }
-        self.log_dict(log_dict)
-
     def configure_optimizers(self):
-
-        optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
-        if type(self.backbone) is EfficientNet:
-            optimizer = torch.optim.RMSprop(
+        optimizer = (
+            torch.optim.RMSprop(
                 self.parameters(),
                 lr=self.learning_rate,
                 weight_decay=self.weight_decay,
                 momentum=0.2,
             )
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, "min", patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ // 2) - 1)
+            if type(self.backbone) is EfficientNet
+            else torch.optim.Adam(self.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
+        )
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer, "min", patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ // 2) - 1
+        )
         return {
             "optimizer": optimizer,
             "lr_scheduler": {
@@ -216,31 +202,42 @@ class LitModel(pl.LightningModule):
         }
 
 
-class LitModelReg(pl.LightningModule):
-    
+class LitModelRegression(pl.LightningModule):
     loggers: List[TensorBoardLogger]
+    num_of_outputs = 2
 
-    def __init__(self, data_module: GeoguesserDataModule, num_classes: int, model_name, pretrained, learning_rate,
-                 weight_decay, batch_size, image_size):
-        super(LitModelReg, self).__init__()
+    def __init__(
+        self,
+        datamodule,
+        num_classes: int,
+        model_name: str,
+        pretrained: bool,
+        learning_rate: float,
+        weight_decay: float,
+        batch_size: int,
+        image_size: int,
+    ):
+        super().__init__()
 
         self.learning_rate = learning_rate
         self.weight_decay = weight_decay
         self.batch_size = batch_size
         self.image_size = image_size
+        self.datamodule = datamodule
 
         backbone = torch.hub.load(DEFAULT_TORCHVISION_VERSION, model_name, pretrained=pretrained)
         self.backbone = model_remove_fc(backbone)
-        self.fc = nn.Linear(self._get_last_fc_in_channels(), 2)
+        self.fc = nn.Linear(self._get_last_fc_in_channels(), LitModelRegression.num_of_outputs)
 
         self._set_example_input_array()
-        self.save_hyperparameters()
+        self.save_hyperparameters(ignore=["datamodule"])
 
     def _set_example_input_array(self):
         num_channels = 3
         num_of_image_sides = 4
-        list_of_images = [torch.rand(self.batch_size, num_channels, self.image_size,
-                                     self.image_size)] * num_of_image_sides
+        list_of_images = [
+            torch.rand(self.batch_size, num_channels, self.image_size, self.image_size)
+        ] * num_of_image_sides
         self.example_input_array = torch.stack(list_of_images)
 
     def _get_last_fc_in_channels(self) -> Any:
@@ -251,8 +248,9 @@ class LitModelReg(pl.LightningModule):
         num_channels = 3
         num_image_sides = 4
         with torch.no_grad():
-            image_batch_list = [torch.rand(self.batch_size, num_channels, self.image_size,
-                                           self.image_size)] * num_image_sides
+            image_batch_list = [
+                torch.rand(self.batch_size, num_channels, self.image_size, self.image_size)
+            ] * num_image_sides
             outs_backbone = [self.backbone(image) for image in image_batch_list]
             out_backbone_cat = torch.cat(outs_backbone, dim=1)
             flattened_output = torch.flatten(out_backbone_cat, 1)  # shape (batch_size x some_number)
@@ -261,7 +259,7 @@ class LitModelReg(pl.LightningModule):
     def get_num_of_trainable_params(self):
         return sum(param.numel() for param in self.parameters() if param.requires_grad)
 
-    def forward(self, image_list, *args, **kwargs) -> Any:
+    def forward(self, image_list) -> Any:
         outs_backbone = [self.backbone(image) for image in image_list]
         out_backbone_cat = torch.cat(outs_backbone, dim=1)
         out_flatten = torch.flatten(out_backbone_cat, 1)
@@ -269,10 +267,10 @@ class LitModelReg(pl.LightningModule):
         return out
 
     def training_step(self, batch, batch_idx):
-        image_list, _, image_true_coords = batch
+        image_list, _, image_true_crs_coords = batch
         y_pred = self(image_list)
 
-        loss = F.mse_loss(y_pred, image_true_coords)
+        loss = F.mse_loss(y_pred, image_true_crs_coords)
 
         data_dict = {
             "loss": loss,  # the 'loss' key needs to be present
@@ -283,20 +281,13 @@ class LitModelReg(pl.LightningModule):
         self.log_dict(log_dict, on_step=True, on_epoch=True, logger=True, prog_bar=True)
         return data_dict
 
-    def training_epoch_end(self, outs):
-        loss = sum(map(lambda x: x["train/loss"], outs)) / len(outs)
-        log_dict = {
-            "train/loss_epoch": loss,
-            "step": self.current_epoch,  # explicitly set the x axis
-        }
-        self.log_dict(log_dict)
-
     def validation_step(self, batch, batch_idx):
-        image_list, _, image_true_coords = batch
-        y_pred = self(image_list)
-        haver_dist = np.mean(haversine_distances(y_pred.cpu(), image_true_coords.cpu()))
+        image_list, _, image_true_crs_coords = batch
+        pred_crs_coord = self(image_list)
 
-        loss = F.mse_loss(y_pred, image_true_coords)
+        haver_dist = get_haversine_from_predictions(self.datamodule.crs_scaler, pred_crs_coord, image_true_crs_coords)
+
+        loss = F.mse_loss(pred_crs_coord, image_true_crs_coords)
         data_dict = {
             "loss": loss,  # the 'loss' key needs to be present
             "val/loss": loss,
@@ -307,20 +298,13 @@ class LitModelReg(pl.LightningModule):
         self.log_dict(log_dict, on_step=True, on_epoch=True, logger=True, prog_bar=True)
         return data_dict
 
-    def validation_epoch_end(self, outs):
-        loss = sum(map(lambda x: x["val/loss"], outs)) / len(outs)
-        log_dict = {
-            "val/loss_epoch": loss,
-            "step": self.current_epoch,
-        }
-        self.log_dict(log_dict)
-
     def test_step(self, batch, batch_idx):
-        image_list, _, image_true_coords = batch
-        y_pred = self(image_list)
-        haver_dist = np.mean(haversine_distances(y_pred.cpu(), image_true_coords.cpu()))
+        image_list, _, image_true_crs_coords = batch
+        pred_crs_coord = self(image_list)
 
-        loss = F.mse_loss(y_pred, image_true_coords)
+        haver_dist = get_haversine_from_predictions(self.datamodule.crs_scaler, pred_crs_coord, image_true_crs_coords)
+
+        loss = F.mse_loss(pred_crs_coord, image_true_crs_coords)
         data_dict = {
             "loss": loss,  # the 'loss' key needs to be present
             "test/loss": loss,
@@ -331,14 +315,6 @@ class LitModelReg(pl.LightningModule):
         self.log_dict(log_dict, on_step=True, on_epoch=True, logger=True, prog_bar=True)
         return data_dict
 
-    def test_epoch_end(self, outs):
-        loss = sum(map(lambda x: x["test/loss"], outs)) / len(outs)
-        log_dict = {
-            "test/loss_epoch": loss,
-            "step": self.current_epoch,
-        }
-        self.log_dict(log_dict)
-
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
         if type(self.backbone) is EfficientNet:
@@ -348,8 +324,9 @@ class LitModelReg(pl.LightningModule):
                 weight_decay=self.weight_decay,
                 momentum=0.2,
             )
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, "min",
-                                                               patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ // 2) - 1)
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer, "min", patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ // 2) - 1
+        )
         return {
             "optimizer": optimizer,
             "lr_scheduler": {
@@ -366,10 +343,10 @@ class LitModelReg(pl.LightningModule):
         }
 
 
-class LitSingleModel(LitModel):
+class LitSingleModel(LitModelClassification):
     def __init__(self, *args: Any, **kwargs: Any):
         print("LitSingleModel init")
-        super(LitSingleModel, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.fc = nn.Linear(self._get_last_fc_in_channels(), self.num_classes)
 
     def _get_last_fc_in_channels(self) -> Any:

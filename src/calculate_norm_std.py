@@ -1,23 +1,26 @@
-import os
 from glob import glob
 from pathlib import Path
+from typing import List
 
-import numpy as np
-import pandas as pd
 import torch
 from PIL import Image
 from torchvision.transforms import transforms
 
-from utils_functions import flatten
 from utils_dataset import DatasetSplitType
+from utils_functions import flatten
 
 
-def calculate_norm_std(dataset_dirs):
+def calculate_norm_std(dataset_dirs: List[Path]):
+    """
+    Caculates the mean and std of the multiple train dataset directories
+    Args:
+        dataset_dirs: list of dataset directory paths which the mean and std will be caculated for.
+    """
     channels_sum, channels_squared_sum, num_batches = 0, 0, 0
 
     degrees = ["0", "90", "180", "270"]
     transform = transforms.ToTensor()
-    
+
     for dataset_dir in dataset_dirs:
         path_images = Path(dataset_dir, "images", DatasetSplitType.TRAIN.value)
         uuid_dir_paths = glob(str(Path(path_images, "*")))

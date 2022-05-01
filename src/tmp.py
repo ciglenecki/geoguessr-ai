@@ -1,17 +1,16 @@
+import os
 import random
+from glob import glob
 
 import numpy as np
+import pandas as pd
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
 from torchvision.models.resnet import ResNet
-import pandas as pd
-import os
-from glob import glob
 
 torch.autograd.set_detect_anomaly(True)
-torch.set_printoptions(threshold=10_000,sci_mode=False)
+torch.set_printoptions(threshold=10_000, sci_mode=False)
 
 SEED = 20
 
@@ -28,7 +27,14 @@ def get_model_weights_sample(model):
     return model.conv1.weight[30:33, 0:2, 2:3, 2:3]
 
 
-def get_setup(batch_size, consecutive_forwads_num, channels, image_size, model_name="resnet18", freeze_batchnorm_layers=False):
+def get_setup(
+    batch_size,
+    consecutive_forwads_num,
+    channels,
+    image_size,
+    model_name="resnet18",
+    freeze_batchnorm_layers=False,
+):
 
     np.random.seed(0)
     random.seed(0)
@@ -88,7 +94,7 @@ def forward_consecutive(model, image_batch_list):
 
 class Identity(nn.Module):
     def __init__(self):
-        super(Identity, self).__init__()
+        super().__init__()
 
     def forward(self, x):
         return x
@@ -130,7 +136,13 @@ def model_cat_vs_multi_forward():
 
     log("CONSECUTIVE FORWARD ======================")
 
-    model, criterion, optimizer, labels, image_batch_list = get_setup(batch_size, consecutive_forwads_num, channels, image_size, freeze_batchnorm_layers=True)
+    model, criterion, optimizer, labels, image_batch_list = get_setup(
+        batch_size,
+        consecutive_forwads_num,
+        channels,
+        image_size,
+        freeze_batchnorm_layers=True,
+    )
     output = forward_consecutive(model, image_batch_list)
     optimizer.zero_grad()
     loss = criterion(output, labels)
@@ -139,9 +151,17 @@ def model_cat_vs_multi_forward():
     optimizer.step()
 
     log("CAT FORWARD ======================")
-    log("Instead of 8 batches that go through forward 4 times, this time we will stack 4 images on each batch => 8 x 4 = 32 batches")
+    log(
+        "Instead of 8 batches that go through forward 4 times, this time we will stack 4 images on each batch => 8 x 4 = 32 batches"
+    )
 
-    model, criterion, optimizer, labels, image_batch_list = get_setup(batch_size, consecutive_forwads_num, channels, image_size, freeze_batchnorm_layers=True)
+    model, criterion, optimizer, labels, image_batch_list = get_setup(
+        batch_size,
+        consecutive_forwads_num,
+        channels,
+        image_size,
+        freeze_batchnorm_layers=True,
+    )
     output = forward_cat(model, image_batch_list)
     optimizer.zero_grad()
     loss = criterion(output, labels)
@@ -191,29 +211,32 @@ def check_rows():
     print(uuids_raw[0], uuids_external[0])
     df_with_uuids = df.loc[df["uuid"].isin(uuids), :]
     print(len(df), len(df_with_uuids))
-    
+
+
 def softmax_coords():
     batch_size = 5
     num_class = 3
     num_data = 3
-    
+
     class_map = (torch.rand(num_class, 2) * 100) + 40
-    log_preds = torch.Tensor([[3,2,1], [3,1,2], [0,3,0], [1,1,1], [0,1,1]]) + torch.rand(batch_size, num_data) * 2
-    preds =F.softmax(log_preds,dim=-1)
+    log_preds = (
+        torch.Tensor([[3, 2, 1], [3, 1, 2], [0, 3, 0], [1, 1, 1], [0, 1, 1]]) + torch.rand(batch_size, num_data) * 2
+    )
+    preds = F.softmax(log_preds, dim=-1)
     print(class_map)
 
-    preds, ids = torch.topk(preds, k = 2,dim=-1)
-    
+    preds, ids = torch.topk(preds, k=2, dim=-1)
+
     preds = preds.unsqueeze(dim=-1)
     ones = [1] * len(preds.shape)
-    preds = preds.repeat(*ones,2)
-        
+    preds = preds.repeat(*ones, 2)
+
     chosen = class_map[ids]
-    
+
     chosen = chosen * preds
-    meaned = torch.sum(chosen,dim=-2)
+    meaned = torch.sum(chosen, dim=-2)
     print(meaned)
-    
+
 
 if __name__ == "__main__":
     softmax_coords()

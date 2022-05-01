@@ -5,26 +5,34 @@ from pprint import pprint
 
 import pytorch_lightning as pl
 from pytorch_lightning import loggers as pl_loggers
+from pytorch_lightning.callbacks import BackboneFinetuning
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
+from pytorch_lightning.callbacks.model_summary import ModelSummary
 from pytorch_lightning.callbacks.progress.tqdm_progress import TQDMProgressBar
 from torchvision import transforms
 from torchvision.transforms import AutoAugmentPolicy
 
-from args_train import parse_args_train
-from callback_finetuning_last_n_layers import BackboneFinetuningLastLayers
-from data_module_geoguesser import GeoguesserDataModule
-from defaults import DEFAULT_EARLY_STOPPING_EPOCH_FREQ
-from model import LitModel, LitSingleModel, OnTrainEpochStartLogCallback, LitModelReg
-from utils_functions import add_prefix_to_keys, get_timestamp, is_primitive, random_codeword, stdout_to_file
 from calculate_norm_std import calculate_norm_std
+from datamodule_geoguesser import GeoguesserDataModule
+from defaults import DEFAULT_EARLY_STOPPING_EPOCH_FREQ
+from model import LitModelClassification, LitModelRegression, LitSingleModel
+from model_callbacks import (
+    BackboneFinetuningLastLayers,
+    LogMetricsAsHyperparams,
+    OnTrainEpochStartLogCallback,
+    OverrideEpochMetricCallback,
+)
+from train_args import parse_args_train
+from utils_functions import add_prefix_to_keys, get_timestamp, is_primitive, random_codeword, stdout_to_file
 from utils_paths import PATH_REPORT
 
 if __name__ == "__main__":
     args, pl_args = parse_args_train()
 
-    timestamp = get_timestamp()
-    filename_report = Path(args.output_report, "-".join(["train", *args.models, timestamp]) + ".txt")
+    study_name = get_timestamp() + "-" + random_codeword()
+    study_name_extended = "{}{}".format(study_name, "-regression" if args.regression else "")
+    filename_report = Path(args.output_report, "-".join(["train", study_name_extended]) + ".txt")
     stdout_to_file(filename_report)
     print(str(filename_report))
     pprint([vars(args), vars(pl_args)])
@@ -46,6 +54,7 @@ if __name__ == "__main__":
     load_dataset_in_ram = args.load_in_ram
     use_single_images = args.use_single_images
     is_regression = args.regression
+    auto_lr = not args.no_auto_lr
 
     # mean, std = calculate_norm_std(dataset_dirs)
     mean, std = [0.5006, 0.5116, 0.4869], [0.1966, 0.1951, 0.2355]
@@ -59,7 +68,7 @@ if __name__ == "__main__":
         ]
     )
 
-    data_module = GeoguesserDataModule(
+    datamodule = GeoguesserDataModule(
         cached_df=cached_df,
         dataset_dirs=dataset_dirs,
         batch_size=batch_size,
@@ -71,52 +80,62 @@ if __name__ == "__main__":
         shuffle_before_splitting=shuffle_before_splitting,
         load_dataset_in_ram=load_dataset_in_ram,
     )
-    data_module.setup()
-    num_classes = data_module.num_classes
+    datamodule.setup()
+    num_classes = datamodule.num_classes
 
     log_dictionary = {
         **add_prefix_to_keys(vars(args), "user_args/"),
         **add_prefix_to_keys(vars(pl_args), "lightning_args/"),
-        "train_size": len(data_module.train_dataloader()),
-        "val_size": len(data_module.val_dataloader()),
-        "test_size": len(data_module.test_dataloader()),
+        "train_size": len(datamodule.train_dataloader().dataset),  # type: ignore
+        "val_size": len(datamodule.val_dataloader().dataset),  # type: ignore
+        "test_size": len(datamodule.test_dataloader().dataset),  # type: ignore
+        "num_classes": num_classes,
     }
 
     for model_name in model_names:
         # The EarlyStopping callback runs at the end of every validation epoch, which, under the default
         # configuration, happen after every training epoch.
         callback_early_stopping = EarlyStopping(
-            monitor="val/loss",
+            monitor="val/loss_epoch",
             patience=DEFAULT_EARLY_STOPPING_EPOCH_FREQ,
             verbose=True,
         )
         callback_checkpoint = ModelCheckpoint(
-            monitor="val/haversine_distance",
-            filename=model_name + "__haversine_{val/haversine_distance:.4f}__val_acc_{val/acc:.2f}__val_loss_{val/loss:.2f}",
+            monitor="val/haversine_distance_epoch",
+            filename=model_name
+            + "__haversine_{val/haversine_distance_epoch:.4f}__val_acc_{val/acc_epoch:.2f}__val_loss_{val/loss_epoch:.2f}",
             auto_insert_metric_name=False,
         )
-        bar_refresh_rate = int(len(data_module.train_dataloader()) / pl_args.log_every_n_steps)
+        bar_refresh_rate = int(len(datamodule.train_dataloader()) / pl_args.log_every_n_steps)
 
         callbacks = [
             callback_early_stopping,
-            TQDMProgressBar(refresh_rate=bar_refresh_rate),
             callback_checkpoint,
+            TQDMProgressBar(refresh_rate=bar_refresh_rate),
             OnTrainEpochStartLogCallback(),
+            ModelSummary(max_depth=2),
+            OverrideEpochMetricCallback(),
+            LogMetricsAsHyperparams(),
         ]
 
         if unfreeze_backbone_at_epoch:
-            multiplicative = lambda epoch: 1.4
+            rate_fine_tuning_multiply = 10
+            learning_rate *= rate_fine_tuning_multiply
+            multiplicative = lambda epoch: 1
             callbacks.append(
                 BackboneFinetuningLastLayers(
                     unfreeze_blocks_num=unfreeze_blocks_num,
+                    backbone_initial_ratio_lr=1 / rate_fine_tuning_multiply,
                     unfreeze_backbone_at_epoch=unfreeze_backbone_at_epoch,
                     lambda_func=multiplicative,
-                )
+                ),
             )
 
-        model_constructor = LitSingleModel if use_single_images else (LitModelReg if is_regression else LitModel)
+        model_constructor = (
+            LitSingleModel if use_single_images else (LitModelRegression if is_regression else LitModelClassification)
+        )
         model = model_constructor(
-            data_module=data_module,
+            datamodule=datamodule,
             num_classes=num_classes,
             model_name=model_names[0],
             pretrained=pretrained,
@@ -126,11 +145,10 @@ if __name__ == "__main__":
             image_size=image_size,
         )
 
-        # Enables a placeholder metric with key `hp_metric` when `log_hyperparams` is called without a metric (otherwise calls to log_hyperparams without a metric are ignored).
         tb_logger = pl_loggers.TensorBoardLogger(
             save_dir=str(PATH_REPORT),
-            name="{}-{}{}".format(timestamp, random_codeword(), "-regression" if is_regression else "-num_classes_" + str(num_classes) ),
-            default_hp_metric=True,
+            name="{}{}".format(study_name, "-regression" if is_regression else "-num_classes_" + str(num_classes)),
+            default_hp_metric=False,
             log_graph=True,
         )
 
@@ -143,5 +161,16 @@ if __name__ == "__main__":
             callbacks=callbacks,
         )
 
-        trainer.fit(model, data_module, ckpt_path=trainer_checkpoint)
-        trainer.test(model, data_module)
+        if auto_lr:
+            lr_finder = trainer.tuner.lr_find(model, datamodule=datamodule, num_training=30)
+            if lr_finder:
+                # print("Results from the lr_finder:", lr_finder.results, sep="\n")
+                # lr_finder.plot(suggest=True, show=True)
+                new_lr = lr_finder.suggestion()
+                if new_lr:
+                    print("New learning rate found by lr_finder:", new_lr)
+                    model.hparams.lr = new_lr  # type: ignore
+                    model.learning_rate = new_lr
+
+        trainer.fit(model, datamodule, ckpt_path=trainer_checkpoint)
+        trainer.test(model, datamodule)

@@ -2,7 +2,7 @@
 /data/**/*.png
 /data/**/*.jpg
 /data/**/*.zip
-!data/raw_example/**
+!data/example/**
 
 .directory
 
@@ -13,6 +13,7 @@
 reports/22*
 reports/train*
 old_reports/
+nohup*.out
 __pycache__/
 *.py[cod]
 *$py.class

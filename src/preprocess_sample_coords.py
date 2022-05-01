@@ -62,7 +62,7 @@ def uniform_2d_generator(lat_lng_min, lat_lng_max, batch_size):
         yield np.random.uniform(low=lat_lng_min, high=lat_lng_max, size=(batch_size, 2))
 
 
-def reproject_dataframe(df, crs):
+def reproject_dataframe(df, crs) -> gpd.GeoDataFrame:
     print("Reprojecting the dataframe...")
     df = df.to_crs(crs)
     df["sample_longitude"] = df.geometry.apply(lambda p: p.x)
@@ -78,7 +78,7 @@ def main(args):
     num_of_coords = args.n
     fig_format = args.fig_format
 
-    croatia_crs = 3765
+    croatia_crs = 3766
     default_crs = 4326
 
     batch_size = num_of_coords // 5
@@ -124,7 +124,14 @@ def main(args):
     if not no_fig_out:
         print("Saving figure...")
         ax = country_shape.plot(color="green")
-        final_df.plot(ax=ax, alpha=1, linewidth=0.01, markersize=0.01, edgecolor="white", color="red")
+        final_df.plot(
+            ax=ax,
+            alpha=1,
+            linewidth=0.01,
+            markersize=0.01,
+            edgecolor="white",
+            color="red",
+        )
         ax.set_xlabel("Longitude")
         ax.set_ylabel("Latitude")
         fig_path = Path(out_dir, basename + "." + fig_format)

@@ -6,6 +6,8 @@ import torch.nn.functional as F
 from torchvision.models.efficientnet import EfficientNet
 from torchvision.models.resnet import ResNet
 
+from utils_functions import tensor_sum_of_elements_to_one
+
 
 def model_remove_fc(model: ResNet):
     """Replaces fully connected layer with identity function"""
@@ -51,22 +53,32 @@ def freeze_but_last_n_blocks(model, leave_last_n):
     return model
 
 
-def lat_lng_weighted_mean(y_pred, class_map, top_k):
-    preds, indices = torch.topk(F.softmax(y_pred), k = top_k)
-    preds = preds / torch.sum(preds,dim=1,keepdim=True) # sum to 1 again
-    preds = preds.unsqueeze(dim=-1) # [[0.2, 0.2, 0.6], [0.4, 0.5, 0.1]]
+def crs_coords_weighed_mean(y_pred: torch.Tensor, class_map, top_k: int) -> torch.Tensor:
+    """
+    Args:
+        y_pred: tensor of shape (N, C)
+        class_map: tensor of shape (N). Hold crs for each class
+    Returns
+    """
+    preds, indices = torch.topk(F.softmax(y_pred, dim=-1), k=top_k)
+    preds = tensor_sum_of_elements_to_one(preds, dim=1)
+    preds = preds.unsqueeze(dim=-1)  # [[0.2, 0.2, 0.6], [0.4, 0.5, 0.1]]
     ones = [1] * len(preds.shape)
-    preds = preds.repeat(*ones, 2) # [[[0.2, 0.2], [0.2, 0.2] [0.6, 0.6]], [[0.4, 0.4]...
-    
-    picked_coords = class_map[indices] # mask with indices, new column is added where data is concated. Pick only the first row [0] and drop the rest with squeeze
+
+    # repeat every axis once (change nothing), but repeat the last axis twice because of lat,lng [[[0.2, 0.2], [0.2, 0.2] [0.6, 0.6]], [[0.4, 0.4]...
+    preds = preds.repeat(*ones, 2)
+
+    # index class_map with indices, new column is added where data is concated. Pick only the first row [0] and drop the rest with squeeze
+    picked_coords = class_map[indices]
+
     scaled_coords = picked_coords * preds
-    weighted_sum = torch.sum(scaled_coords,dim=-2).squeeze()
+    weighted_sum = torch.sum(scaled_coords, dim=-2).squeeze()
     return weighted_sum
 
 
 class Identity(nn.Module):
     def __init__(self):
-        super(Identity, self).__init__()
+        super().__init__()
 
     def forward(self, x):
         return x
