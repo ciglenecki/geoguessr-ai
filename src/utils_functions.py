@@ -211,6 +211,7 @@ def stdout_to_file(file: Path):
     print("Standard output piped to file:")
     f = open(Path(file), "w")
     sys.stdout = SocketConcatenator(sys.stdout, f)
+    sys.stderr = SocketConcatenator(sys.stderr, f)
 
 
 def add_prefix_to_keys(dict: dict, prefix):
