@@ -1,7 +1,6 @@
 """CSV"""
 from utils_train import SchedulerType
 
-
 DEFAULT_SPACING = 0.5
 
 """IMAGE"""

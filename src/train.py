@@ -3,8 +3,8 @@ from __future__ import annotations, division, print_function
 from pathlib import Path
 from pprint import pprint
 
-import torch
 import pytorch_lightning as pl
+import torch
 from pytorch_lightning import loggers as pl_loggers
 from pytorch_lightning.callbacks import BackboneFinetuning
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
@@ -18,14 +18,13 @@ from calculate_norm_std import calculate_norm_std
 from datamodule_geoguesser import GeoguesserDataModule
 from defaults import DEFAULT_EARLY_STOPPING_EPOCH_FREQ
 from model import LitModelClassification, LitModelRegression, LitSingleModel
-from model_callbacks import (
-    BackboneFinetuningLastLayers,
-    LogMetricsAsHyperparams,
-    OnTrainEpochStartLogCallback,
-    OverrideEpochMetricCallback,
-)
+from model_callbacks import (BackboneFinetuningLastLayers,
+                             LogMetricsAsHyperparams,
+                             OnTrainEpochStartLogCallback,
+                             OverrideEpochMetricCallback)
 from train_args import parse_args_train
-from utils_functions import add_prefix_to_keys, get_timestamp, is_primitive, random_codeword, stdout_to_file
+from utils_functions import (add_prefix_to_keys, get_timestamp, is_primitive,
+                             random_codeword, stdout_to_file)
 from utils_paths import PATH_REPORT
 from utils_train import SchedulerType
 
@@ -172,5 +171,6 @@ if __name__ == "__main__":
 
         if scheduler_type == SchedulerType.AUTO_LR.value:
             trainer.tune(model, datamodule=datamodule, lr_find_kwargs={"num_training": 30})
+
         trainer.fit(model, datamodule, ckpt_path=trainer_checkpoint)
         trainer.test(model, datamodule)

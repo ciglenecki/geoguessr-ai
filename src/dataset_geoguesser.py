@@ -42,7 +42,6 @@ class GeoguesserDataset(Dataset):
         self.crs_coords_transform = crs_coords_transform
 
         self.uuid_dir_paths = get_dataset_dirs_uuid_paths(dataset_dirs=dataset_dirs, dataset_split_types=dataset_type)
-        print("self.uuid_dir_paths", len(self.uuid_dir_paths))
         self.uuids = [Path(uuid_dir_path).stem for uuid_dir_path in self.uuid_dir_paths]
         self.df_csv = df
         self.num_classes = num_classes
