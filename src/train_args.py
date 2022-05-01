@@ -198,7 +198,7 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
         "--no-auto-lr",
         action="store_true",
         help="Use Lightning's automatic LR finder",
-        default=DEFAULT_AUTO_LR,
+        default=not DEFAULT_AUTO_LR,
     )
 
     args = parser.parse_args()
