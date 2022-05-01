@@ -143,7 +143,7 @@ if __name__ == "__main__":
             num_classes=num_classes,
             model_name=model_names[0],
             pretrained=pretrained,
-            learning_rate=torch.tensor(learning_rate),
+            learning_rate=learning_rate,
             weight_decay=weight_decay,
             batch_size=batch_size,
             image_size=image_size,
