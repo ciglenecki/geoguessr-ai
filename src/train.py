@@ -120,7 +120,7 @@ if __name__ == "__main__":
         ]
 
         if unfreeze_backbone_at_epoch:
-            rate_fine_tuning_multiply = 10
+            rate_fine_tuning_multiply = 3
             learning_rate *= rate_fine_tuning_multiply
             multiplicative = lambda epoch: 1
             callbacks.append(
