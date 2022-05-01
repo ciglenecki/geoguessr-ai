@@ -184,7 +184,7 @@ class LitModelClassification(pl.LightningModule):
             else torch.optim.Adam(self.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
         )
         scheduler = torch.optim.lr_scheduler.OneCycleLR(
-            optimizer, max_lr=0.01, steps_per_epoch=len(self.datamodule.train_dataloader(), epochs=20)
+            optimizer, max_lr=0.01, steps_per_epoch=len(self.datamodule.train_dataloader()), epochs=20
         )
         # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         #     optimizer, "min", patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ // 2) - 1
