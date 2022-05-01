@@ -99,6 +99,7 @@ if __name__ == "__main__":
             monitor="val/loss_epoch",
             patience=DEFAULT_EARLY_STOPPING_EPOCH_FREQ,
             verbose=True,
+            check_on_train_epoch_end=True,
         )
         callback_checkpoint = ModelCheckpoint(
             monitor="val/haversine_distance_epoch",
@@ -112,10 +113,10 @@ if __name__ == "__main__":
             callback_early_stopping,
             callback_checkpoint,
             TQDMProgressBar(refresh_rate=bar_refresh_rate),
+            LogMetricsAsHyperparams(),
             OnTrainEpochStartLogCallback(),
             ModelSummary(max_depth=2),
             OverrideEpochMetricCallback(),
-            LogMetricsAsHyperparams(),
         ]
 
         if unfreeze_backbone_at_epoch:
