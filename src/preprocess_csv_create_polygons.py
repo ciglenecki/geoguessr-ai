@@ -78,16 +78,14 @@ def _handle_arguments(args, df_object):
     out_dir_csv = out
 
     if df_object is None and path_csv is None:
-        raise argparse.ArgumentError(
-            args,
+        raise argparse.ArgumentTypeError(
             "Provide one of the following: --csv path.csv or df_object via main function",
         )
 
     if not no_out:
         if out is None:
             if path_csv is None:
-                raise argparse.ArgumentError(
-                    args,
+                raise argparse.ArgumentTypeError(
                     "You want to save the datarame but you didn't provide the output path",
                 )
             out_dir_csv = Path(path_csv).parents[0]
