@@ -163,7 +163,7 @@ if __name__ == "__main__":
         )
 
         if auto_lr:
-            lr_finder = trainer.tuner.lr_find(model, datamodule=datamodule, num_training=5)
+            lr_finder = trainer.tuner.lr_find(model, datamodule=datamodule, num_training=30)
             if lr_finder:
                 # print("Results from the lr_finder:", lr_finder.results, sep="\n")
                 # lr_finder.plot(suggest=True, show=True)
@@ -171,7 +171,7 @@ if __name__ == "__main__":
                 if new_lr:
                     print("New learning rate found by lr_finder:", new_lr)
                     model.hparams.lr = new_lr  # type: ignore
-                    model.learning_rate = new_lr
+                    print(type(new_lr), type(model.learning_rate))
 
         trainer.fit(model, datamodule, ckpt_path=trainer_checkpoint)
         trainer.test(model, datamodule)
