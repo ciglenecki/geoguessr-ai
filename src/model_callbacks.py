@@ -55,6 +55,7 @@ class OnTrainEpochStartLogCallback(pl.Callback):
     def on_train_epoch_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
         data_dict = {
             "epoch": float(trainer.current_epoch),
+            "step": float(trainer.current_epoch),
         }
         pl_module.log_dict(data_dict)
 
