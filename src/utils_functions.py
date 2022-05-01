@@ -87,7 +87,7 @@ def get_train_test_indices(dataset: Dataset, test_size, dataset_frac=1.0, shuffl
 
 
 def get_timestamp():
-    return datetime.today().strftime("%y-%m-%d-%H-%M-%S")
+    return datetime.today().strftime("%m-%d-%H-%M-%S")
 
 
 def set_train_val_frac(dataset_size: int, train_split_factor, val_split_factor) -> Tuple[int, int]:

@@ -18,13 +18,14 @@ from calculate_norm_std import calculate_norm_std
 from datamodule_geoguesser import GeoguesserDataModule
 from defaults import DEFAULT_EARLY_STOPPING_EPOCH_FREQ
 from model import LitModelClassification, LitModelRegression, LitSingleModel
-from model_callbacks import (BackboneFinetuningLastLayers,
-                             LogMetricsAsHyperparams,
-                             OnTrainEpochStartLogCallback,
-                             OverrideEpochMetricCallback)
+from model_callbacks import (
+    BackboneFinetuningLastLayers,
+    LogMetricsAsHyperparams,
+    OnTrainEpochStartLogCallback,
+    OverrideEpochMetricCallback,
+)
 from train_args import parse_args_train
-from utils_functions import (add_prefix_to_keys, get_timestamp, is_primitive,
-                             random_codeword, stdout_to_file)
+from utils_functions import add_prefix_to_keys, get_timestamp, is_primitive, random_codeword, stdout_to_file
 from utils_paths import PATH_REPORT
 from utils_train import SchedulerType
 
@@ -33,7 +34,7 @@ if __name__ == "__main__":
 
     timestamp = get_timestamp()
     experiment_codeword = random_codeword()
-    filename_report = Path(args.output_report, "-".join(["train", experiment_codeword, timestamp]) + ".txt")
+    filename_report = Path(args.output_report, "__".join(["train", experiment_codeword, timestamp]) + ".txt")
     stdout_to_file(filename_report)
     print(str(filename_report))
     pprint([vars(args), vars(pl_args)])
@@ -152,8 +153,8 @@ if __name__ == "__main__":
 
         tb_logger = pl_loggers.TensorBoardLogger(
             save_dir=str(PATH_REPORT),
-            name="{}-{}{}".format(
-                experiment_codeword, timestamp, "-regression" if is_regression else "-num_classes_" + str(num_classes)
+            name="{}__{}__{}".format(
+                experiment_codeword, "regression" if is_regression else "num_classes_" + str(num_classes), timestamp
             ),
             default_hp_metric=False,
             log_graph=True,
