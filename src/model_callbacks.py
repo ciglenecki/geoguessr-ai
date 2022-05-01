@@ -55,7 +55,6 @@ class OnTrainEpochStartLogCallback(pl.Callback):
             "test/acc": min_value,
             "test/haversine_distance": max_value,
         }
-
         current_lr = trainer.optimizers[0].param_groups[0]["lr"]
         data_dict = {
             "trainable_params_num": float(pl_module.get_num_of_trainable_params()),  # type: ignore

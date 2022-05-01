@@ -99,6 +99,7 @@ if __name__ == "__main__":
             monitor="val/loss",
             patience=DEFAULT_EARLY_STOPPING_EPOCH_FREQ,
             verbose=True,
+            check_on_train_epoch_end=True,
         )
         callback_checkpoint = ModelCheckpoint(
             monitor="val/haversine_distance",
