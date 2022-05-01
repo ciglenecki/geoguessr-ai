@@ -17,13 +17,14 @@ from calculate_norm_std import calculate_norm_std
 from datamodule_geoguesser import GeoguesserDataModule
 from defaults import DEFAULT_EARLY_STOPPING_EPOCH_FREQ
 from model import LitModelClassification, LitModelRegression, LitSingleModel
-from model_callbacks import (BackboneFinetuningLastLayers,
-                             LogMetricsAsHyperparams,
-                             OnTrainEpochStartLogCallback,
-                             OverrideEpochMetricCallback)
+from model_callbacks import (
+    BackboneFinetuningLastLayers,
+    LogMetricsAsHyperparams,
+    OnTrainEpochStartLogCallback,
+    OverrideEpochMetricCallback,
+)
 from train_args import parse_args_train
-from utils_functions import (add_prefix_to_keys, get_timestamp, is_primitive,
-                             random_codeword, stdout_to_file)
+from utils_functions import add_prefix_to_keys, get_timestamp, is_primitive, random_codeword, stdout_to_file
 from utils_paths import PATH_REPORT
 
 if __name__ == "__main__":
@@ -53,7 +54,7 @@ if __name__ == "__main__":
     load_dataset_in_ram = args.load_in_ram
     use_single_images = args.use_single_images
     is_regression = args.regression
-    auto_lr = args.auto_lr
+    auto_lr = not args.no_auto_lr
 
     # mean, std = calculate_norm_std(dataset_dirs)
     mean, std = [0.5006, 0.5116, 0.4869], [0.1966, 0.1951, 0.2355]
@@ -161,15 +162,16 @@ if __name__ == "__main__":
             auto_lr_find=True,
         )
 
-        lr_finder = trainer.tuner.lr_find(model, datamodule=datamodule, num_training=30)
-        if lr_finder:
-            # print("Results from the lr_finder:", lr_finder.results, sep="\n")
-            # lr_finder.plot(suggest=True, show=True)
-            new_lr = lr_finder.suggestion()
-            if new_lr:
-                print("New learning rate found by lr_finder:", new_lr)
-                model.hparams.lr = new_lr  # type: ignore
-                model.learning_rate = new_lr
+        if auto_lr:
+            lr_finder = trainer.tuner.lr_find(model, datamodule=datamodule, num_training=30)
+            if lr_finder:
+                # print("Results from the lr_finder:", lr_finder.results, sep="\n")
+                # lr_finder.plot(suggest=True, show=True)
+                new_lr = lr_finder.suggestion()
+                if new_lr:
+                    print("New learning rate found by lr_finder:", new_lr)
+                    model.hparams.lr = new_lr  # type: ignore
+                    model.learning_rate = new_lr
 
         trainer.fit(model, datamodule, ckpt_path=trainer_checkpoint)
         trainer.test(model, datamodule)

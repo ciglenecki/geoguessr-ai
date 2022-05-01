@@ -62,7 +62,7 @@ def uniform_2d_generator(lat_lng_min, lat_lng_max, batch_size):
         yield np.random.uniform(low=lat_lng_min, high=lat_lng_max, size=(batch_size, 2))
 
 
-def reproject_dataframe(df, crs):
+def reproject_dataframe(df, crs) -> gpd.GeoDataFrame:
     print("Reprojecting the dataframe...")
     df = df.to_crs(crs)
     df["sample_longitude"] = df.geometry.apply(lambda p: p.x)

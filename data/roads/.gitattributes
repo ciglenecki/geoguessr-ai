@@ -1,0 +1,2 @@
+gis_osm_roads_free_1.shp filter=lfs diff=lfs merge=lfs -text
+gis_osm_roads_free_1.dbf filter=lfs diff=lfs merge=lfs -text

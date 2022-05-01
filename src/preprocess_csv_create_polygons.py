@@ -11,8 +11,7 @@ from tqdm import tqdm
 from defaults import DEFAULT_CROATIA_CRS, DEFAULT_GLOBAL_CRS, DEFAULT_SPACING
 from preprocess_sample_coords import reproject_dataframe
 from utils_functions import is_valid_dir
-from utils_geo import (ClippedCentroid, get_clipped_centroids,
-                       get_country_shape, get_grid, get_intersecting_polygons)
+from utils_geo import ClippedCentroid, get_clipped_centroids, get_country_shape, get_grid, get_intersecting_polygons
 from utils_paths import PATH_FIGURE, PATH_WORLD_BORDERS
 
 
@@ -79,16 +78,14 @@ def _handle_arguments(args, df_object):
     out_dir_csv = out
 
     if df_object is None and path_csv is None:
-        raise argparse.ArgumentError(
-            args,
+        raise argparse.ArgumentTypeError(
             "Provide one of the following: --csv path.csv or df_object via main function",
         )
 
     if not no_out:
         if out is None:
             if path_csv is None:
-                raise argparse.ArgumentError(
-                    args,
+                raise argparse.ArgumentTypeError(
                     "You want to save the datarame but you didn't provide the output path",
                 )
             out_dir_csv = Path(path_csv).parents[0]
@@ -118,7 +115,9 @@ def generate_spherical_coords(latitude_column, longitude_column, centroid_lat_co
 def generate_src_coords(lat: pd.Series, lng: pd.Series):
     points_geometry = gpd.points_from_xy(lng, lat)  # x is lng y is lat
     df_tmp = gpd.GeoDataFrame(columns=["x", "y"], geometry=points_geometry, crs=DEFAULT_GLOBAL_CRS)  # type: ignore #[geopandas doesnt recognize args]
-    df = reproject_dataframe(df_tmp, DEFAULT_CROATIA_CRS)
+    df_tmp: gpd.GeoDataFrame = df_tmp.to_crs(DEFAULT_CROATIA_CRS)  # type: ignore, it cant distinguish from geo/pandas
+    df_tmp["x"] = df_tmp.geometry.apply(lambda p: p.x)
+    df_tmp["y"] = df_tmp.geometry.apply(lambda p: p.y)
     return df_tmp["y"], df_tmp["x"]
 
 

@@ -10,13 +10,11 @@ from pytorch_lightning.loggers import TensorBoardLogger
 from sklearn.preprocessing import MinMaxScaler
 from torch import nn
 from torchvision.models.efficientnet import EfficientNet
-from torchvision.models.efficientnet import \
-    model_urls as efficientnet_model_urls
+from torchvision.models.efficientnet import model_urls as efficientnet_model_urls
 from torchvision.models.resnet import model_urls as resnet_model_urls
 
 from datamodule_geoguesser import GeoguesserDataModule
-from defaults import (DEFAULT_EARLY_STOPPING_EPOCH_FREQ,
-                      DEFAULT_TORCHVISION_VERSION)
+from defaults import DEFAULT_EARLY_STOPPING_EPOCH_FREQ, DEFAULT_TORCHVISION_VERSION
 from utils_geo import crs_coords_to_degree, haversine_from_degs
 from utils_model import crs_coords_weighed_mean, model_remove_fc
 from utils_train import multi_acc
@@ -27,6 +25,8 @@ allowed_models = list(resnet_model_urls.keys()) + list(efficientnet_model_urls.k
 def get_haversine_from_predictions(
     crs_scaler: MinMaxScaler, pred_crs_coord: torch.Tensor, image_true_crs_coords: torch.Tensor
 ):
+    pred_crs_coord = pred_crs_coord.cpu()
+    image_true_crs_coords = image_true_crs_coords.cpu()
 
     pred_crs_coord_transformed = crs_scaler.inverse_transform(pred_crs_coord)
     true_crs_coord_transformed = crs_scaler.inverse_transform(image_true_crs_coords)
