@@ -1,4 +1,4 @@
-from typing import Iterable, List, Optional, Union
+from typing import Any, Iterable, List, Optional, Union
 
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import BackboneFinetuning, Callback
@@ -43,6 +43,16 @@ class LogMetricsAsHyperparams(pl.Callback):
 
 class OnTrainEpochStartLogCallback(pl.Callback):
     """Logs metrics. pl_module has to implement get_num_of_trainable_params function"""
+
+    def on_train_batch_start(
+        self, trainer: pl.Trainer, pl_module: pl.LightningModule, batch: Any, batch_idx: int, unused: int = 0
+    ) -> None:
+        current_lr = trainer.optimizers[0].param_groups[0]["lr"]
+        data_dict = {
+            "trainable_params_num": float(pl_module.get_num_of_trainable_params()),  # type: ignore
+            "current_lr": float(current_lr),
+        }
+        pl_module.log_dict(data_dict)
 
     def on_train_start(self, trainer, pl_module: pl.LightningModule):
         log_dict_fix = {
