@@ -3,6 +3,7 @@ from __future__ import annotations, division, print_function
 from pathlib import Path
 from pprint import pprint
 
+import torch
 import pytorch_lightning as pl
 from pytorch_lightning import loggers as pl_loggers
 from pytorch_lightning.callbacks import BackboneFinetuning
@@ -142,7 +143,7 @@ if __name__ == "__main__":
             num_classes=num_classes,
             model_name=model_names[0],
             pretrained=pretrained,
-            learning_rate=learning_rate,
+            learning_rate=torch.tensor(learning_rate),
             weight_decay=weight_decay,
             batch_size=batch_size,
             image_size=image_size,
