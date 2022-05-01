@@ -171,7 +171,7 @@ if __name__ == "__main__":
                 if new_lr:
                     print("New learning rate found by lr_finder:", new_lr)
                     model.hparams.lr = new_lr  # type: ignore
-                    print(type(new_lr), type(model.learning_rate))
+                    print(new_lr, model.learning_rate)
                     print(type(new_lr), type(model.learning_rate))
 
         trainer.fit(model, datamodule, ckpt_path=trainer_checkpoint)
