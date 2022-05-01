@@ -1,7 +1,7 @@
 from __future__ import annotations, division, print_function
 
 import random
-from typing import Any, List
+from typing import Any, Dict, List
 
 import pytorch_lightning as pl
 import torch
@@ -17,7 +17,7 @@ from datamodule_geoguesser import GeoguesserDataModule
 from defaults import DEFAULT_EARLY_STOPPING_EPOCH_FREQ, DEFAULT_TORCHVISION_VERSION
 from utils_geo import crs_coords_to_degree, haversine_from_degs
 from utils_model import crs_coords_weighed_mean, model_remove_fc
-from utils_train import multi_acc
+from utils_train import SchedulerType, multi_acc
 
 allowed_models = list(resnet_model_urls.keys()) + list(efficientnet_model_urls.keys())
 
@@ -61,7 +61,8 @@ class LitModelClassification(pl.LightningModule):
         weight_decay: float,
         batch_size: int,
         image_size: int,
-        scheduler_name: str,
+        scheduler_type: str,
+        epochs: int,
     ):
         super().__init__()
         self.register_buffer(
@@ -74,7 +75,8 @@ class LitModelClassification(pl.LightningModule):
         self.image_size = image_size
         self.num_classes = num_classes
         self.datamodule = datamodule
-        self.scheduler_name = scheduler_name
+        self.scheduler_type = scheduler_type
+        self.epochs = epochs
 
         backbone = torch.hub.load(DEFAULT_TORCHVISION_VERSION, model_name, pretrained=pretrained)
         self.backbone = model_remove_fc(backbone)
@@ -177,31 +179,34 @@ class LitModelClassification(pl.LightningModule):
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
 
-        if self.scheduler_name == "onecycle":
-            scheduler = torch.optim.lr_scheduler.OneCycleLR(
-                optimizer, max_lr=0.01, steps_per_epoch=len(self.datamodule.train_dataloader()), epochs=20
-            )
-            interval = "step"
-        else:
-            scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                optimizer, "min", patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ // 2) - 1
-            )
-            interval = "epoch"
+        if self.scheduler_type is SchedulerType.AUTO_LR.value:
+            """SchedulerType.AUTO_LR sets it's own scheduler. Only the optimizer has to be returned"""
+            return optimizer
 
-        return {
+        config_dict = {
             "optimizer": optimizer,
             "lr_scheduler": {
-                "scheduler": scheduler,
-                # The unit of the scheduler's step size, could also be 'step', 'epoch' updates the scheduler on epoch end whereas 'step', updates it after a optimizer update
-                "interval": interval,
                 "monitor": "val/loss",
                 # How many epochs/steps should pass between calls to `scheduler.step()`.1 corresponds to updating the learning  rate after every epoch/step.
                 # If "monitor" references validation metrics, then "frequency" should be set to a multiple of "trainer.check_val_every_n_epoch".
                 "frequency": 1,
                 # If using the `LearningRateMonitor` callback to monitor the learning rate progress, this keyword can be used to specify a custom logged name
-                "name": None,
+                "name": self.scheduler_type,
             },
         }
+        if self.scheduler_type == SchedulerType.ONECYCLE.value:
+            scheduler = torch.optim.lr_scheduler.OneCycleLR(
+                optimizer, max_lr=0.01, steps_per_epoch=len(self.datamodule.train_dataloader()), epochs=self.epochs
+            )
+            interval = "step"
+        else:  # SchedulerType.PLATEAU
+            scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+                optimizer, "min", patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ // 2) - 1
+            )
+            interval = "epoch"
+
+        config_dict["lr_scheduler"].update({"scheduler": scheduler, "interval": interval})
+        return config_dict
 
 
 class LitModelRegression(pl.LightningModule):
@@ -218,7 +223,8 @@ class LitModelRegression(pl.LightningModule):
         weight_decay: float,
         batch_size: int,
         image_size: int,
-        scheduler_name: str,
+        scheduler_type: str,
+        epochs: int,
     ):
         super().__init__()
 
@@ -227,7 +233,8 @@ class LitModelRegression(pl.LightningModule):
         self.batch_size = batch_size
         self.image_size = image_size
         self.datamodule = datamodule
-        self.scheduler_name = scheduler_name
+        self.scheduler_type = scheduler_type
+        self.epochs = epochs
 
         backbone = torch.hub.load(DEFAULT_TORCHVISION_VERSION, model_name, pretrained=pretrained)
         self.backbone = model_remove_fc(backbone)
@@ -321,30 +328,35 @@ class LitModelRegression(pl.LightningModule):
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
-        if type(self.backbone) is EfficientNet:
-            optimizer = torch.optim.RMSprop(
-                self.parameters(),
-                lr=self.learning_rate,
-                weight_decay=self.weight_decay,
-                momentum=0.2,
-            )
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer, "min", patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ // 2) - 1
-        )
-        return {
+
+        if self.scheduler_type is SchedulerType.AUTO_LR.value:
+            """SchedulerType.AUTO_LR sets it's own scheduler. Only the optimizer has to be returned"""
+            return optimizer
+
+        config_dict = {
             "optimizer": optimizer,
             "lr_scheduler": {
-                "scheduler": scheduler,
-                # The unit of the scheduler's step size, could also be 'step', 'epoch' updates the scheduler on epoch end whereas 'step', updates it after a optimizer update
-                "interval": "epoch",
                 "monitor": "val/loss",
                 # How many epochs/steps should pass between calls to `scheduler.step()`.1 corresponds to updating the learning  rate after every epoch/step.
                 # If "monitor" references validation metrics, then "frequency" should be set to a multiple of "trainer.check_val_every_n_epoch".
                 "frequency": 1,
                 # If using the `LearningRateMonitor` callback to monitor the learning rate progress, this keyword can be used to specify a custom logged name
-                "name": None,
+                "name": self.scheduler_type,
             },
         }
+        if self.scheduler_type == SchedulerType.ONECYCLE.value:
+            scheduler = torch.optim.lr_scheduler.OneCycleLR(
+                optimizer, max_lr=0.01, steps_per_epoch=len(self.datamodule.train_dataloader()), epochs=self.epochs
+            )
+            interval = "step"
+        else:  # SchedulerType.PLATEAU
+            scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+                optimizer, "min", patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ // 2) - 1
+            )
+            interval = "epoch"
+
+        config_dict["lr_scheduler"].update({"scheduler": scheduler, "interval": interval})
+        return config_dict
 
 
 class LitSingleModel(LitModelClassification):

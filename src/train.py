@@ -26,6 +26,7 @@ from model_callbacks import (
 from train_args import parse_args_train
 from utils_functions import add_prefix_to_keys, get_timestamp, is_primitive, random_codeword, stdout_to_file
 from utils_paths import PATH_REPORT
+from utils_train import SchedulerType
 
 if __name__ == "__main__":
     args, pl_args = parse_args_train()
@@ -54,8 +55,8 @@ if __name__ == "__main__":
     load_dataset_in_ram = args.load_in_ram
     use_single_images = args.use_single_images
     is_regression = args.regression
-    auto_lr = not args.no_auto_lr
-    scheduler_name = args.scheduler
+    scheduler_type = args.scheduler
+    epochs = args.epochs
 
     # mean, std = calculate_norm_std(dataset_dirs)
     mean, std = [0.5006, 0.5116, 0.4869], [0.1966, 0.1951, 0.2355]
@@ -120,7 +121,7 @@ if __name__ == "__main__":
             OverrideEpochMetricCallback(),
         ]
 
-        if unfreeze_backbone_at_epoch:
+        if unfreeze_backbone_at_epoch and scheduler_type == SchedulerType.PLATEAU.value:
             rate_fine_tuning_multiply = 3
             learning_rate = float(learning_rate * rate_fine_tuning_multiply)
             multiplicative = lambda epoch: 1
@@ -145,7 +146,8 @@ if __name__ == "__main__":
             weight_decay=weight_decay,
             batch_size=batch_size,
             image_size=image_size,
-            scheduler_name=scheduler_name,
+            scheduler_type=scheduler_type,
+            epochs=epochs,
         )
 
         tb_logger = pl_loggers.TensorBoardLogger(
@@ -164,7 +166,7 @@ if __name__ == "__main__":
             callbacks=callbacks,
         )
 
-        if auto_lr:
+        if scheduler_type == SchedulerType.AUTO_LR.value:
             lr_finder = trainer.tuner.lr_find(model, datamodule=datamodule, num_training=5)
             if lr_finder:
                 # print("Results from the lr_finder:", lr_finder.results, sep="\n")
@@ -173,8 +175,6 @@ if __name__ == "__main__":
                 if new_lr:
                     print("New learning rate found by lr_finder:", new_lr)
                     model.hparams.lr = new_lr  # type: ignore
-                    print(new_lr, model.learning_rate)
-                    print(type(new_lr), type(model.learning_rate))
 
         trainer.fit(model, datamodule, ckpt_path=trainer_checkpoint)
         trainer.test(model, datamodule)

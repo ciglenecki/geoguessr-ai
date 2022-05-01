@@ -1,4 +1,11 @@
 import torch
+from enum import Enum
+
+
+class SchedulerType(Enum):
+    ONECYCLE = "onecycle"
+    PLATEAU = "plateau"
+    AUTO_LR = "auto_lr"
 
 
 def multi_acc(y_pred_log, y_test):

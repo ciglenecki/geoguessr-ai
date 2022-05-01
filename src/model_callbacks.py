@@ -2,10 +2,8 @@ from typing import Any, Iterable, List, Optional, Union
 
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import BackboneFinetuning, Callback
-from pytorch_lightning.callbacks.progress.tqdm_progress import TQDMProgressBar
 from torch.nn import Module
 from torch.optim.optimizer import Optimizer
-from tqdm import tqdm
 
 from utils_model import get_last_layer, get_model_blocks
 
@@ -51,6 +49,12 @@ class OnTrainEpochStartLogCallback(pl.Callback):
         data_dict = {
             "trainable_params_num": float(pl_module.get_num_of_trainable_params()),  # type: ignore
             "current_lr": float(current_lr),
+        }
+        pl_module.log_dict(data_dict)
+
+    def on_train_epoch_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
+        data_dict = {
+            "epoch": float(trainer.current_epoch),
         }
         pl_module.log_dict(data_dict)
 

@@ -11,9 +11,9 @@ import pytorch_lightning as pl
 from defaults import (
     DEAFULT_NUM_WORKERS,
     DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING,
-    DEFAULT_AUTO_LR,
     DEFAULT_BATCH_SIZE,
     DEFAULT_DATASET_SIZE,
+    DEFAULT_EPOCHS,
     DEFAULT_FINETUNING_EPOCH_PERIOD,
     DEFAULT_IMAGE_SIZE,
     DEFAULT_LOAD_DATASET_IN_RAM,
@@ -38,6 +38,7 @@ from utils_functions import (
     is_valid_unfreeze_arg,
 )
 from utils_paths import PATH_DATA_EXTERNAL, PATH_DATA_RAW, PATH_REPORT
+from utils_train import SchedulerType
 
 ARGS_GROUP_NAME = "General arguments"
 
@@ -196,17 +197,15 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
     )
 
     user_group.add_argument(
-        "--no-auto-lr",
-        action="store_true",
-        help="Use Lightning's automatic LR finder",
-        default=not DEFAULT_AUTO_LR,
-    )
-
-    user_group.add_argument(
         "--scheduler",
         default=DEFAULT_SCHEDULER,
         type=str,
-        choices=["plateau", "onecycle"],
+        choices=[scheduler_type.value for scheduler_type in SchedulerType],
+    )
+    user_group.add_argument(
+        "--epochs",
+        default=DEFAULT_EPOCHS,
+        type=is_positive_int,
     )
     args = parser.parse_args()
 
