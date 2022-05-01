@@ -177,7 +177,7 @@ if __name__ == "__main__":
                 new_lr = lr_finder.suggestion()
                 if new_lr:
                     print("New learning rate found by lr_finder:", new_lr)
-                    model.hparams.lr = new_lr  # type: ignore
+                    model.hparams.learning_rate = new_lr  # type: ignore
 
         trainer.fit(model, datamodule, ckpt_path=trainer_checkpoint)
         trainer.test(model, datamodule)
