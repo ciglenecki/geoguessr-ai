@@ -116,6 +116,47 @@ class GeoguesserDataset(Dataset):
         return images, label, crs_coords
 
 
+class GeoguesserDatasetPredict(Dataset):
+    def __init__(
+        self,
+        images_dirs: List[Path],
+        num_classes: int,
+        image_transform: transforms.Compose = transforms.Compose([transforms.ToTensor()]),
+    ) -> None:
+        print("GeoguesserDataset init")
+        super().__init__()
+        self.num_classes = num_classes
+        self.degrees = ["0", "90", "180", "270"]
+        self.image_transform = image_transform
+
+        self.uuid_dir_paths = flatten([glob(str(Path(images_dir, "*"))) for images_dir in images_dirs])
+        self.uuids = [Path(uuid_dir_path).stem for uuid_dir_path in self.uuid_dir_paths]
+
+        """ Build image cache """
+        self.image_cache = self._get_image_cache()
+
+    def _get_image_cache(self):
+        image_cache = {}
+        for uuid, uuid_dir_path in zip(self.uuids, self.uuid_dir_paths):
+            image_filepaths = [Path(uuid_dir_path, "{}.jpg".format(degree)) for degree in self.degrees]
+            cache_item = image_filepaths
+            image_cache[uuid] = cache_item
+        return image_cache
+
+    def name_without_extension(self, filename: Path | str):
+        return Path(filename).stem
+
+    def __len__(self):
+        return len(self.uuids)
+
+    def __getitem__(self, index: int):
+
+        uuid = self.uuids[index]
+        images = [Image.open(image_path) for image_path in self.image_cache[uuid]]
+        images = [self.image_transform(image) for image in images]
+        return images, uuid
+
+
 if __name__ == "__main__":
     print("This file shouldn't be called as a script unless used for debugging.")
     dataset = GeoguesserDataset()

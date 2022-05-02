@@ -38,6 +38,9 @@ def function(arg1, arg2) -> List[arg1, arg2]:
     list of length 2 which contains both arguments
   """
 ```
+- [ ] Server API:
+  - [ ] add cache as file for uuid/predictions in json file format
+  - [ ] add image uploader and save files to directory 
 
 - [ ] **Create local server that can predict an image**
   - use FastAPI, it's simple and it can self-document <https://fastapi.tiangolo.com/tutorial/first-steps/>

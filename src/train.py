@@ -4,9 +4,7 @@ from pathlib import Path
 from pprint import pprint
 
 import pytorch_lightning as pl
-import torch
 from pytorch_lightning import loggers as pl_loggers
-from pytorch_lightning.callbacks import BackboneFinetuning
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from pytorch_lightning.callbacks.model_summary import ModelSummary
@@ -16,7 +14,7 @@ from torchvision.transforms import AutoAugmentPolicy
 
 from calculate_norm_std import calculate_norm_std
 from datamodule_geoguesser import GeoguesserDataModule
-from defaults import DEFAULT_EARLY_STOPPING_EPOCH_FREQ
+from defaults import DEFAULT_EARLY_STOPPING_EPOCH_FREQ, DEFAULT_IMAGE_MEAN, DEFAULT_IMAGE_STD
 from model import LitModelClassification, LitModelRegression, LitSingleModel
 from model_callbacks import (
     BackboneFinetuningLastLayers,
@@ -58,9 +56,9 @@ if __name__ == "__main__":
     is_regression = args.regression
     scheduler_type = args.scheduler
     epochs = args.epochs
+    recaculate_norm = args.recaculate_normalization
 
-    # mean, std = calculate_norm_std(dataset_dirs)
-    mean, std = [0.5006, 0.5116, 0.4869], [0.1966, 0.1951, 0.2355]
+    mean, std = calculate_norm_std(dataset_dirs) if recaculate_norm else DEFAULT_IMAGE_MEAN, DEFAULT_IMAGE_STD
 
     image_transform_train = transforms.Compose(
         [
@@ -85,6 +83,10 @@ if __name__ == "__main__":
     )
     datamodule.setup()
     num_classes = datamodule.num_classes
+    experiment_directory_name = "{}__{}__{}".format(
+        experiment_codeword, "regression" if is_regression else "num_classes_" + str(num_classes), timestamp
+    )
+    datamodule.store_df_to_report(Path(PATH_REPORT, experiment_directory_name, "data.csv"))
 
     log_dictionary = {
         **add_prefix_to_keys(vars(args), "user_args/"),
@@ -106,8 +108,15 @@ if __name__ == "__main__":
         )
         callback_checkpoint = ModelCheckpoint(
             monitor="val/haversine_distance_epoch",
-            filename=model_name
-            + "__haversine_{val/haversine_distance_epoch:.4f}__val_acc_{val/acc_epoch:.2f}__val_loss_{val/loss_epoch:.2f}",
+            filename="__".join(
+                [
+                    experiment_codeword,
+                    "haversine_{val/haversine_distance_epoch:.4f}",
+                    "val_acc_{val/acc_epoch:.2f}",
+                    "val_loss_{val/loss_epoch:.2f}",
+                    timestamp,
+                ]
+            ),
             auto_insert_metric_name=False,
         )
         bar_refresh_rate = int(len(datamodule.train_dataloader()) / pl_args.log_every_n_steps)
@@ -139,7 +148,6 @@ if __name__ == "__main__":
             LitSingleModel if use_single_images else (LitModelRegression if is_regression else LitModelClassification)
         )
         model = model_constructor(
-            datamodule=datamodule,
             num_classes=num_classes,
             model_name=model_names[0],
             pretrained=pretrained,
@@ -149,13 +157,14 @@ if __name__ == "__main__":
             image_size=image_size,
             scheduler_type=scheduler_type,
             epochs=epochs,
+            class_to_crs_centroid_map=datamodule.class_to_crs_centroid_map,
+            crs_scaler=datamodule.crs_scaler,
+            train_steps_per_epoch=len(datamodule.train_dataloader()),
         )
 
         tb_logger = pl_loggers.TensorBoardLogger(
             save_dir=str(PATH_REPORT),
-            name="{}__{}__{}".format(
-                experiment_codeword, "regression" if is_regression else "num_classes_" + str(num_classes), timestamp
-            ),
+            name=experiment_directory_name,
             default_hp_metric=False,
             log_graph=True,
         )

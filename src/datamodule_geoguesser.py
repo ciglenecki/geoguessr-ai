@@ -8,6 +8,7 @@ from __future__ import annotations, division
 from itertools import combinations
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
+import os
 
 import numpy as np
 import pandas as pd
@@ -21,12 +22,18 @@ from torchvision import transforms
 
 import preprocess_csv_concat
 import preprocess_csv_create_polygons
-from dataset_geoguesser import GeoguesserDataset
-from defaults import (DEAFULT_DROP_LAST, DEAFULT_NUM_WORKERS,
-                      DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING,
-                      DEFAULT_BATCH_SIZE, DEFAULT_LOAD_DATASET_IN_RAM,
-                      DEFAULT_SPACING, DEFAULT_TEST_FRAC, DEFAULT_TRAIN_FRAC,
-                      DEFAULT_VAL_FRAC)
+from dataset_geoguesser import GeoguesserDataset, GeoguesserDatasetPredict
+from defaults import (
+    DEAFULT_DROP_LAST,
+    DEAFULT_NUM_WORKERS,
+    DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING,
+    DEFAULT_BATCH_SIZE,
+    DEFAULT_LOAD_DATASET_IN_RAM,
+    DEFAULT_SPACING,
+    DEFAULT_TEST_FRAC,
+    DEFAULT_TRAIN_FRAC,
+    DEFAULT_VAL_FRAC,
+)
 from utils_dataset import DatasetSplitType, filter_df_by_dataset_split
 from utils_functions import print_df_sample
 from utils_paths import PATH_DATA_COMPLETE, PATH_DATA_EXTERNAL, PATH_DATA_RAW
@@ -81,7 +88,9 @@ class GeoguesserDataModule(pl.LightningDataModule):
         assert (
             self.num_classes == self.df["y"].max() + 1
         ), "Number of classes should corespoing to the maximum y value of the csv dataframe"  # Sanity check
-        self.class_to_crs_centroid_map = torch.tensor(self._get_class_to_crs_centroid_list(self.num_classes))
+        self.class_to_crs_centroid_map, self.class_to_latlng_centroid_map = self._get_class_to_coords_maps(
+            self.num_classes
+        )
 
         self.train_dataset = GeoguesserDataset(
             df=self.df,
@@ -167,7 +176,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
         )
         return df
 
-    def _get_class_to_crs_centroid_list(self, num_classes: int) -> List[Tuple[float, float]]:
+    def _get_class_to_coords_maps(self, num_classes: int) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Returns list of tuples (lat,lng). Index of the element in the list (class_idx) defines the class and the element (tuple) defines the CRS minmax centroid of the class. note: in the for loop, we take only 1 row with concrete class class. Then we extract the coords from that row.
 
@@ -178,18 +187,27 @@ class GeoguesserDataModule(pl.LightningDataModule):
         """
 
         df_class_info = self.df.loc[
-            :, ["polygon_index", "y", "crs_centroid_x_minmax", "crs_centroid_y_minmax"]
+            :, ["polygon_index", "y", "crs_centroid_x_minmax", "crs_centroid_y_minmax", "centroid_lat", "centroid_lng"]
         ].drop_duplicates()
-        _class_to_crs_centroid_map = []
+        class_to_crs_centroid_map = []
+        class_to_latlng_centroid_map = []
         for class_idx in range(num_classes):
             row = df_class_info.loc[df_class_info["y"] == class_idx].head(1)  # ensure that only one row is taken
-            polygon_lat, polygon_lng = (
+            polygon_crs_x, polygon_crs_y = (
                 row["crs_centroid_x_minmax"].values[0],
                 row["crs_centroid_y_minmax"].values[0],
             )  # values extracts values as numpy array
-            point = [polygon_lat, polygon_lng]
-            _class_to_crs_centroid_map.append(point)
-        return _class_to_crs_centroid_map
+            polygon_lat, polygon_lng = (
+                row["centroid_lat"].values[0],
+                row["centroid_lng"].values[0],
+            )  # values extracts values as numpy array
+            class_to_crs_centroid_map.append([polygon_crs_x, polygon_crs_y])
+            class_to_latlng_centroid_map.append([polygon_lat, polygon_lng])
+        return torch.tensor(class_to_crs_centroid_map), torch.tensor(class_to_latlng_centroid_map)
+
+    def store_df_to_report(self, path: Path):
+        os.makedirs(path.parents[0])
+        self.df.to_csv(path, mode="w+", index=True, header=True)
 
     def _validate_sizes(self, train_frac, val_frac, test_frac):
         if sum([train_frac, val_frac, test_frac]) != 1:
@@ -262,6 +280,48 @@ class GeoguesserDataModule(pl.LightningDataModule):
             num_workers=self.num_workers,
             sampler=self.test_sampler,
             drop_last=self.drop_last,
+        )
+
+
+class GeoguesserDataModulePredict(pl.LightningDataModule):
+    def __init__(
+        self,
+        images_dirs: List[Path],
+        num_classes: int,
+        batch_size: int = DEFAULT_BATCH_SIZE,
+        image_transform: transforms.Compose = transforms.Compose([transforms.ToTensor()]),
+        num_workers=DEAFULT_NUM_WORKERS,
+    ) -> None:
+        super().__init__()
+        print("GeoguesserDataModule init")
+
+        self.image_transform = image_transform
+        self.num_workers = num_workers
+        self.drop_last = False
+        self.batch_size = batch_size
+        self.num_classes = num_classes  # TODO
+        self.predict_dataset = GeoguesserDatasetPredict(
+            images_dirs=images_dirs,
+            num_classes=self.num_classes,
+        )
+
+    def _validate_sizes(self, train_frac, val_frac, test_frac):
+        if sum([train_frac, val_frac, test_frac]) != 1:
+            raise InvalidSizes("Sum of sizes has to be 1")
+
+    def prepare_data(self) -> None:
+        pass
+
+    def setup(self, stage: Optional[str] = None):
+        pass
+
+    def predict_dataloader(self):
+        return DataLoader(
+            self.predict_dataset,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+            drop_last=self.drop_last,
+            shuffle=False,
         )
 
 
