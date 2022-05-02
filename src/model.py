@@ -1,7 +1,7 @@
 from __future__ import annotations, division, print_function
 
 import random
-from typing import Any, Dict, List
+from typing import Any, List
 
 import pytorch_lightning as pl
 import torch
@@ -9,11 +9,9 @@ import torch.nn.functional as F
 from pytorch_lightning.loggers import TensorBoardLogger
 from sklearn.preprocessing import MinMaxScaler
 from torch import nn
-from torchvision.models.efficientnet import EfficientNet
 from torchvision.models.efficientnet import model_urls as efficientnet_model_urls
 from torchvision.models.resnet import model_urls as resnet_model_urls
 
-from datamodule_geoguesser import GeoguesserDataModule
 from defaults import DEFAULT_EARLY_STOPPING_EPOCH_FREQ, DEFAULT_TORCHVISION_VERSION
 from utils_geo import crs_coords_to_degree, haversine_from_degs
 from utils_model import crs_coords_weighed_mean, model_remove_fc
@@ -53,7 +51,6 @@ class LitModelClassification(pl.LightningModule):
 
     def __init__(
         self,
-        datamodule: GeoguesserDataModule,
         num_classes: int,
         model_name: str,
         pretrained: bool,
@@ -63,10 +60,13 @@ class LitModelClassification(pl.LightningModule):
         image_size: int,
         scheduler_type: str,
         epochs: int,
+        class_to_crs_centroid_map: torch.Tensor,
+        crs_scaler: MinMaxScaler,
+        train_steps_per_epoch: int,
     ):
         super().__init__()
         self.register_buffer(
-            "class_to_crs_centroid_map", datamodule.class_to_crs_centroid_map.clone().detach()
+            "class_to_crs_centroid_map", class_to_crs_centroid_map.clone().detach()  # type: ignore
         )  # set self.class_to_crs_centroid_map on gpu
 
         self.learning_rate = torch.tensor(learning_rate).float()
@@ -74,16 +74,18 @@ class LitModelClassification(pl.LightningModule):
         self.batch_size = batch_size
         self.image_size = image_size
         self.num_classes = num_classes
-        self.datamodule = datamodule
+        self.crs_scaler: MinMaxScaler = crs_scaler  # type: ignore
         self.scheduler_type = scheduler_type
         self.epochs = epochs
+        self.train_steps_per_epoch = train_steps_per_epoch
+        self.class_to_crs_centroid_map = class_to_crs_centroid_map
 
         backbone = torch.hub.load(DEFAULT_TORCHVISION_VERSION, model_name, pretrained=pretrained)
         self.backbone = model_remove_fc(backbone)
         self.fc = nn.Linear(self._get_last_fc_in_channels(), num_classes)
 
         self._set_example_input_array()
-        self.save_hyperparameters(ignore=["datamodule"])
+        self.save_hyperparameters()
 
     def _set_example_input_array(self):
         num_channels = 3
@@ -141,7 +143,7 @@ class LitModelClassification(pl.LightningModule):
         y_pred = self(image_list)
 
         pred_crs_coord = crs_coords_weighed_mean(y_pred, self.class_to_crs_centroid_map, top_k=5)
-        haver_dist = get_haversine_from_predictions(self.datamodule.crs_scaler, pred_crs_coord, image_true_crs_coords)
+        haver_dist = get_haversine_from_predictions(self.crs_scaler, pred_crs_coord, image_true_crs_coords)
 
         loss = F.cross_entropy(y_pred, y_true)
         acc = multi_acc(y_pred, y_true)
@@ -161,7 +163,7 @@ class LitModelClassification(pl.LightningModule):
         y_pred = self(image_list)
 
         pred_crs_coord = crs_coords_weighed_mean(y_pred, self.class_to_crs_centroid_map, top_k=5)
-        haver_dist = get_haversine_from_predictions(self.datamodule.crs_scaler, pred_crs_coord, image_true_crs_coords)
+        haver_dist = get_haversine_from_predictions(self.crs_scaler, pred_crs_coord, image_true_crs_coords)
 
         loss = F.cross_entropy(y_pred, y_true)
         acc = multi_acc(y_pred, y_true)
@@ -174,6 +176,18 @@ class LitModelClassification(pl.LightningModule):
         log_dict = data_dict.copy()
         log_dict.pop("loss", None)
         self.log_dict(log_dict, on_step=True, on_epoch=True, logger=True, prog_bar=True)
+        return data_dict
+
+    def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> Any:
+        image_list, uuid = batch
+        y_pred = self(image_list)
+
+        pred_crs_coord = crs_coords_weighed_mean(y_pred, self.class_to_crs_centroid_map, top_k=5)
+        pred_crs_coord = pred_crs_coord.cpu()
+        pred_crs_coord_transformed = self.crs_scaler.inverse_transform(pred_crs_coord)
+        pred_degree_coords = crs_coords_to_degree(pred_crs_coord_transformed)
+
+        data_dict = {"latitude": pred_degree_coords[:, 0], "longitude": pred_degree_coords[:, 1], "uuid": uuid}
         return data_dict
 
     def configure_optimizers(self):
@@ -195,7 +209,7 @@ class LitModelClassification(pl.LightningModule):
         }
         if self.scheduler_type == SchedulerType.ONECYCLE.value:
             scheduler = torch.optim.lr_scheduler.OneCycleLR(
-                optimizer, max_lr=0.01, steps_per_epoch=len(self.datamodule.train_dataloader()), epochs=self.epochs
+                optimizer, max_lr=0.01, steps_per_epoch=self.train_steps_per_epoch, epochs=self.epochs
             )
             interval = "step"
         else:  # SchedulerType.PLATEAU
@@ -214,7 +228,6 @@ class LitModelRegression(pl.LightningModule):
 
     def __init__(
         self,
-        datamodule: GeoguesserDataModule,
         num_classes: int,
         model_name: str,
         pretrained: bool,
@@ -224,23 +237,29 @@ class LitModelRegression(pl.LightningModule):
         image_size: int,
         scheduler_type: str,
         epochs: int,
+        crs_scaler: MinMaxScaler,
+        train_steps_per_epoch: int,
+        class_to_crs_centroid_map: torch.Tensor,
     ):
         super().__init__()
 
-        self.learning_rate = torch.tensor(learning_rate)
+        self.learning_rate = torch.tensor(learning_rate).float()
         self.weight_decay = weight_decay
         self.batch_size = batch_size
         self.image_size = image_size
-        self.datamodule = datamodule
+        self.num_classes = num_classes
+        self.crs_scaler: MinMaxScaler = crs_scaler  # type: ignore
         self.scheduler_type = scheduler_type
         self.epochs = epochs
+        self.train_steps_per_epoch = train_steps_per_epoch
+        self.class_to_crs_centroid_map = class_to_crs_centroid_map
 
         backbone = torch.hub.load(DEFAULT_TORCHVISION_VERSION, model_name, pretrained=pretrained)
         self.backbone = model_remove_fc(backbone)
         self.fc = nn.Linear(self._get_last_fc_in_channels(), LitModelRegression.num_of_outputs)
 
         self._set_example_input_array()
-        self.save_hyperparameters(ignore=["datamodule"])
+        self.save_hyperparameters()
 
     def _set_example_input_array(self):
         num_channels = 3
@@ -295,7 +314,7 @@ class LitModelRegression(pl.LightningModule):
         image_list, _, image_true_crs_coords = batch
         pred_crs_coord = self(image_list)
 
-        haver_dist = get_haversine_from_predictions(self.datamodule.crs_scaler, pred_crs_coord, image_true_crs_coords)
+        haver_dist = get_haversine_from_predictions(self.crs_scaler, pred_crs_coord, image_true_crs_coords)
 
         loss = F.mse_loss(pred_crs_coord, image_true_crs_coords)
         data_dict = {
@@ -312,7 +331,7 @@ class LitModelRegression(pl.LightningModule):
         image_list, _, image_true_crs_coords = batch
         pred_crs_coord = self(image_list)
 
-        haver_dist = get_haversine_from_predictions(self.datamodule.crs_scaler, pred_crs_coord, image_true_crs_coords)
+        haver_dist = get_haversine_from_predictions(self.crs_scaler, pred_crs_coord, image_true_crs_coords)
 
         loss = F.mse_loss(pred_crs_coord, image_true_crs_coords)
         data_dict = {
@@ -325,9 +344,20 @@ class LitModelRegression(pl.LightningModule):
         self.log_dict(log_dict, on_step=True, on_epoch=True, logger=True, prog_bar=True)
         return data_dict
 
+    def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> Any:
+        image_list, uuid = batch
+        y_pred = self(image_list)
+
+        pred_crs_coord = crs_coords_weighed_mean(y_pred, self.class_to_crs_centroid_map, top_k=5)
+        pred_crs_coord = pred_crs_coord.cpu()
+        pred_crs_coord_transformed = self.crs_scaler.inverse_transform(pred_crs_coord)
+        pred_degree_coords = crs_coords_to_degree(pred_crs_coord_transformed)
+
+        data_dict = {"latitude": pred_degree_coords[:, 0], "longitude": pred_degree_coords[:, 1], "uuid": uuid}
+        return data_dict
+
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=float(self.learning_rate), weight_decay=self.weight_decay)
-
         if self.scheduler_type is SchedulerType.AUTO_LR.value:
             """SchedulerType.AUTO_LR sets it's own scheduler. Only the optimizer has to be returned"""
             return optimizer
@@ -345,7 +375,7 @@ class LitModelRegression(pl.LightningModule):
         }
         if self.scheduler_type == SchedulerType.ONECYCLE.value:
             scheduler = torch.optim.lr_scheduler.OneCycleLR(
-                optimizer, max_lr=0.01, steps_per_epoch=len(self.datamodule.train_dataloader()), epochs=self.epochs
+                optimizer, max_lr=0.01, steps_per_epoch=self.train_steps_per_epoch, epochs=self.epochs
             )
             interval = "step"
         else:  # SchedulerType.PLATEAU

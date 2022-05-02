@@ -13,6 +13,7 @@ class DatasetSplitType(Enum):
     TRAIN = "train"
     VAL = "val"
     TEST = "test"
+    PRED = "pred"
 
 
 def filter_df_by_dataset_split(df: pd.DataFrame, dataset_dirs: List[Path], split_type: DatasetSplitType):
