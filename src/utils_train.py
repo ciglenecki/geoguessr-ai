@@ -1,12 +1,29 @@
 from enum import Enum
-
+import pytorch_lightning as pl
 import torch
+
+
+class OptimizerType(Enum):
+    ADAM = "adam"
+    ADAMW = "adamw"
 
 
 class SchedulerType(Enum):
     ONECYCLE = "onecycle"
     PLATEAU = "plateau"
     AUTO_LR = "auto_lr"
+
+
+def get_trainer_steps_in_epoch(trainer: pl.Trainer):
+    print(len(trainer.train_dataloader))
+    print(trainer.num_training_batches)
+
+    if trainer.limit_train_batches == 1:
+        return len(trainer.train_dataloader)
+    elif trainer.limit_train_batches > 1:
+        return trainer.limit_train_batches
+    else:
+        return int(len(trainer.train_dataloader) * trainer.limit_train_batches)
 
 
 def multi_acc(y_pred_log, y_test):

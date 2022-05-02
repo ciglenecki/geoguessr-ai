@@ -5,6 +5,8 @@ from pprint import pprint
 
 import pytorch_lightning as pl
 from pytorch_lightning import loggers as pl_loggers
+from pytorch_lightning.callbacks import LearningRateMonitor
+
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from pytorch_lightning.callbacks.model_summary import ModelSummary
@@ -17,11 +19,12 @@ from datamodule_geoguesser import GeoguesserDataModule
 from defaults import DEFAULT_EARLY_STOPPING_EPOCH_FREQ, DEFAULT_IMAGE_MEAN, DEFAULT_IMAGE_STD
 from model import LitModelClassification, LitModelRegression, LitSingleModel
 from model_callbacks import (
-    BackboneFinetuningLastLayers,
+    BackboneFreezing,
     LogMetricsAsHyperparams,
     OnTrainEpochStartLogCallback,
     OverrideEpochMetricCallback,
 )
+from pabloppp_optim.delayer_scheduler import DelayerScheduler
 from train_args import parse_args_train
 from utils_functions import add_prefix_to_keys, get_timestamp, is_primitive, random_codeword, stdout_to_file
 from utils_paths import PATH_REPORT
@@ -48,6 +51,7 @@ if __name__ == "__main__":
     weight_decay = args.weight_decay
     shuffle_before_splitting = args.shuffle_before_splitting
     train_frac, val_frac, test_frac = args.split_ratios
+    dataset_frac = args.dataset_frac
     dataset_dirs = args.dataset_dirs
     batch_size = args.batch_size
     cached_df = args.cached_df
@@ -57,6 +61,7 @@ if __name__ == "__main__":
     scheduler_type = args.scheduler
     epochs = args.epochs
     recaculate_norm = args.recaculate_normalization
+    optimizer_type = args.optimizer
 
     mean, std = calculate_norm_std(dataset_dirs) if recaculate_norm else DEFAULT_IMAGE_MEAN, DEFAULT_IMAGE_STD
 
@@ -76,6 +81,7 @@ if __name__ == "__main__":
         train_frac=train_frac,
         val_frac=val_frac,
         test_frac=test_frac,
+        dataset_frac=dataset_frac,
         image_transform=image_transform_train,
         num_workers=num_workers,
         shuffle_before_splitting=shuffle_before_splitting,
@@ -88,6 +94,7 @@ if __name__ == "__main__":
     )
     datamodule.store_df_to_report(Path(PATH_REPORT, experiment_directory_name, "data.csv"))
 
+    train_dataloader_size = len(datamodule.train_dataloader())
     log_dictionary = {
         **add_prefix_to_keys(vars(args), "user_args/"),
         **add_prefix_to_keys(vars(pl_args), "lightning_args/"),
@@ -102,12 +109,13 @@ if __name__ == "__main__":
         # configuration, happen after every training epoch.
         callback_early_stopping = EarlyStopping(
             monitor="val/loss_epoch",
+            mode="min",
             patience=DEFAULT_EARLY_STOPPING_EPOCH_FREQ,
             verbose=True,
-            check_on_train_epoch_end=True,
         )
         callback_checkpoint = ModelCheckpoint(
-            monitor="val/haversine_distance_epoch",
+            monitor="val/loss_epoch",  # TODO: set to val/haversine_distance
+            mode="min",
             filename="__".join(
                 [
                     experiment_codeword,
@@ -118,8 +126,9 @@ if __name__ == "__main__":
                 ]
             ),
             auto_insert_metric_name=False,
+            verbose=True,
         )
-        bar_refresh_rate = int(len(datamodule.train_dataloader()) / pl_args.log_every_n_steps)
+        bar_refresh_rate = int(train_dataloader_size / pl_args.log_every_n_steps)
 
         callbacks = [
             callback_early_stopping,
@@ -128,20 +137,15 @@ if __name__ == "__main__":
             LogMetricsAsHyperparams(),
             OnTrainEpochStartLogCallback(),
             ModelSummary(max_depth=2),
-            OverrideEpochMetricCallback(),
+            # OverrideEpochMetricCallback(),
+            LearningRateMonitor(log_momentum=True),
         ]
 
-        if unfreeze_backbone_at_epoch and scheduler_type == SchedulerType.PLATEAU.value:
-            rate_fine_tuning_multiply = 3
-            learning_rate = float(learning_rate * rate_fine_tuning_multiply)
-            multiplicative = lambda epoch: 1
+        if unfreeze_backbone_at_epoch:
             callbacks.append(
-                BackboneFinetuningLastLayers(
-                    unfreeze_blocks_num=unfreeze_blocks_num,
-                    backbone_initial_ratio_lr=1 / rate_fine_tuning_multiply,
-                    unfreeze_backbone_at_epoch=unfreeze_backbone_at_epoch,
-                    lambda_func=multiplicative,
-                ),
+                BackboneFreezing(
+                    unfreeze_blocks_num=unfreeze_blocks_num, unfreeze_backbone_at_epoch=unfreeze_backbone_at_epoch
+                )
             )
 
         model_constructor = (
@@ -159,7 +163,9 @@ if __name__ == "__main__":
             epochs=epochs,
             class_to_crs_centroid_map=datamodule.class_to_crs_centroid_map,
             crs_scaler=datamodule.crs_scaler,
-            train_steps_per_epoch=len(datamodule.train_dataloader()),
+            train_dataloader_size=train_dataloader_size,
+            optimizer_type=optimizer_type,
+            unfreeze_backbone_at_epoch=unfreeze_backbone_at_epoch,
         )
 
         tb_logger = pl_loggers.TensorBoardLogger(

@@ -11,11 +11,13 @@ from sklearn.preprocessing import MinMaxScaler
 from torch import nn
 from torchvision.models.efficientnet import model_urls as efficientnet_model_urls
 from torchvision.models.resnet import model_urls as resnet_model_urls
+from time import time
 
 from defaults import DEFAULT_EARLY_STOPPING_EPOCH_FREQ, DEFAULT_TORCHVISION_VERSION
+from pabloppp_optim.delayer_scheduler import DelayerSchedulerOrg
 from utils_geo import crs_coords_to_degree, haversine_from_degs
 from utils_model import crs_coords_weighed_mean, model_remove_fc
-from utils_train import SchedulerType, multi_acc
+from utils_train import OptimizerType, SchedulerType, multi_acc
 
 allowed_models = list(resnet_model_urls.keys()) + list(efficientnet_model_urls.keys())
 
@@ -62,7 +64,9 @@ class LitModelClassification(pl.LightningModule):
         epochs: int,
         class_to_crs_centroid_map: torch.Tensor,
         crs_scaler: MinMaxScaler,
-        train_steps_per_epoch: int,
+        train_dataloader_size: int,
+        optimizer_type: str,
+        unfreeze_backbone_at_epoch: int,
     ):
         super().__init__()
         self.register_buffer(
@@ -77,8 +81,12 @@ class LitModelClassification(pl.LightningModule):
         self.crs_scaler: MinMaxScaler = crs_scaler  # type: ignore
         self.scheduler_type = scheduler_type
         self.epochs = epochs
-        self.train_steps_per_epoch = train_steps_per_epoch
+        self.train_dataloader_size = train_dataloader_size
         self.class_to_crs_centroid_map = class_to_crs_centroid_map
+        self.optimizer_type = optimizer_type
+        self.unfreeze_backbone_at_epoch = unfreeze_backbone_at_epoch
+        self.epoch = 0
+        self.time = time()
 
         backbone = torch.hub.load(DEFAULT_TORCHVISION_VERSION, model_name, pretrained=pretrained)
         self.backbone = model_remove_fc(backbone)
@@ -149,7 +157,7 @@ class LitModelClassification(pl.LightningModule):
         acc = multi_acc(y_pred, y_true)
         data_dict = {
             "loss": loss,  # the 'loss' key needs to be present
-            "val/loss": loss,
+            "val/loss": 1 / (time() - self.time),  # TODO: remove, "loss"
             "val/acc": acc,
             "val/haversine_distance": haver_dist,
         }
@@ -191,7 +199,13 @@ class LitModelClassification(pl.LightningModule):
         return data_dict
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=float(self.learning_rate), weight_decay=self.weight_decay)
+        if self.optimizer_type == OptimizerType.ADAMW.value:
+            optimizer = torch.optim.AdamW(self.parameters(), lr=float(self.learning_rate), weight_decay=5e-3)
+        else:
+            optimizer = torch.optim.Adam(
+                self.parameters(), lr=float(self.learning_rate), weight_decay=self.weight_decay
+            )
+
         if self.scheduler_type is SchedulerType.AUTO_LR.value:
             """SchedulerType.AUTO_LR sets it's own scheduler. Only the optimizer has to be returned"""
             return optimizer
@@ -207,9 +221,13 @@ class LitModelClassification(pl.LightningModule):
                 "name": self.scheduler_type,
             },
         }
+
         if self.scheduler_type == SchedulerType.ONECYCLE.value:
             scheduler = torch.optim.lr_scheduler.OneCycleLR(
-                optimizer, max_lr=0.01, steps_per_epoch=self.train_steps_per_epoch, epochs=self.epochs
+                optimizer,
+                max_lr=self.hparams.learning_rate,
+                steps_per_epoch=self.train_dataloader_size,
+                epochs=self.epochs - self.epoch,
             )
             interval = "step"
         else:  # SchedulerType.PLATEAU
@@ -217,7 +235,8 @@ class LitModelClassification(pl.LightningModule):
                 optimizer, "min", patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ // 2) - 1
             )
             interval = "epoch"
-
+        # if self.unfreeze_backbone_at_epoch:
+        #     scheduler = DelayerSchedulerOrg(scheduler.optimizer, self.unfreeze_backbone_at_epoch, scheduler, warmup_lr=self.learning_rate)  # type: ignore
         config_dict["lr_scheduler"].update({"scheduler": scheduler, "interval": interval})
         return config_dict
 
@@ -238,8 +257,9 @@ class LitModelRegression(pl.LightningModule):
         scheduler_type: str,
         epochs: int,
         crs_scaler: MinMaxScaler,
-        train_steps_per_epoch: int,
+        train_dataloader_size: int,
         class_to_crs_centroid_map: torch.Tensor,
+        optimizer_type: str,
     ):
         super().__init__()
 
@@ -251,8 +271,9 @@ class LitModelRegression(pl.LightningModule):
         self.crs_scaler: MinMaxScaler = crs_scaler  # type: ignore
         self.scheduler_type = scheduler_type
         self.epochs = epochs
-        self.train_steps_per_epoch = train_steps_per_epoch
+        self.train_dataloader_size = train_dataloader_size
         self.class_to_crs_centroid_map = class_to_crs_centroid_map
+        self.optimizer_type = optimizer_type
 
         backbone = torch.hub.load(DEFAULT_TORCHVISION_VERSION, model_name, pretrained=pretrained)
         self.backbone = model_remove_fc(backbone)
@@ -357,7 +378,14 @@ class LitModelRegression(pl.LightningModule):
         return data_dict
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=float(self.learning_rate), weight_decay=self.weight_decay)
+        print("\n\n CONFIGUTE OPTIMIZERS CALLED \n\n")
+        if self.optimizer_type == OptimizerType.ADAMW.value:
+            optimizer = torch.optim.AdamW(self.parameters(), lr=float(self.learning_rate), weight_decay=5e-3)
+        else:
+            optimizer = torch.optim.Adam(
+                self.parameters(), lr=float(self.learning_rate), weight_decay=self.weight_decay
+            )
+
         if self.scheduler_type is SchedulerType.AUTO_LR.value:
             """SchedulerType.AUTO_LR sets it's own scheduler. Only the optimizer has to be returned"""
             return optimizer
@@ -375,7 +403,10 @@ class LitModelRegression(pl.LightningModule):
         }
         if self.scheduler_type == SchedulerType.ONECYCLE.value:
             scheduler = torch.optim.lr_scheduler.OneCycleLR(
-                optimizer, max_lr=0.01, steps_per_epoch=self.train_steps_per_epoch, epochs=self.epochs
+                optimizer,
+                max_lr=0.01,
+                steps_per_epoch=self.train_dataloader_size,
+                epochs=self.epochs,
             )
             interval = "step"
         else:  # SchedulerType.PLATEAU
@@ -385,7 +416,7 @@ class LitModelRegression(pl.LightningModule):
             interval = "epoch"
 
         config_dict["lr_scheduler"].update({"scheduler": scheduler, "interval": interval})
-        return config_dict
+        return [config_dict["optimizer"]], config_dict["lr_scheduler"]
 
 
 class LitSingleModel(LitModelClassification):
