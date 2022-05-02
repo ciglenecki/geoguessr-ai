@@ -141,9 +141,9 @@ if __name__ == "__main__":
             callback_early_stopping,
             TQDMProgressBar(refresh_rate=bar_refresh_rate),
             # LogMetricsAsHyperparams(),
-            # OnTrainEpochStartLogCallback(),  # TODO: this should be enabled
+            # OnTrainEpochStartLogCallback(),  # TODO: verify that this works this should be enabled
             ModelSummary(max_depth=2),
-            # OverrideEpochMetricCallback(),
+            OverrideEpochMetricCallback(),  # TODO: verify that this works
             LearningRateMonitor(log_momentum=True),
         ]
 
