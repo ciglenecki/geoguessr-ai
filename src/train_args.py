@@ -237,9 +237,9 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
     #     pl_args.limit_test_batches = args.dataset_frac
 
     if args.quick:
-        pl_args.limit_train_batches = 8
-        pl_args.limit_val_batches = 8
-        pl_args.limit_test_batches = 8
+        pl_args.limit_train_batches = 4
+        pl_args.limit_val_batches = 4
+        pl_args.limit_test_batches = 4
         pl_args.log_every_n_steps = 1
         args.image_size = 28
         args.batch_size = 2

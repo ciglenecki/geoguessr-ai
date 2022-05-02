@@ -141,25 +141,32 @@ class LitModelClassification(pl.LightningModule):
             "train/loss": loss,
             "train/acc": acc,
         }
+
         log_dict = data_dict.copy()
         log_dict.pop("loss", None)
         self.log_dict(log_dict, on_step=True, on_epoch=True, logger=True, prog_bar=True)
         return data_dict
 
     def validation_step(self, batch, batch_idx):
-        image_list, y_true, image_true_crs_coords = batch
-        y_pred = self(image_list)
+        # image_list, y_true, image_true_crs_coords = batch
+        # y_pred = self(image_list)
 
-        pred_crs_coord = crs_coords_weighed_mean(y_pred, self.class_to_crs_centroid_map, top_k=5)
-        haver_dist = get_haversine_from_predictions(self.crs_scaler, pred_crs_coord, image_true_crs_coords)
+        # pred_crs_coord = crs_coords_weighed_mean(y_pred, self.class_to_crs_centroid_map, top_k=5)
+        # haver_dist = get_haversine_from_predictions(self.crs_scaler, pred_crs_coord, image_true_crs_coords)
 
-        loss = F.cross_entropy(y_pred, y_true)
-        acc = multi_acc(y_pred, y_true)
+        # loss = F.cross_entropy(y_pred, y_true)
+        # acc = multi_acc(y_pred, y_true)
+        # data_dict = {
+        #     "loss": loss,  # the 'loss' key needs to be present
+        #     "val/loss": 1 / (time() - self.time),  # TODO: remove, "loss"
+        #     "val/acc": acc,
+        #     "val/haversine_distance": haver_dist,
+        # }
         data_dict = {
-            "loss": loss,  # the 'loss' key needs to be present
+            "loss": 1 / (time() - self.time),  # the 'loss' key needs to be present
             "val/loss": 1 / (time() - self.time),  # TODO: remove, "loss"
-            "val/acc": acc,
-            "val/haversine_distance": haver_dist,
+            "val/acc": (time() - self.time),
+            "val/haversine_distance": 1 / (time() - self.time),
         }
         log_dict = data_dict.copy()
         log_dict.pop("loss", None)
@@ -329,6 +336,8 @@ class LitModelRegression(pl.LightningModule):
         log_dict = data_dict.copy()
         log_dict.pop("loss", None)
         self.log_dict(log_dict, on_step=True, on_epoch=True, logger=True, prog_bar=True)
+
+        print("TRAAIN SD", self.state_dict())
         return data_dict
 
     def validation_step(self, batch, batch_idx):
@@ -346,6 +355,7 @@ class LitModelRegression(pl.LightningModule):
         log_dict = data_dict.copy()
         log_dict.pop("loss", None)
         self.log_dict(log_dict, on_step=True, on_epoch=True, logger=True, prog_bar=True)
+
         return data_dict
 
     def test_step(self, batch, batch_idx):

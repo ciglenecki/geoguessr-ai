@@ -27,19 +27,11 @@ from model_callbacks import (
 from pabloppp_optim.delayer_scheduler import DelayerScheduler
 from train_args import parse_args_train
 from utils_functions import add_prefix_to_keys, get_timestamp, is_primitive, random_codeword, stdout_to_file
-from utils_paths import PATH_REPORT
+from utils_paths import PATH_REPORT, PATH_REPORT_QUICK
 from utils_train import SchedulerType
 
 if __name__ == "__main__":
     args, pl_args = parse_args_train()
-
-    timestamp = get_timestamp()
-    experiment_codeword = random_codeword()
-    filename_report = Path(args.output_report, "__".join(["train", experiment_codeword, timestamp]) + ".txt")
-    stdout_to_file(filename_report)
-    print(str(filename_report))
-    pprint([vars(args), vars(pl_args)])
-
     image_size = args.image_size
     num_workers = args.num_workers
     model_names = args.models
@@ -62,6 +54,17 @@ if __name__ == "__main__":
     epochs = args.epochs
     recaculate_norm = args.recaculate_normalization
     optimizer_type = args.optimizer
+    is_quick = args.quick
+
+    timestamp = get_timestamp()
+    experiment_codeword = random_codeword()
+    filename_report = Path(
+        args.output_report,
+        "__".join(["train", experiment_codeword, timestamp]) + "__quick" if is_quick else "" + ".txt",
+    )
+    stdout_to_file(filename_report)
+    print(str(filename_report))
+    pprint([vars(args), vars(pl_args)])
 
     mean, std = calculate_norm_std(dataset_dirs) if recaculate_norm else DEFAULT_IMAGE_MEAN, DEFAULT_IMAGE_STD
 
@@ -92,7 +95,8 @@ if __name__ == "__main__":
     experiment_directory_name = "{}__{}__{}".format(
         experiment_codeword, "regression" if is_regression else "num_classes_" + str(num_classes), timestamp
     )
-    datamodule.store_df_to_report(Path(PATH_REPORT, experiment_directory_name, "data.csv"))
+    report_dir = PATH_REPORT_QUICK if is_quick else PATH_REPORT
+    datamodule.store_df_to_report(Path(report_dir, experiment_directory_name, "data.csv"))
 
     train_dataloader_size = len(datamodule.train_dataloader())
     log_dictionary = {
@@ -112,6 +116,7 @@ if __name__ == "__main__":
             mode="min",
             patience=DEFAULT_EARLY_STOPPING_EPOCH_FREQ,
             verbose=True,
+            check_on_train_epoch_end=False,
         )
         callback_checkpoint = ModelCheckpoint(
             monitor="val/loss_epoch",  # TODO: set to val/haversine_distance
@@ -127,15 +132,16 @@ if __name__ == "__main__":
             ),
             auto_insert_metric_name=False,
             verbose=True,
+            save_on_train_epoch_end=False,
         )
         bar_refresh_rate = int(train_dataloader_size / pl_args.log_every_n_steps)
 
         callbacks = [
-            callback_early_stopping,
             callback_checkpoint,
+            callback_early_stopping,
             TQDMProgressBar(refresh_rate=bar_refresh_rate),
-            LogMetricsAsHyperparams(),
-            OnTrainEpochStartLogCallback(),
+            # LogMetricsAsHyperparams(),
+            # OnTrainEpochStartLogCallback(),  # TODO: this should be enabled
             ModelSummary(max_depth=2),
             # OverrideEpochMetricCallback(),
             LearningRateMonitor(log_momentum=True),
@@ -169,9 +175,9 @@ if __name__ == "__main__":
         )
 
         tb_logger = pl_loggers.TensorBoardLogger(
-            save_dir=str(PATH_REPORT),
+            save_dir=str(report_dir),
             name=experiment_directory_name,
-            default_hp_metric=False,
+            default_hp_metric=True,
             log_graph=True,
         )
 
@@ -179,8 +185,8 @@ if __name__ == "__main__":
 
         trainer: pl.Trainer = pl.Trainer.from_argparse_args(
             pl_args,
-            logger=[tb_logger],
-            default_root_dir=PATH_REPORT,
+            logger=tb_logger,
+            default_root_dir=report_dir,
             callbacks=callbacks,
             auto_lr_find=scheduler_type == SchedulerType.AUTO_LR.value,
         )

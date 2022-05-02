@@ -28,7 +28,7 @@ class InvalidArgument(Exception):
 
 
 min_value = float(0)
-max_value = float(1e9)
+max_value = float(1e5)
 hyperparameter_metrics_init = {
     "train/loss_epoch": max_value,
     "train/acc_epoch": min_value,
@@ -39,11 +39,6 @@ hyperparameter_metrics_init = {
     "test/acc_epoch": min_value,
     "test/haversine_distance_epoch": max_value,
 }
-
-
-class ConfigureOptimizers(pl.Callback):
-    def on_train_epoch_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
-        return super().on_train_epoch_end(trainer, pl_module)
 
 
 class LogMetricsAsHyperparams(pl.Callback):
@@ -62,16 +57,16 @@ class LogMetricsAsHyperparams(pl.Callback):
 class OnTrainEpochStartLogCallback(pl.Callback):
     """Logs metrics. pl_module has to implement get_num_of_trainable_params function"""
 
-    def on_train_batch_start(
-        self, trainer: pl.Trainer, pl_module: pl.LightningModule, batch: Any, batch_idx: int, unused: int = 0
-    ) -> None:
-        data_dict = {
-            "current_lr": float(trainer.optimizers[0].param_groups[0]["lr"]),
-            "epoch": float(trainer.current_epoch),
-            "trainable_params_num": float(pl_module.get_num_of_trainable_params()),  # type: ignore
-        }
-        pl_module.log_dict(data_dict, on_step=True, on_epoch=True, logger=True)
-        pl_module.save_hyperparameters(data_dict)
+    # def on_train_batch_start(
+    #     self, trainer: pl.Trainer, pl_module: pl.LightningModule, batch: Any, batch_idx: int, unused: int = 0
+    # ) -> None:
+    #     data_dict = {
+    #         "current_lr/": float(trainer.optimizers[0].param_groups[0]["lr"]),
+    #         "epoch/": float(trainer.current_epoch),
+    #         "trainable_params_num/": float(pl_module.get_num_of_trainable_params()),  # type: ignore
+    #     }
+    #     pl_module.log_dict(data_dict, on_step=True, on_epoch=True, logger=True)
+    # pl_module.save_hyperparameters(data_dict)
 
     # def on_train_epoch_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
     #     data_dict = {
@@ -82,28 +77,31 @@ class OnTrainEpochStartLogCallback(pl.Callback):
     #     pl_module.log_dict(data_dict)
     #     pl_module.log("step", trainer.current_epoch)
 
-    def on_train_start(self, trainer, pl_module: pl.LightningModule):
+    def on_validation_start(self, trainer, pl_module: pl.LightningModule):
         log_dict_fix = {
             "val/loss_epoch": max_value,
-            "val/haversine_distance_epoch": max_value,
-            "train/loss": max_value,
-            "train/acc": min_value,
+            # "val/haversine_distance_epoch": max_value,
+            # "train/loss": max_value,
+            # "train/acc": min_value,
             "val/loss": max_value,
             "val/acc": min_value,
             "val/haversine_distance": max_value,
-            "test/loss": max_value,
-            "test/acc": min_value,
-            "test/haversine_distance": max_value,
+            # "test/loss": max_value,
+            # "test/acc": min_value,
+            # "test/haversine_distance": max_value,
         }
         current_lr = trainer.optimizers[0].param_groups[0]["lr"]
         data_dict = {
-            "trainable_params_num": float(pl_module.get_num_of_trainable_params()),  # type: ignore
-            "current_lr": float(current_lr),
-            "epoch": float(trainer.current_epoch),
+            "trainable_params_num/": float(pl_module.get_num_of_trainable_params()),  # type: ignore
+            # "current_lr/": float(current_lr),
+            # "epoch/": float(trainer.current_epoch),
             **log_dict_fix,
         }
-        pl_module.save_hyperparameters(data_dict)
-        pl_module.log_dict(data_dict, logger=False)
+        if pl_module.logger:
+            print("LOGGER IGJIODGSJ \n\n\n\n\n\n\n\n")
+            # pl_module.logger.log_hyperparams(pl_module.hparams, data_dict)
+        # pl_module.save_hyperparameters(data_dict)
+        pl_module.log_dict(data_dict, logger=True)
 
 
 class OverrideEpochMetricCallback(Callback):
