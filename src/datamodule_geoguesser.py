@@ -39,19 +39,19 @@ class InvalidSizes(Exception):
 
 class GeoguesserDataModule(pl.LightningDataModule):
     def __init__(
-        self,
-        cached_df: Path,
-        dataset_dirs: List[Path],
-        batch_size: int = DEFAULT_BATCH_SIZE,
-        train_frac=DEFAULT_TRAIN_FRAC,
-        val_frac=DEFAULT_VAL_FRAC,
-        test_frac=DEFAULT_TEST_FRAC,
-        dataset_frac=DEFAULT_DATASET_FRAC,
-        image_transform: transforms.Compose = transforms.Compose([transforms.ToTensor()]),
-        num_workers=DEAFULT_NUM_WORKERS,
-        drop_last=DEAFULT_DROP_LAST,
-        shuffle_before_splitting=DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING,
-        load_dataset_in_ram=DEFAULT_LOAD_DATASET_IN_RAM,
+            self,
+            cached_df: Path,
+            dataset_dirs: List[Path],
+            batch_size: int = DEFAULT_BATCH_SIZE,
+            train_frac=DEFAULT_TRAIN_FRAC,
+            val_frac=DEFAULT_VAL_FRAC,
+            test_frac=DEFAULT_TEST_FRAC,
+            dataset_frac=DEFAULT_DATASET_FRAC,
+            image_transform: transforms.Compose = transforms.Compose([transforms.ToTensor()]),
+            num_workers=DEAFULT_NUM_WORKERS,
+            drop_last=DEAFULT_DROP_LAST,
+            shuffle_before_splitting=DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING,
+            load_dataset_in_ram=DEFAULT_LOAD_DATASET_IN_RAM,
     ) -> None:
         super().__init__()
         print("GeoguesserDataModule init")
@@ -74,6 +74,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
         """ Dataframe loading, numclasses handling and min max scaling"""
         df = self._load_dataframe(cached_df)
         df = self._dataframe_create_classes(df)
+        df = self._adding_centroids_distribution(df)
         self.crs_scaler = self._get_and_fit_min_max_scaler_for_train_data(df)
         df = self._scale_min_max_crs_columns(df, self.crs_scaler)
         self.df = df
@@ -82,7 +83,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
         """ Creating CRS hash map for all classes"""
         self.num_classes = len(self.df["y"].drop_duplicates())
         assert (
-            self.num_classes == self.df["y"].max() + 1
+                self.num_classes == self.df["y"].max() + 1
         ), "Number of classes should corespoing to the maximum y value of the csv dataframe"  # Sanity check
         self.class_to_crs_centroid_map, self.class_to_latlng_centroid_map = self._get_class_to_coords_maps(
             self.num_classes
@@ -159,6 +160,17 @@ class GeoguesserDataModule(pl.LightningDataModule):
         crs_scaler.fit(df_train.loc[:, ["crs_x", "crs_y"]])
         return crs_scaler
 
+    def _adding_centroids_distribution(self, df: pd.DataFrame) -> pd.DataFrame:
+        df_train = filter_df_by_dataset_split(df, self.dataset_dirs, DatasetSplitType.TRAIN)
+        df_train['lat_centroid_distribution'] = df_train['latitude'].groupby(df_train['y']).transform('mean')
+        df_train['lng_centroid_distribution'] = df_train['longitude'].groupby(df_train['y']).transform('mean')
+        df_train['crs_y_centroid_distribution'] = df_train['crs_y'].groupby(df_train['y']).transform('mean')
+        df_train['crs_x_centroid_distribution'] = df_train['crs_x'].groupby(df_train['y']).transform('mean')
+        df_filter = df_train.filter(items=['y', 'lat_centroid_distribution', 'lng_centroid_distribution',
+                                           'crs_y_centroid_distribution', 'crs_x_centroid_distribution']).drop_duplicates()
+        df = df.merge(df_filter, on='y')
+        return df
+
     def _scale_min_max_crs_columns(self, df: pd.DataFrame, scaler: MinMaxScaler) -> pd.DataFrame:
         """
         Scales all `crs` columns to [0, 1] using the scaler that was fit on training data
@@ -183,8 +195,9 @@ class GeoguesserDataModule(pl.LightningDataModule):
         """
 
         df_class_info = self.df.loc[
-            :, ["polygon_index", "y", "crs_centroid_x_minmax", "crs_centroid_y_minmax", "centroid_lat", "centroid_lng"]
-        ].drop_duplicates()
+                        :, ["polygon_index", "y", "crs_centroid_x_minmax", "crs_centroid_y_minmax", "centroid_lat",
+                            "centroid_lng"]
+                        ].drop_duplicates()
         class_to_crs_centroid_map = []
         class_to_latlng_centroid_map = []
         for class_idx in range(num_classes):
@@ -213,13 +226,12 @@ class GeoguesserDataModule(pl.LightningDataModule):
         pass
 
     def _sanity_check_indices(
-        self,
-        dataset_train_indices: np.ndarray,
-        dataset_val_indices: np.ndarray,
-        dataset_test_indices: np.ndarray,
+            self,
+            dataset_train_indices: np.ndarray,
+            dataset_val_indices: np.ndarray,
+            dataset_test_indices: np.ndarray,
     ):
         for ind_a, ind_b in combinations([dataset_train_indices, dataset_val_indices, dataset_test_indices], 2):
-
             assert len(np.intersect1d(ind_a, ind_b)) == 0, "Some indices share an index {}".format(
                 np.intersect1d(ind_a, ind_b)
             )
@@ -227,17 +239,20 @@ class GeoguesserDataModule(pl.LightningDataModule):
         set_ind.update(dataset_val_indices)
         set_ind.update(dataset_test_indices)
         assert len(set_ind) == (
-            len(dataset_train_indices) + len(dataset_val_indices) + len(dataset_test_indices)
+                len(dataset_train_indices) + len(dataset_val_indices) + len(dataset_test_indices)
         ), "Some indices might contain non-unqiue values"
         assert (
-            len(dataset_train_indices) > 0 and len(dataset_val_indices) > 0 and len(dataset_test_indices) > 0
+                len(dataset_train_indices) > 0 and len(dataset_val_indices) > 0 and len(dataset_test_indices) > 0
         ), "Some indices have no elements"
 
     def setup(self, stage: Optional[str] = None):
 
-        dataset_train_indices = self.df.index[self.df["uuid"].isin(self.train_dataset.uuids)].to_numpy()  # type: ignore # [indices can be converted to list]
-        dataset_val_indices = self.df.index[self.df["uuid"].isin(self.val_dataset.uuids)].to_numpy()  # type: ignore # [indices can be converted to list]
-        dataset_test_indices = self.df.index[self.df["uuid"].isin(self.test_dataset.uuids)].to_numpy()  # type: ignore # [indices can be converted to list]
+        dataset_train_indices = self.df.index[self.df["uuid"].isin(
+            self.train_dataset.uuids)].to_numpy()  # type: ignore # [indices can be converted to list]
+        dataset_val_indices = self.df.index[self.df["uuid"].isin(
+            self.val_dataset.uuids)].to_numpy()  # type: ignore # [indices can be converted to list]
+        dataset_test_indices = self.df.index[self.df["uuid"].isin(
+            self.test_dataset.uuids)].to_numpy()  # type: ignore # [indices can be converted to list]
 
         if self.dataset_frac != 1:
             dataset_train_indices = np.random.choice(
@@ -293,12 +308,12 @@ class GeoguesserDataModule(pl.LightningDataModule):
 
 class GeoguesserDataModulePredict(pl.LightningDataModule):
     def __init__(
-        self,
-        images_dirs: List[Path],
-        num_classes: int,
-        batch_size: int = DEFAULT_BATCH_SIZE,
-        image_transform: transforms.Compose = transforms.Compose([transforms.ToTensor()]),
-        num_workers=DEAFULT_NUM_WORKERS,
+            self,
+            images_dirs: List[Path],
+            num_classes: int,
+            batch_size: int = DEFAULT_BATCH_SIZE,
+            image_transform: transforms.Compose = transforms.Compose([transforms.ToTensor()]),
+            num_workers=DEAFULT_NUM_WORKERS,
     ) -> None:
         super().__init__()
         print("GeoguesserDataModule init")
@@ -336,7 +351,7 @@ class GeoguesserDataModulePredict(pl.LightningDataModule):
 if __name__ == "__main__":
     dm = GeoguesserDataModule(
         cached_df=Path(PATH_DATA_COMPLETE, "data__spacing_0.5__num_class_55.csv"),
-        dataset_dirs=[PATH_DATA_RAW, PATH_DATA_EXTERNAL],
+        dataset_dirs=[PATH_DATA_RAW],
     )
     dm.setup()
     pass

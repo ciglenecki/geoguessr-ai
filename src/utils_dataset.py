@@ -22,7 +22,7 @@ def filter_df_by_dataset_split(df: pd.DataFrame, dataset_dirs: List[Path], split
         [glob(str(Path(dataset_dir, "images", split_type.value, "*"))) for dataset_dir in dataset_dirs]
     )
     uuids = [Path(uuid_dir_path).stem for uuid_dir_path in uuid_dir_paths]
-    df_train = df.loc[df["uuid"].isin(uuids)]
+    df_train = df.loc[df["uuid"].isin(uuids), :]
     return df_train
 
 
