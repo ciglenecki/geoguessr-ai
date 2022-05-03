@@ -23,11 +23,18 @@ from torchvision import transforms
 import preprocess_csv_concat
 import preprocess_csv_create_polygons
 from dataset_geoguesser import GeoguesserDataset, GeoguesserDatasetPredict
-from defaults import (DEAFULT_DROP_LAST, DEAFULT_NUM_WORKERS,
-                      DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING,
-                      DEFAULT_BATCH_SIZE, DEFAULT_DATASET_FRAC,
-                      DEFAULT_LOAD_DATASET_IN_RAM, DEFAULT_SPACING,
-                      DEFAULT_TEST_FRAC, DEFAULT_TRAIN_FRAC, DEFAULT_VAL_FRAC)
+from defaults import (
+    DEAFULT_DROP_LAST,
+    DEAFULT_NUM_WORKERS,
+    DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING,
+    DEFAULT_BATCH_SIZE,
+    DEFAULT_DATASET_FRAC,
+    DEFAULT_LOAD_DATASET_IN_RAM,
+    DEFAULT_SPACING,
+    DEFAULT_TEST_FRAC,
+    DEFAULT_TRAIN_FRAC,
+    DEFAULT_VAL_FRAC,
+)
 from utils_dataset import DatasetSplitType, filter_df_by_dataset_split
 from utils_functions import print_df_sample
 from utils_paths import PATH_DATA_COMPLETE, PATH_DATA_EXTERNAL, PATH_DATA_RAW
@@ -74,6 +81,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
         """ Dataframe loading, numclasses handling and min max scaling"""
         df = self._load_dataframe(cached_df)
         df = self._dataframe_create_classes(df)
+        df = self._adding_centroids_distribution(df)
         self.crs_scaler = self._get_and_fit_min_max_scaler_for_train_data(df)
         df = self._scale_min_max_crs_columns(df, self.crs_scaler)
         self.df = df
@@ -159,6 +167,24 @@ class GeoguesserDataModule(pl.LightningDataModule):
         crs_scaler.fit(df_train.loc[:, ["crs_x", "crs_y"]])
         return crs_scaler
 
+    def _adding_centroids_distribution(self, df: pd.DataFrame) -> pd.DataFrame:
+        df_train = filter_df_by_dataset_split(df, self.dataset_dirs, DatasetSplitType.TRAIN)
+        df_train["lat_centroid_distribution"] = df_train["latitude"].groupby(df_train["y"]).transform("mean")
+        df_train["lng_centroid_distribution"] = df_train["longitude"].groupby(df_train["y"]).transform("mean")
+        df_train["crs_y_centroid_distribution"] = df_train["crs_y"].groupby(df_train["y"]).transform("mean")
+        df_train["crs_x_centroid_distribution"] = df_train["crs_x"].groupby(df_train["y"]).transform("mean")
+        df_filter = df_train.filter(
+            items=[
+                "y",
+                "lat_centroid_distribution",
+                "lng_centroid_distribution",
+                "crs_y_centroid_distribution",
+                "crs_x_centroid_distribution",
+            ]
+        ).drop_duplicates()
+        df = df.merge(df_filter, on="y")
+        return df
+
     def _scale_min_max_crs_columns(self, df: pd.DataFrame, scaler: MinMaxScaler) -> pd.DataFrame:
         """
         Scales all `crs` columns to [0, 1] using the scaler that was fit on training data
@@ -219,7 +245,6 @@ class GeoguesserDataModule(pl.LightningDataModule):
         dataset_test_indices: np.ndarray,
     ):
         for ind_a, ind_b in combinations([dataset_train_indices, dataset_val_indices, dataset_test_indices], 2):
-
             assert len(np.intersect1d(ind_a, ind_b)) == 0, "Some indices share an index {}".format(
                 np.intersect1d(ind_a, ind_b)
             )
@@ -235,9 +260,15 @@ class GeoguesserDataModule(pl.LightningDataModule):
 
     def setup(self, stage: Optional[str] = None):
 
-        dataset_train_indices = self.df.index[self.df["uuid"].isin(self.train_dataset.uuids)].to_numpy()  # type: ignore # [indices can be converted to list]
-        dataset_val_indices = self.df.index[self.df["uuid"].isin(self.val_dataset.uuids)].to_numpy()  # type: ignore # [indices can be converted to list]
-        dataset_test_indices = self.df.index[self.df["uuid"].isin(self.test_dataset.uuids)].to_numpy()  # type: ignore # [indices can be converted to list]
+        dataset_train_indices = self.df.index[
+            self.df["uuid"].isin(self.train_dataset.uuids)
+        ].to_numpy()  # type: ignore # [indices can be converted to list]
+        dataset_val_indices = self.df.index[
+            self.df["uuid"].isin(self.val_dataset.uuids)
+        ].to_numpy()  # type: ignore # [indices can be converted to list]
+        dataset_test_indices = self.df.index[
+            self.df["uuid"].isin(self.test_dataset.uuids)
+        ].to_numpy()  # type: ignore # [indices can be converted to list]
 
         if self.dataset_frac != 1:
             dataset_train_indices = np.random.choice(
@@ -336,7 +367,7 @@ class GeoguesserDataModulePredict(pl.LightningDataModule):
 if __name__ == "__main__":
     dm = GeoguesserDataModule(
         cached_df=Path(PATH_DATA_COMPLETE, "data__spacing_0.5__num_class_55.csv"),
-        dataset_dirs=[PATH_DATA_RAW, PATH_DATA_EXTERNAL],
+        dataset_dirs=[PATH_DATA_RAW],
     )
     dm.setup()
     pass
