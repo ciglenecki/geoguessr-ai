@@ -1,7 +1,8 @@
 from typing import Any, Dict, Literal
-from torch.optim.lr_scheduler import _LRScheduler
-from torch.optim import Optimizer
+
 from pytorch_lightning.utilities.types import _LRScheduler as _pl_LRScheduler
+from torch.optim import Optimizer
+from torch.optim.lr_scheduler import _LRScheduler
 
 
 class DelayerScheduler(_LRScheduler):
