@@ -11,8 +11,7 @@
 *.ckpt
 *ignoreme*
 reports-quick/
-reports/22*
-reports/train*
+reports/
 old_reports/
 nohup*.out
 __pycache__/
