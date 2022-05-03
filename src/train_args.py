@@ -7,19 +7,37 @@ import argparse
 from typing import Dict, Tuple
 
 import pytorch_lightning as pl
+from torchvision.models.resnet import model_urls as resnet_model_urls
 
-from defaults import (DEAFULT_NUM_WORKERS,
-                      DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING,
-                      DEFAULT_BATCH_SIZE, DEFAULT_DATASET_FRAC, DEFAULT_EPOCHS,
-                      DEFAULT_FINETUNING_EPOCH_PERIOD, DEFAULT_IMAGE_SIZE,
-                      DEFAULT_LOAD_DATASET_IN_RAM, DEFAULT_LR, DEFAULT_MODEL,
-                      DEFAULT_PRETRAINED, DEFAULT_SCHEDULER, DEFAULT_TEST_FRAC,
-                      DEFAULT_TRAIN_FRAC, DEFAULT_UNFREEZE_LAYERS_NUM,
-                      DEFAULT_VAL_FRAC, DEFAULT_WEIGHT_DECAY, LOG_EVERY_N)
-from model import allowed_models
-from utils_functions import (is_between_0_1, is_positive_int, is_valid_dir,
-                             is_valid_fractions_array, is_valid_image_size,
-                             is_valid_unfreeze_arg)
+from defaults import (
+    DEAFULT_NUM_WORKERS,
+    DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING,
+    DEFAULT_BATCH_SIZE,
+    DEFAULT_DATASET_FRAC,
+    DEFAULT_EPOCHS,
+    DEFAULT_FINETUNING_EPOCH_PERIOD,
+    DEFAULT_IMAGE_SIZE,
+    DEFAULT_LOAD_DATASET_IN_RAM,
+    DEFAULT_LR,
+    DEFAULT_LR_FINETUNE,
+    DEFAULT_MODEL,
+    DEFAULT_PRETRAINED,
+    DEFAULT_SCHEDULER,
+    DEFAULT_TEST_FRAC,
+    DEFAULT_TRAIN_FRAC,
+    DEFAULT_UNFREEZE_LAYERS_NUM,
+    DEFAULT_VAL_FRAC,
+    DEFAULT_WEIGHT_DECAY,
+    LOG_EVERY_N,
+)
+from utils_functions import (
+    is_between_0_1,
+    is_positive_int,
+    is_valid_dir,
+    is_valid_fractions_array,
+    is_valid_image_size,
+    is_valid_unfreeze_arg,
+)
 from utils_paths import PATH_DATA_EXTERNAL, PATH_DATA_RAW, PATH_REPORT
 from utils_train import OptimizerType, SchedulerType
 
@@ -55,7 +73,6 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
         help="Size of the dataset that will be trained",
     )
     user_group.add_argument(
-        "-i",
         "--image-size",
         metavar="int",
         default=DEFAULT_IMAGE_SIZE,
@@ -63,7 +80,6 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
         help="Image size",
     )
     user_group.add_argument(
-        "-w",
         "--num-workers",
         metavar="int",
         default=DEAFULT_NUM_WORKERS,
@@ -71,13 +87,21 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
         help="Number of workers",
     )
     user_group.add_argument(
-        "-m",
-        "--models",
-        default=[DEFAULT_MODEL],
+        "--model",
+        default=DEFAULT_MODEL,
         type=str,
         help="Models used for training",
-        nargs="*",
-        choices=allowed_models,
+        choices=[
+            "resnet18",
+            "resnet34",
+            "resnet50",
+            "resnet101",
+            "resnet152",
+            "resnext50_32x4d",
+            "resnext101_32x8d",
+            "wide_resnet50_2",
+            "wide_resnet101_2",
+        ],
     )
     user_group.add_argument(
         "-l",
@@ -102,7 +126,6 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
     )
 
     user_group.add_argument(
-        "-r",
         "--output-report",
         metavar="dir",
         type=str,
@@ -145,6 +168,7 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
         action="store_true",
         default=False,
     )
+
     user_group.add_argument(
         "-t",
         "--trainer-checkpoint",
@@ -152,9 +176,10 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
         metavar="path",
         type=str,
     )
+
     user_group.add_argument(
         "-u",
-        "--unfreeze-backbone-at-epoch",
+        "--unfreeze-at-epoch",
         help="Backbone Finetuning. Trains only last layer for n epoches.",
         metavar="N",
         type=is_positive_int,
@@ -174,9 +199,10 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
     )
     user_group.add_argument(
         "--lr-finetune",
-        type=int,
-        default=DEFAULT_BATCH_SIZE,
+        type=float,
+        default=DEFAULT_LR_FINETUNE,
     )
+
     user_group.add_argument(
         "--load-in-ram",
         action="store_true",
@@ -196,6 +222,14 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
         type=str,
         choices=[scheduler_type.value for scheduler_type in SchedulerType],
     )
+
+    user_group.add_argument(
+        "--optimizer",
+        default=DEFAULT_SCHEDULER,
+        type=str,
+        choices=[optimizer_type.value for optimizer_type in OptimizerType],
+    )
+
     user_group.add_argument(
         "--optimizer",
         default=DEFAULT_SCHEDULER,
@@ -207,6 +241,7 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
         default=DEFAULT_EPOCHS,
         type=is_positive_int,
     )
+
     args = parser.parse_args()
 
     """Separate Namespace into two Namespaces"""
@@ -219,11 +254,6 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
     args, pl_args = args_dict[ARGS_GROUP_NAME], args_dict["pl.Trainer"]
 
     """User arguments that override PyTorch Lightning arguments"""
-    # if args.dataset_frac != DEFAULT_DATASET_FRAC:
-    #     pl_args.limit_train_batches = args.dataset_frac
-    #     pl_args.limit_val_batches = args.dataset_frac
-    #     pl_args.limit_test_batches = args.dataset_frac
-
     if args.quick:
         pl_args.limit_train_batches = 4
         pl_args.limit_val_batches = 4

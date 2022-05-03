@@ -2,8 +2,7 @@ from typing import List, Optional, Union
 
 import pytorch_lightning as pl
 from pytorch_lightning import loggers as pl_loggers
-from pytorch_lightning.callbacks import (BackboneFinetuning, BaseFinetuning,
-                                         Callback)
+from pytorch_lightning.callbacks import BackboneFinetuning, BaseFinetuning, Callback
 from pytorch_lightning.callbacks.base import Callback
 from pytorch_lightning.utilities.exceptions import MisconfigurationException
 from torch.nn import Module
@@ -54,8 +53,17 @@ class OnTrainEpochStartLogCallback(pl.Callback):
     def on_train_epoch_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
         data_dict = {
             "trainable_params_num/epoch": float(pl_module.get_num_of_trainable_params()),  # type: ignore
+            "current_lr/epoch": trainer.optimizers[0].param_groups[0]["lr"],
             "epoch_true": trainer.current_epoch,
             "step": trainer.current_epoch,
+        }
+        pl_module.log_dict(data_dict)
+
+    def on_train_batch_end(
+        self, trainer: "pl.Trainer", pl_module: "pl.LightningModule", outputs, batch, batch_idx: int, unused: int = 0
+    ) -> None:
+        data_dict = {
+            "current_lr/step": trainer.optimizers[0].param_groups[0]["lr"],
         }
         pl_module.log_dict(data_dict)
 
@@ -85,13 +93,13 @@ class OverrideEpochMetricCallback(Callback):
         self._log_step_as_current_epoch(trainer, pl_module)
 
     def _log_step_as_current_epoch(self, trainer, pl_module: pl.LightningModule):
-        pl_module.log("step", trainer.current_epoch)
+        pl_module.log("step", float(trainer.current_epoch))
 
 
 class BackboneFreezing(Callback):
-    def __init__(self, unfreeze_blocks_num: Union[int, str], unfreeze_backbone_at_epoch: int):
+    def __init__(self, unfreeze_blocks_num: Union[int, str], unfreeze_at_epoch: int):
         self.unfreeze_blocks_num = unfreeze_blocks_num
-        self.unfreeze_backbone_at_epoch = unfreeze_backbone_at_epoch
+        self.unfreeze_at_epoch = unfreeze_at_epoch
         super().__init__()
 
     def setup(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule", stage: Optional[str] = None) -> None:
@@ -111,7 +119,7 @@ class BackboneFreezing(Callback):
     def unfreeze_if_needed(
         self, pl_module: "pl.LightningModule", epoch: int, optimizer: Optimizer, opt_idx: int
     ) -> None:
-        if epoch == self.unfreeze_backbone_at_epoch:
+        if epoch == self.unfreeze_at_epoch:
             self.unfreeze_and_add_param_group(pl_module.backbone, optimizer)  # type: ignore
 
     def unfreeze_and_add_param_group(

@@ -111,6 +111,8 @@ def function(arg1, arg2) -> List[arg1, arg2]:
 
 ## 🧠 Brainstorming
 
+- best inital lr for onecycle 0.13182567385564073, best minimum is 0.00025
+
 - Create a grid for Croatia. Each square of a grid represents a class. Instead of regression, try classification where these squares will be different classes. Classification should have a probabilistic interpretation. Multiply probabilities (the certainty of each block) to get the final coordinate. Size of the square is a hyperparameter.
 
 - Distance from each coordinate point is not linear. Use the transformation calculates the real world distance between coordinates. The earth is round!
