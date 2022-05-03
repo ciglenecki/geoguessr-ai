@@ -41,6 +41,7 @@ class LogMetricsAsHyperparams(pl.Callback):
             "test/acc_epoch": min_value,
             "test/haversine_distance_epoch": max_value,
             "epoch": float(0),
+            "epoch_true": float(0),
         }
 
     def on_fit_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
@@ -57,6 +58,7 @@ class OnTrainEpochStartLogCallback(pl.Callback):
     def on_train_epoch_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
         data_dict = {
             "trainable_params_num/epoch": float(pl_module.get_num_of_trainable_params()),  # type: ignore
+            "epoch_true": trainer.current_epoch,
             "step": trainer.current_epoch,
         }
         pl_module.log_dict(data_dict)

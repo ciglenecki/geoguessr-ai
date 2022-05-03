@@ -57,6 +57,7 @@ class LitModelClassification(pl.LightningModule):
         model_name: str,
         pretrained: bool,
         learning_rate: float,
+        lr_finetune: float,
         weight_decay: float,
         batch_size: int,
         image_size: int,
@@ -74,6 +75,7 @@ class LitModelClassification(pl.LightningModule):
         )  # set self.class_to_crs_centroid_map on gpu
 
         self.learning_rate = torch.tensor(learning_rate).float()
+        self.lr_finetune = lr_finetune
         self.weight_decay = weight_decay
         self.batch_size = batch_size
         self.image_size = image_size
@@ -86,7 +88,6 @@ class LitModelClassification(pl.LightningModule):
         self.optimizer_type = optimizer_type
         self.unfreeze_backbone_at_epoch = unfreeze_backbone_at_epoch
         self.epoch = 0
-        self.time = time()
 
         backbone = torch.hub.load(DEFAULT_TORCHVISION_VERSION, model_name, pretrained=pretrained)
         self.backbone = model_remove_fc(backbone)
@@ -230,45 +231,63 @@ class LitModelClassification(pl.LightningModule):
             scheduler = torch.optim.lr_scheduler.OneCycleLR(
                 optimizer,
                 max_lr=1e-1,  # TOOD:self.learning_rate
-                steps_per_epoch=self.train_dataloader_size,
-                epochs=self.epochs,
+                total_steps=self.trainer.estimated_stepping_batches,
             )
             interval = "step"
+            reduce_on_plateau = False
         else:  # SchedulerType.PLATEAU
             scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                optimizer, "min", patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ // 2) - 1
+                optimizer, "min", factor=0.5, patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ // 2) - 1
             )
             interval = "epoch"
+            reduce_on_plateau = True
 
-        if self.unfreeze_backbone_at_epoch:
-            scheduler = DelayerScheduler(
-                delay_epochs=self.unfreeze_backbone_at_epoch,
-                after_scheduler=scheduler,
-                optimizer=scheduler.optimizer,
-                train_dataloader_size=self.train_dataloader_size,
-                interval_mode=interval,
-                warmup_lr=float(self.learning_rate),
-            )  # type: ignore
-        config_dict["lr_scheduler"].update({"scheduler": scheduler, "interval": interval})
+        config_dict["lr_scheduler"].update(
+            {
+                "scheduler": scheduler,
+                "interval": interval,
+                "reduce_on_plateau": reduce_on_plateau,
+            }
+        )
         return config_dict
-        
+
+    def lr_scheduler_step(self, scheduler, optimizer_idx, metric):
+        if self.current_epoch < self.unfreeze_backbone_at_epoch:
+            return
+        if metric is None:
+            scheduler.step()
+        else:
+            scheduler.step(metric)
+
     def optimizer_step(
         self,
         epoch: int,
         batch_idx: int,
         optimizer,
-        optimizer_idx: int = 0,
+        optimizer_idx: int,
         optimizer_closure,
         on_tpu: bool = False,
         using_native_amp: bool = False,
         using_lbfgs: bool = False,
     ) -> None:
+
+        num_of_steps_to_skip = int(self.train_dataloader_size * self.unfreeze_backbone_at_epoch)
+
+        if self.trainer.global_step < num_of_steps_to_skip:
+            # if self.trainer.current_epoch < self.unfreeze_backbone_at_epoch:
+            upper_limit = min(self.lr_finetune, 1 - (float(self.trainer.global_step + 1) / num_of_steps_to_skip))
+            lr_scale = max(1e-6, upper_limit)
+            for pg in optimizer.param_groups:
+                pg["lr"] = lr_scale
+        elif (
+            self.trainer.current_epoch == self.unfreeze_backbone_at_epoch
+            and self.scheduler_type == SchedulerType.PLATEAU.value
+        ):
+            for pg in optimizer.param_groups:
+                pg["lr"] = self.learning_rate
+
         optimizer.step(closure=optimizer_closure)
 
-        if self.trainer.current_epoch < self.unfreeze_backbone_at_epoch:
-            lr_scale = min(1.0, float(self.trainer.global_step + 1) / 500.0)
-            for pg in optimizer.param_groups:
-                pg["lr"] = lr_scale * self.hparams.learning_rate
 
 class LitModelRegression(pl.LightningModule):
     loggers: List[TensorBoardLogger]
@@ -280,19 +299,22 @@ class LitModelRegression(pl.LightningModule):
         model_name: str,
         pretrained: bool,
         learning_rate: float,
+        lr_finetune: float,
         weight_decay: float,
         batch_size: int,
         image_size: int,
         scheduler_type: str,
         epochs: int,
+        class_to_crs_centroid_map: torch.Tensor,
         crs_scaler: MinMaxScaler,
         train_dataloader_size: int,
-        class_to_crs_centroid_map: torch.Tensor,
         optimizer_type: str,
+        unfreeze_backbone_at_epoch: int,
     ):
         super().__init__()
 
         self.learning_rate = torch.tensor(learning_rate).float()
+        self.lr_finetune = lr_finetune
         self.weight_decay = weight_decay
         self.batch_size = batch_size
         self.image_size = image_size
@@ -303,6 +325,8 @@ class LitModelRegression(pl.LightningModule):
         self.train_dataloader_size = train_dataloader_size
         self.class_to_crs_centroid_map = class_to_crs_centroid_map
         self.optimizer_type = optimizer_type
+        self.unfreeze_backbone_at_epoch = unfreeze_backbone_at_epoch
+        self.epoch = 0
 
         backbone = torch.hub.load(DEFAULT_TORCHVISION_VERSION, model_name, pretrained=pretrained)
         self.backbone = model_remove_fc(backbone)
@@ -433,28 +457,67 @@ class LitModelRegression(pl.LightningModule):
                 "name": self.scheduler_type,
             },
         }
+
         if self.scheduler_type == SchedulerType.ONECYCLE.value:
             scheduler = torch.optim.lr_scheduler.OneCycleLR(
                 optimizer,
-                max_lr=0.01,
-                total_steps=self.trainer.estimated_stepping_batches
-                # steps_per_epoch=self.train_dataloader_size,
-                # epochs=self.epochs,
+                max_lr=1e-1,  # TOOD:self.learning_rate
+                total_steps=self.trainer.estimated_stepping_batches,
             )
             interval = "step"
+            reduce_on_plateau = False
         else:  # SchedulerType.PLATEAU
             scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                optimizer, "min", patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ // 2) - 1
+                optimizer, "min", factor=0.5, patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ // 2) - 1
             )
             interval = "epoch"
+            reduce_on_plateau = True
 
-        config_dict["lr_scheduler"].update({"scheduler": scheduler, "interval": interval})
-        return [config_dict["optimizer"]], config_dict["lr_scheduler"]
+        config_dict["lr_scheduler"].update(
+            {
+                "scheduler": scheduler,
+                "interval": interval,
+                "reduce_on_plateau": reduce_on_plateau,
+            }
+        )
+        return config_dict
 
+    def lr_scheduler_step(self, scheduler, optimizer_idx, metric):
+        if self.current_epoch < self.unfreeze_backbone_at_epoch:
+            return
+        if metric is None:
+            scheduler.step()
+        else:
+            scheduler.step(metric)
 
+    def optimizer_step(
+        self,
+        epoch: int,
+        batch_idx: int,
+        optimizer,
+        optimizer_idx: int,
+        optimizer_closure,
+        on_tpu: bool = False,
+        using_native_amp: bool = False,
+        using_lbfgs: bool = False,
+    ) -> None:
 
-    # def lr_scheduler_step(self, scheduler, optimizer_idx: int, metric: Optional[Any]) -> None:
-    #     return super().lr_scheduler_step(scheduler, optimizer_idx, metric)
+        num_of_steps_to_skip = int(self.train_dataloader_size * self.unfreeze_backbone_at_epoch)
+
+        if self.trainer.global_step < num_of_steps_to_skip:
+            # if self.trainer.current_epoch < self.unfreeze_backbone_at_epoch:
+            upper_limit = min(self.lr_finetune, 1 - (float(self.trainer.global_step + 1) / num_of_steps_to_skip))
+            lr_scale = max(1e-6, upper_limit)
+            for pg in optimizer.param_groups:
+                pg["lr"] = lr_scale
+        elif (
+            self.trainer.current_epoch == self.unfreeze_backbone_at_epoch
+            and self.scheduler_type == SchedulerType.PLATEAU.value
+        ):
+            for pg in optimizer.param_groups:
+                pg["lr"] = self.learning_rate
+
+        optimizer.step(closure=optimizer_closure)
 
 
 class LitSingleModel(LitModelClassification):

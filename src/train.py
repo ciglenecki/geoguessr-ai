@@ -24,7 +24,6 @@ from model_callbacks import (
     OnTrainEpochStartLogCallback,
     OverrideEpochMetricCallback,
 )
-from pabloppp_optim.delayer_scheduler import DelayerScheduler
 from train_args import parse_args_train
 from utils_functions import add_prefix_to_keys, get_timestamp, is_primitive, random_codeword, stdout_to_file
 from utils_paths import PATH_REPORT, PATH_REPORT_QUICK
@@ -56,6 +55,7 @@ if __name__ == "__main__":
     optimizer_type = args.optimizer
     is_quick = args.quick or dataset_frac < 0.1
     output_report = PATH_REPORT_QUICK if is_quick else args.output_report
+    lr_finetune = args.lr_finetune
 
     timestamp = get_timestamp()
     experiment_codeword = random_codeword()
@@ -163,6 +163,7 @@ if __name__ == "__main__":
             model_name=model_names[0],
             pretrained=pretrained,
             learning_rate=learning_rate,
+            lr_finetune=lr_finetune,
             weight_decay=weight_decay,
             batch_size=batch_size,
             image_size=image_size,

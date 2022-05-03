@@ -190,6 +190,11 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
         default=DEFAULT_BATCH_SIZE,
     )
     user_group.add_argument(
+        "--lr-finetune",
+        type=int,
+        default=DEFAULT_BATCH_SIZE,
+    )
+    user_group.add_argument(
         "--load-in-ram",
         action="store_true",
         help="Load the dataset in RAM ~ 20GB",
