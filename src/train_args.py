@@ -231,6 +231,12 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
     )
 
     user_group.add_argument(
+        "--optimizer",
+        default=DEFAULT_SCHEDULER,
+        type=str,
+        choices=[optimizer_type.value for optimizer_type in OptimizerType],
+    )
+    user_group.add_argument(
         "--epochs",
         default=DEFAULT_EPOCHS,
         type=is_positive_int,

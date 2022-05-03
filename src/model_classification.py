@@ -236,6 +236,7 @@ class LitModelClassification(pl.LightningModule):
                 verbose=True,
             )
             interval = "step"
+            reduce_on_plateau = False
         else:  # SchedulerType.PLATEAU
             scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
                 optimizer,

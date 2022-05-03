@@ -8,6 +8,12 @@ mainfont: DejaVuSerif.ttf
 sansfont: DejaVuSans.ttf
 monofont: DejaVuSansMono.ttf 
 mathfont: texgyredejavu-math.otf
+mainfontoptions:
+- Extension=.ttf
+- UprightFont=*
+- BoldFont=*-Bold
+- ItalicFont=*-Italic
+- BoldItalicFont=*-BoldItalic
 
 output:
 	pdf_document:
@@ -92,6 +98,11 @@ Firstly, we removed the last layer of the network and replaced it with our own c
 ### Basics
 
 Due to using pretrained models, we first performed fine-tuning. ResNet was pretrained on ImageNet, a large image dataset with diverse objects. This gives the early layers of ResNet a collection of learned shapes and lines that are relatively similar to our own domain. In addition, our own dataset is much smaller than the number of ResNet parameters. If we were to train ResNet from scratch, we would quickly overfit. By using a model pretrained on a large generic dataset and then fine-tuning only the last layers, we preserve all the fine detail learned by all the early network layers and only overwrite the last layers where we essentially assemble these details into images. However, after performing fine-tuning for a sufficient time, we periodically unlock all the other network layers so that they can be trained along with the last few layers. By using a sufficiently small learning rate, we induce our dataset information into all the network layers without overwriting them.
+
+_test_
+**test**
+*test*
+
 
 ----
 Todo:
