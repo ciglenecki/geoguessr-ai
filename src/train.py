@@ -12,18 +12,20 @@ from pytorch_lightning.callbacks.model_summary import ModelSummary
 from pytorch_lightning.callbacks.progress.tqdm_progress import TQDMProgressBar
 from torchvision import transforms
 from torchvision.transforms import AutoAugmentPolicy
+import matplotlib.pyplot as plt
 
 from calculate_norm_std import calculate_norm_std
 from datamodule_geoguesser import GeoguesserDataModule
-from defaults import (DEFAULT_EARLY_STOPPING_EPOCH_FREQ, DEFAULT_IMAGE_MEAN,
-                      DEFAULT_IMAGE_STD)
+from defaults import DEFAULT_EARLY_STOPPING_EPOCH_FREQ, DEFAULT_IMAGE_MEAN, DEFAULT_IMAGE_STD
 from model import LitModelClassification, LitModelRegression, LitSingleModel
-from model_callbacks import (BackboneFreezing, LogMetricsAsHyperparams,
-                             OnTrainEpochStartLogCallback,
-                             OverrideEpochMetricCallback)
+from model_callbacks import (
+    BackboneFreezing,
+    LogMetricsAsHyperparams,
+    OnTrainEpochStartLogCallback,
+    OverrideEpochMetricCallback,
+)
 from train_args import parse_args_train
-from utils_functions import (add_prefix_to_keys, get_timestamp, is_primitive,
-                             random_codeword, stdout_to_file)
+from utils_functions import add_prefix_to_keys, get_timestamp, is_primitive, random_codeword, stdout_to_file
 from utils_paths import PATH_REPORT, PATH_REPORT_QUICK
 from utils_train import SchedulerType
 
@@ -31,12 +33,12 @@ if __name__ == "__main__":
     args, pl_args = parse_args_train()
     image_size = args.image_size
     num_workers = args.num_workers
-    model_names = args.models
+    model_name = args.model
     unfreeze_blocks_num = args.unfreeze_blocks
     pretrained = args.pretrained
     learning_rate = args.lr
     trainer_checkpoint = args.trainer_checkpoint
-    unfreeze_backbone_at_epoch = args.unfreeze_backbone_at_epoch
+    unfreeze_at_epoch = args.unfreeze_at_epoch
     weight_decay = args.weight_decay
     shuffle_before_splitting = args.shuffle_before_splitting
     train_frac, val_frac, test_frac = args.split_ratios
@@ -107,94 +109,106 @@ if __name__ == "__main__":
         "num_classes": num_classes,
     }
 
-    for model_name in model_names:
-        # The EarlyStopping callback runs at the end of every validation epoch, which, under the default
-        # configuration, happen after every training epoch.
-        callback_early_stopping = EarlyStopping(
-            monitor="val/loss_epoch",
-            mode="min",
-            patience=DEFAULT_EARLY_STOPPING_EPOCH_FREQ,
-            verbose=True,
-            check_on_train_epoch_end=False,
-        )
-        callback_checkpoint = ModelCheckpoint(
-            monitor="val/haversine_epoch",  # TODO: set to val/haversine_distance
-            mode="min",
-            filename="__".join(
-                [
-                    experiment_codeword,
-                    "haversine_{val/haversine_distance_epoch:.4f}",
-                    "val_acc_{val/acc_epoch:.2f}",
-                    "val_loss_{val/loss_epoch:.2f}",
-                    timestamp,
-                ]
-            ),
-            auto_insert_metric_name=False,
-            verbose=True,
-            save_on_train_epoch_end=False,
-        )
-        bar_refresh_rate = int(train_dataloader_size / pl_args.log_every_n_steps)
+    # The EarlyStopping callback runs at the end of every validation epoch, which, under the default
+    # configuration, happen after every training epoch.
 
-        callbacks = [
-            callback_checkpoint,
-            callback_early_stopping,
-            TQDMProgressBar(refresh_rate=bar_refresh_rate),
-            ModelSummary(max_depth=2),
-            LogMetricsAsHyperparams(),
-            OverrideEpochMetricCallback(),
-            OnTrainEpochStartLogCallback(),
-            LearningRateMonitor(log_momentum=True),
-        ]
+    callback_early_stopping = EarlyStopping(
+        monitor="val/loss_epoch",
+        mode="min",
+        patience=DEFAULT_EARLY_STOPPING_EPOCH_FREQ,
+        check_on_train_epoch_end=False,  # note: this is extremely important for model checkpoint loading
+        verbose=True,
+    )
 
-        if unfreeze_backbone_at_epoch:
-            callbacks.append(
-                BackboneFreezing(
-                    unfreeze_blocks_num=unfreeze_blocks_num, unfreeze_backbone_at_epoch=unfreeze_backbone_at_epoch
-                )
-            )
+    callback_checkpoint = ModelCheckpoint(
+        monitor="val/haversine_distance_epoch",
+        mode="min",
+        filename="__".join(
+            [
+                experiment_codeword,
+                "haversine_{val/haversine_distance_epoch:.4f}",
+                "val_acc_{val/acc_epoch:.2f}",
+                "val_loss_{val/loss_epoch:.2f}",
+                timestamp,
+            ]
+        ),
+        auto_insert_metric_name=False,
+        save_on_train_epoch_end=False,  # note: this is extremely important for model checkpoint loading
+        verbose=True,
+    )
 
-        model_constructor = (
-            LitSingleModel if use_single_images else (LitModelRegression if is_regression else LitModelClassification)
-        )
-        model = model_constructor(
-            num_classes=num_classes,
-            model_name=model_names[0],
-            pretrained=pretrained,
-            learning_rate=learning_rate,
-            lr_finetune=lr_finetune,
-            weight_decay=weight_decay,
-            batch_size=batch_size,
-            image_size=image_size,
-            scheduler_type=scheduler_type,
-            epochs=epochs,
-            class_to_crs_centroid_map=datamodule.class_to_crs_centroid_map,
-            crs_scaler=datamodule.crs_scaler,
-            train_dataloader_size=train_dataloader_size,
-            optimizer_type=optimizer_type,
-            unfreeze_backbone_at_epoch=unfreeze_backbone_at_epoch,
-        )
+    bar_refresh_rate = int(train_dataloader_size / pl_args.log_every_n_steps)
 
-        tb_logger = pl_loggers.TensorBoardLogger(
-            save_dir=str(output_report),
-            name=experiment_directory_name,
-            default_hp_metric=False,  # default_hp_metric should be turned off unless you log hyperparameters (logger.log_hyperparams(dict)) before the module starts with training
-            log_graph=True,
-        )
+    callbacks = [
+        callback_checkpoint,
+        callback_early_stopping,
+        TQDMProgressBar(refresh_rate=bar_refresh_rate),
+        ModelSummary(max_depth=2),
+        LogMetricsAsHyperparams(),
+        OverrideEpochMetricCallback(),
+        OnTrainEpochStartLogCallback(),
+        LearningRateMonitor(log_momentum=True),
+    ]
 
-        tb_logger.log_hyperparams(log_dictionary)
+    if unfreeze_at_epoch:
+        callbacks.append(BackboneFreezing(unfreeze_blocks_num=unfreeze_blocks_num, unfreeze_at_epoch=unfreeze_at_epoch))
 
-        trainer: pl.Trainer = pl.Trainer.from_argparse_args(
-            pl_args,
-            logger=[tb_logger],
-            default_root_dir=output_report,
-            callbacks=callbacks,
-            auto_lr_find=scheduler_type == SchedulerType.AUTO_LR.value,
-        )
+    model_constructor = (
+        LitSingleModel if use_single_images else (LitModelRegression if is_regression else LitModelClassification)
+    )
+    model = model_constructor(
+        num_classes=num_classes,
+        model_name=model_name,
+        pretrained=pretrained,
+        learning_rate=learning_rate,
+        lr_finetune=lr_finetune,
+        weight_decay=weight_decay,
+        batch_size=batch_size,
+        image_size=image_size,
+        scheduler_type=scheduler_type,
+        epochs=epochs,
+        class_to_crs_centroid_map=datamodule.class_to_crs_centroid_map,
+        crs_scaler=datamodule.crs_scaler,
+        train_dataloader_size=train_dataloader_size,
+        optimizer_type=optimizer_type,
+        unfreeze_at_epoch=unfreeze_at_epoch,
+    )
 
-        if scheduler_type == SchedulerType.AUTO_LR.value:
-            trainer.tune(
-                model, datamodule=datamodule, lr_find_kwargs={"num_training": 35, "early_stop_threshold": None}
-            )
+    tensorboard_logger = pl_loggers.TensorBoardLogger(
+        save_dir=str(output_report),
+        name=experiment_directory_name,
+        default_hp_metric=False,  # default_hp_metric should be turned off unless you log hyperparameters (logger.log_hyperparams(dict)) before the module starts with training
+        log_graph=True,
+    )
+    tensorboard_logger.log_hyperparams(log_dictionary)
 
-        trainer.fit(model, datamodule, ckpt_path=trainer_checkpoint)
-        trainer.test(model, datamodule)
+    trainer: pl.Trainer = pl.Trainer.from_argparse_args(
+        pl_args,
+        logger=[tensorboard_logger],
+        default_root_dir=output_report,
+        callbacks=callbacks,
+        auto_lr_find=scheduler_type == SchedulerType.AUTO_LR.value,
+    )
+
+    if scheduler_type == SchedulerType.AUTO_LR.value:
+        lr_finder = trainer.tuner.lr_find(model, datamodule=datamodule, num_training=100)
+
+        # Results can be found in
+        lr_finder.results
+
+        # Plot with
+        fig = lr_finder.plot(suggest=True)
+        fig.savefig("best_auti_lr.png")
+        # Pick point based on plot, or get suggestion
+        new_lr = lr_finder.suggestion()
+
+        print(new_lr)
+        exit(1)
+
+    # if scheduler_type == SchedulerType.AUTO_LR.value:
+    #     trainer.tune(
+    #         model, datamodule=datamodule, lr_find_kwargs={"num_training": 35, "early_stop_threshold": None}
+    #     )
+
+    trainer.fit(model, datamodule, ckpt_path=trainer_checkpoint)
+    trainer.test(model, datamodule)

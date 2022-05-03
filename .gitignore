@@ -10,6 +10,7 @@
 .idea/
 *.ckpt
 *ignoreme*
+reports-quick/
 reports/22*
 reports/train*
 old_reports/

@@ -10,18 +10,12 @@ import torch.nn.functional as F
 from pytorch_lightning.loggers import TensorBoardLogger
 from sklearn.preprocessing import MinMaxScaler
 from torch import nn
-from torchvision.models.efficientnet import \
-    model_urls as efficientnet_model_urls
-from torchvision.models.resnet import model_urls as resnet_model_urls
 
-from defaults import (DEFAULT_EARLY_STOPPING_EPOCH_FREQ,
-                      DEFAULT_TORCHVISION_VERSION)
+from defaults import DEFAULT_EARLY_STOPPING_EPOCH_FREQ, DEFAULT_TORCHVISION_VERSION
 from pabloppp_optim.delayer_scheduler import DelayerScheduler
 from utils_geo import crs_coords_to_degree, haversine_from_degs
 from utils_model import crs_coords_weighed_mean, model_remove_fc
 from utils_train import OptimizerType, SchedulerType, multi_acc
-
-allowed_models = list(resnet_model_urls.keys()) + list(efficientnet_model_urls.keys())
 
 
 def get_haversine_from_predictions(
@@ -69,7 +63,7 @@ class LitModelClassification(pl.LightningModule):
         crs_scaler: MinMaxScaler,
         train_dataloader_size: int,
         optimizer_type: str,
-        unfreeze_backbone_at_epoch: int,
+        unfreeze_at_epoch: int,
     ):
         super().__init__()
         self.register_buffer(
@@ -88,7 +82,7 @@ class LitModelClassification(pl.LightningModule):
         self.train_dataloader_size = train_dataloader_size
         self.class_to_crs_centroid_map = class_to_crs_centroid_map
         self.optimizer_type = optimizer_type
-        self.unfreeze_backbone_at_epoch = unfreeze_backbone_at_epoch
+        self.unfreeze_at_epoch = unfreeze_at_epoch
         self.epoch = 0
 
         backbone = torch.hub.load(DEFAULT_TORCHVISION_VERSION, model_name, pretrained=pretrained)
@@ -230,9 +224,12 @@ class LitModelClassification(pl.LightningModule):
         }
 
         if self.scheduler_type == SchedulerType.ONECYCLE.value:
-            scheduler = torch.optim.lr_scheduler.OneCycleLR(
+            best_onecycle_min_lr = 0.00025
+            best_onecycle_initial_lr = 0.132
+            scheduler = torch.optim.lr_scheduler.OneCycleLR(  # type: ignore
                 optimizer,
-                max_lr=1e-1,  # TOOD:self.learning_rate
+                max_lr=best_onecycle_initial_lr,  # TOOD:self.learning_rate,
+                final_div_factor=best_onecycle_initial_lr / best_onecycle_min_lr,
                 total_steps=self.trainer.estimated_stepping_batches,
             )
             interval = "step"
@@ -254,7 +251,7 @@ class LitModelClassification(pl.LightningModule):
         return config_dict
 
     def lr_scheduler_step(self, scheduler, optimizer_idx, metric):
-        if self.current_epoch < self.unfreeze_backbone_at_epoch:
+        if self.current_epoch < self.unfreeze_at_epoch:
             return
         if metric is None:
             scheduler.step()
@@ -273,17 +270,15 @@ class LitModelClassification(pl.LightningModule):
         using_lbfgs: bool = False,
     ) -> None:
 
-        num_of_steps_to_skip = int(self.train_dataloader_size * self.unfreeze_backbone_at_epoch)
+        num_of_steps_to_skip = int(self.train_dataloader_size * self.unfreeze_at_epoch)
 
         if self.trainer.global_step < num_of_steps_to_skip:
-            # if self.trainer.current_epoch < self.unfreeze_backbone_at_epoch:
             upper_limit = min(self.lr_finetune, 1 - (float(self.trainer.global_step + 1) / num_of_steps_to_skip))
             lr_scale = max(1e-6, upper_limit)
             for pg in optimizer.param_groups:
                 pg["lr"] = lr_scale
         elif (
-            self.trainer.current_epoch == self.unfreeze_backbone_at_epoch
-            and self.scheduler_type == SchedulerType.PLATEAU.value
+            self.trainer.current_epoch == self.unfreeze_at_epoch and self.scheduler_type == SchedulerType.PLATEAU.value
         ):
             for pg in optimizer.param_groups:
                 pg["lr"] = self.learning_rate
@@ -311,7 +306,7 @@ class LitModelRegression(pl.LightningModule):
         crs_scaler: MinMaxScaler,
         train_dataloader_size: int,
         optimizer_type: str,
-        unfreeze_backbone_at_epoch: int,
+        unfreeze_at_epoch: int,
     ):
         super().__init__()
 
@@ -327,7 +322,7 @@ class LitModelRegression(pl.LightningModule):
         self.train_dataloader_size = train_dataloader_size
         self.class_to_crs_centroid_map = class_to_crs_centroid_map
         self.optimizer_type = optimizer_type
-        self.unfreeze_backbone_at_epoch = unfreeze_backbone_at_epoch
+        self.unfreeze_at_epoch = unfreeze_at_epoch
         self.epoch = 0
 
         backbone = torch.hub.load(DEFAULT_TORCHVISION_VERSION, model_name, pretrained=pretrained)
@@ -435,6 +430,8 @@ class LitModelRegression(pl.LightningModule):
         return data_dict
 
     def configure_optimizers(self):
+        if not self.trainer:
+            return
 
         if self.optimizer_type == OptimizerType.ADAMW.value:
             optimizer = torch.optim.AdamW(self.parameters(), lr=float(self.learning_rate), weight_decay=5e-3)
@@ -460,9 +457,12 @@ class LitModelRegression(pl.LightningModule):
         }
 
         if self.scheduler_type == SchedulerType.ONECYCLE.value:
-            scheduler = torch.optim.lr_scheduler.OneCycleLR(
+            best_onecycle_min_lr = 0.00025
+            best_onecycle_initial_lr = 0.132
+            scheduler = torch.optim.lr_scheduler.OneCycleLR(  # type: ignore
                 optimizer,
-                max_lr=1e-1,  # TOOD:self.learning_rate
+                max_lr=best_onecycle_initial_lr,  # TOOD:self.learning_rate,
+                final_div_factor=best_onecycle_initial_lr / best_onecycle_min_lr,
                 total_steps=self.trainer.estimated_stepping_batches,
             )
             interval = "step"
@@ -484,7 +484,7 @@ class LitModelRegression(pl.LightningModule):
         return config_dict
 
     def lr_scheduler_step(self, scheduler, optimizer_idx, metric):
-        if self.current_epoch < self.unfreeze_backbone_at_epoch:
+        if self.current_epoch < self.unfreeze_at_epoch:
             return
         if metric is None:
             scheduler.step()
@@ -503,17 +503,16 @@ class LitModelRegression(pl.LightningModule):
         using_lbfgs: bool = False,
     ) -> None:
 
-        num_of_steps_to_skip = int(self.train_dataloader_size * self.unfreeze_backbone_at_epoch)
+        num_of_steps_to_skip = int(self.train_dataloader_size * self.unfreeze_at_epoch)
 
         if self.trainer.global_step < num_of_steps_to_skip:
-            # if self.trainer.current_epoch < self.unfreeze_backbone_at_epoch:
+            # if self.trainer.current_epoch < self.unfreeze_at_epoch:
             upper_limit = min(self.lr_finetune, 1 - (float(self.trainer.global_step + 1) / num_of_steps_to_skip))
             lr_scale = max(1e-6, upper_limit)
             for pg in optimizer.param_groups:
                 pg["lr"] = lr_scale
         elif (
-            self.trainer.current_epoch == self.unfreeze_backbone_at_epoch
-            and self.scheduler_type == SchedulerType.PLATEAU.value
+            self.trainer.current_epoch == self.unfreeze_at_epoch and self.scheduler_type == SchedulerType.PLATEAU.value
         ):
             for pg in optimizer.param_groups:
                 pg["lr"] = self.learning_rate
