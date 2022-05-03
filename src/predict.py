@@ -3,15 +3,14 @@ from __future__ import annotations, division, print_function
 from pathlib import Path
 from typing import Any
 
+import pandas as pd
 import pytorch_lightning as pl
-
 from pytorch_lightning.callbacks import Callback
 from torchvision import transforms
 
 from datamodule_geoguesser import GeoguesserDataModulePredict
 from defaults import DEFAULT_IMAGE_MEAN, DEFAULT_IMAGE_STD
 from model import LitModelClassification, LitModelRegression, LitSingleModel
-import pandas as pd
 from utils_paths import PATH_DATA_RAW
 
 

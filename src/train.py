@@ -6,7 +6,6 @@ from pprint import pprint
 import pytorch_lightning as pl
 from pytorch_lightning import loggers as pl_loggers
 from pytorch_lightning.callbacks import LearningRateMonitor
-
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from pytorch_lightning.callbacks.model_summary import ModelSummary
@@ -16,16 +15,15 @@ from torchvision.transforms import AutoAugmentPolicy
 
 from calculate_norm_std import calculate_norm_std
 from datamodule_geoguesser import GeoguesserDataModule
-from defaults import DEFAULT_EARLY_STOPPING_EPOCH_FREQ, DEFAULT_IMAGE_MEAN, DEFAULT_IMAGE_STD
+from defaults import (DEFAULT_EARLY_STOPPING_EPOCH_FREQ, DEFAULT_IMAGE_MEAN,
+                      DEFAULT_IMAGE_STD)
 from model import LitModelClassification, LitModelRegression, LitSingleModel
-from model_callbacks import (
-    BackboneFreezing,
-    LogMetricsAsHyperparams,
-    OnTrainEpochStartLogCallback,
-    OverrideEpochMetricCallback,
-)
+from model_callbacks import (BackboneFreezing, LogMetricsAsHyperparams,
+                             OnTrainEpochStartLogCallback,
+                             OverrideEpochMetricCallback)
 from train_args import parse_args_train
-from utils_functions import add_prefix_to_keys, get_timestamp, is_primitive, random_codeword, stdout_to_file
+from utils_functions import (add_prefix_to_keys, get_timestamp, is_primitive,
+                             random_codeword, stdout_to_file)
 from utils_paths import PATH_REPORT, PATH_REPORT_QUICK
 from utils_train import SchedulerType
 

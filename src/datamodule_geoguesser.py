@@ -5,10 +5,10 @@ It handles the creation/loading of the main dataframe where images metadata is s
 """
 from __future__ import annotations, division
 
+import os
 from itertools import combinations
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
-import os
 
 import numpy as np
 import pandas as pd
@@ -23,18 +23,11 @@ from torchvision import transforms
 import preprocess_csv_concat
 import preprocess_csv_create_polygons
 from dataset_geoguesser import GeoguesserDataset, GeoguesserDatasetPredict
-from defaults import (
-    DEAFULT_DROP_LAST,
-    DEAFULT_NUM_WORKERS,
-    DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING,
-    DEFAULT_BATCH_SIZE,
-    DEFAULT_DATASET_FRAC,
-    DEFAULT_LOAD_DATASET_IN_RAM,
-    DEFAULT_SPACING,
-    DEFAULT_TEST_FRAC,
-    DEFAULT_TRAIN_FRAC,
-    DEFAULT_VAL_FRAC,
-)
+from defaults import (DEAFULT_DROP_LAST, DEAFULT_NUM_WORKERS,
+                      DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING,
+                      DEFAULT_BATCH_SIZE, DEFAULT_DATASET_FRAC,
+                      DEFAULT_LOAD_DATASET_IN_RAM, DEFAULT_SPACING,
+                      DEFAULT_TEST_FRAC, DEFAULT_TRAIN_FRAC, DEFAULT_VAL_FRAC)
 from utils_dataset import DatasetSplitType, filter_df_by_dataset_split
 from utils_functions import print_df_sample
 from utils_paths import PATH_DATA_COMPLETE, PATH_DATA_EXTERNAL, PATH_DATA_RAW

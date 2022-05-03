@@ -1,19 +1,15 @@
 from typing import List, Optional, Union
 
 import pytorch_lightning as pl
-from pytorch_lightning.callbacks import BackboneFinetuning, Callback, BaseFinetuning
+from pytorch_lightning import loggers as pl_loggers
+from pytorch_lightning.callbacks import (BackboneFinetuning, BaseFinetuning,
+                                         Callback)
+from pytorch_lightning.callbacks.base import Callback
+from pytorch_lightning.utilities.exceptions import MisconfigurationException
 from torch.nn import Module
 from torch.optim.optimizer import Optimizer
 
 from utils_model import get_last_layer, get_model_blocks
-
-from torch.nn import Module
-from torch.optim.optimizer import Optimizer
-
-import pytorch_lightning as pl
-from pytorch_lightning.callbacks.base import Callback
-from pytorch_lightning.utilities.exceptions import MisconfigurationException
-from pytorch_lightning import loggers as pl_loggers
 
 
 class InvalidArgument(Exception):
