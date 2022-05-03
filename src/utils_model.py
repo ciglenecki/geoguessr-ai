@@ -5,8 +5,23 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torchvision.models.efficientnet import EfficientNet
 from torchvision.models.resnet import ResNet
-
+from sklearn.preprocessing import MinMaxScaler
 from utils_functions import tensor_sum_of_elements_to_one
+from utils_geo import crs_coords_to_degree, haversine_from_degs
+
+
+def get_haversine_from_predictions(
+    crs_scaler: MinMaxScaler, pred_crs_coord: torch.Tensor, image_true_crs_coords: torch.Tensor
+):
+    pred_crs_coord = pred_crs_coord.cpu()
+    image_true_crs_coords = image_true_crs_coords.cpu()
+
+    pred_crs_coord_transformed = crs_scaler.inverse_transform(pred_crs_coord)
+    true_crs_coord_transformed = crs_scaler.inverse_transform(image_true_crs_coords)
+
+    pred_degree_coords = crs_coords_to_degree(pred_crs_coord_transformed)
+    true_degree_coords = crs_coords_to_degree(true_crs_coord_transformed)
+    return haversine_from_degs(pred_degree_coords, true_degree_coords)
 
 
 def model_remove_fc(model: ResNet):
