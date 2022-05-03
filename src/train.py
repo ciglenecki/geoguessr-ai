@@ -120,7 +120,7 @@ if __name__ == "__main__":
             check_on_train_epoch_end=False,
         )
         callback_checkpoint = ModelCheckpoint(
-            monitor="val/loss_epoch",  # TODO: set to val/haversine_distance
+            monitor="val/haversine_epoch",  # TODO: set to val/haversine_distance
             mode="min",
             filename="__".join(
                 [

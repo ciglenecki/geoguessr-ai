@@ -383,7 +383,6 @@ class LitModelRegression(pl.LightningModule):
         log_dict.pop("loss", None)
         self.log_dict(log_dict, on_step=True, on_epoch=True, logger=True, prog_bar=True)
 
-        print("TRAAIN SD", self.state_dict())
         return data_dict
 
     def validation_step(self, batch, batch_idx):
