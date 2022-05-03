@@ -12,7 +12,6 @@ from sklearn.preprocessing import MinMaxScaler
 from torch import nn
 
 from defaults import DEFAULT_EARLY_STOPPING_EPOCH_FREQ, DEFAULT_TORCHVISION_VERSION
-from pabloppp_optim.delayer_scheduler import DelayerScheduler
 from utils_geo import crs_coords_to_degree, haversine_from_degs
 from utils_model import crs_coords_weighed_mean, model_remove_fc
 from utils_train import OptimizerType, SchedulerType, multi_acc
@@ -233,7 +232,7 @@ class LitModelClassification(pl.LightningModule):
                 max_lr=best_onecycle_initial_lr,  # TOOD:self.learning_rate,
                 final_div_factor=best_onecycle_initial_lr / best_onecycle_min_lr,
                 total_steps=self.trainer.estimated_stepping_batches,
-                verbose=True,
+                verbose=False,
             )
             interval = "step"
             reduce_on_plateau = False

@@ -145,7 +145,7 @@ if __name__ == "__main__":
         callback_checkpoint,
         callback_early_stopping,
         TQDMProgressBar(refresh_rate=bar_refresh_rate),
-        ModelSummary(max_depth=2),
+        ModelSummary(max_depth=3),
         LogMetricsAsHyperparams(),
         OverrideEpochMetricCallback(),
         OnTrainEpochStartLogCallback(),
@@ -188,6 +188,7 @@ if __name__ == "__main__":
         optimizer_type=optimizer_type,
         unfreeze_at_epoch=unfreeze_at_epoch,
     )
+
 
     tensorboard_logger = pl_loggers.TensorBoardLogger(
         save_dir=str(output_report),

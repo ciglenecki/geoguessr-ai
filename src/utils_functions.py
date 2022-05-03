@@ -175,7 +175,7 @@ def is_positive_int(value):
 
 def is_valid_unfreeze_arg(arg):
     """Positive int or 'all'"""
-    if type(arg) is str and arg == "all":
+    if type(arg) is str and (arg == "all" or 'layer' in arg):
         return arg
     try:
         if is_positive_int(arg):  # is_positive_int's raise will be caught by the except

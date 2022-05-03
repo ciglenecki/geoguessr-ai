@@ -48,6 +48,7 @@ class BackboneFinetuningLastLayers(BackboneFinetuning):
     initial_denom_lr: float
     backbone_initial_ratio_lr: float
     train_bn: bool
+    unfreeze_blocks_num: Union[int, str]
 
     def __init__(
         self,
@@ -80,6 +81,38 @@ class BackboneFinetuningLastLayers(BackboneFinetuning):
             verbose=verbose,
         )
 
+    def _return_trainable_modules(
+        self,
+        modules: Union[Module, Iterable[Union[Module, Iterable]]],
+        unfreeze_blocks_num: Union[int, str],
+    ):
+
+        if type(unfreeze_blocks_num) is int:
+            blocks = get_model_blocks(modules)
+            return blocks[len(blocks) - unfreeze_blocks_num :]
+
+        elif type(unfreeze_blocks_num) is str and "layer" in unfreeze_blocks_num:
+            """Add all modules that continue after unfreeze_blocks_num module (e.g. layer3.2)"""
+
+            found_layer = False
+            modules_list = []
+
+            for name, module in modules.named_modules():
+                if found_layer:
+                    print("Adding layer", name)
+                    modules_list.append(module)
+                if unfreeze_blocks_num in name:
+                    found_layer = True
+
+            if not found_layer:
+                raise InvalidArgument("unfreeze_blocks_num {} should be a a named module".format(unfreeze_blocks_num))
+            return modules_list
+
+        elif unfreeze_blocks_num != "all":
+            raise InvalidArgument("unfreeze_blocks_num argument should be [0, inf> or 'all'")
+
+        return get_model_blocks(modules)
+
     def unfreeze_and_add_param_group(
         self,
         modules: Union[Module, Iterable[Union[Module, Iterable]]],
@@ -89,13 +122,8 @@ class BackboneFinetuningLastLayers(BackboneFinetuning):
         train_bn: bool = True,
     ) -> None:
         # TODO: DONT DO THIS PLS add support for multiple modules, current version suports only one module
-        blocks = get_model_blocks(modules)
 
-        trainable_blocks: List[Module] = blocks
-        if type(self.unfreeze_blocks_num) is int:
-            trainable_blocks = blocks[len(blocks) - self.unfreeze_blocks_num :]
-        elif self.unfreeze_blocks_num != "all":
-            raise InvalidArgument("unfreeze_blocks_num argument should be [0, inf> or 'all'")
+        trainable_blocks: List[Module] = self._return_trainable_modules(modules, self.unfreeze_blocks_num)
 
         last_layer = get_last_layer(modules)
         if last_layer:

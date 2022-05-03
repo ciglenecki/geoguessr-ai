@@ -135,7 +135,7 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
     user_group.add_argument(
         "-b",
         "--unfreeze-blocks",
-        metavar="['all', n]",
+        metavar="['all', 'layer3.2', n]",
         type=is_valid_unfreeze_arg,
         help="Number of trainable blocks. Parameters of trainable block will be updated (required_grad=True) during the training. This argument changes nothing if argument `--pretrained` isn't set. If model isn't pretrained its weights are random.It doesn't make sense to freeze blocks which have random (untrained) weights.",
         default=DEFAULT_UNFREEZE_LAYERS_NUM,
@@ -230,12 +230,6 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
         choices=[optimizer_type.value for optimizer_type in OptimizerType],
     )
 
-    user_group.add_argument(
-        "--optimizer",
-        default=DEFAULT_SCHEDULER,
-        type=str,
-        choices=[optimizer_type.value for optimizer_type in OptimizerType],
-    )
     user_group.add_argument(
         "--epochs",
         default=DEFAULT_EPOCHS,
