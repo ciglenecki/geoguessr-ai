@@ -53,8 +53,17 @@ class OnTrainEpochStartLogCallback(pl.Callback):
     def on_train_epoch_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
         data_dict = {
             "trainable_params_num/epoch": float(pl_module.get_num_of_trainable_params()),  # type: ignore
+            "current_lr/epoch": trainer.optimizers[0].param_groups[0]["lr"],
             "epoch_true": trainer.current_epoch,
             "step": trainer.current_epoch,
+        }
+        pl_module.log_dict(data_dict)
+
+    def on_train_batch_end(
+        self, trainer: "pl.Trainer", pl_module: "pl.LightningModule", outputs, batch, batch_idx: int, unused: int = 0
+    ) -> None:
+        data_dict = {
+            "current_lr/step": trainer.optimizers[0].param_groups[0]["lr"],
         }
         pl_module.log_dict(data_dict)
 

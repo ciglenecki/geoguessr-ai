@@ -19,7 +19,7 @@ from datamodule_geoguesser import GeoguesserDataModule
 from defaults import DEFAULT_EARLY_STOPPING_EPOCH_FREQ, DEFAULT_IMAGE_MEAN, DEFAULT_IMAGE_STD
 from model_classification import LitModelClassification, LitSingleModel
 from model_regression import LitModelRegression
-
+from callback_backbone_last_layers import BackboneFinetuningLastLayers
 from model_callbacks import (
     BackboneFreezing,
     LogMetricsAsHyperparams,
@@ -153,11 +153,24 @@ if __name__ == "__main__":
     ]
 
     if unfreeze_at_epoch:
-        callbacks.append(BackboneFreezing(unfreeze_blocks_num=unfreeze_blocks_num, unfreeze_at_epoch=unfreeze_at_epoch))
+
+        rate_fine_tuning_multiply = 1
+        multiplicative = lambda epoch: 1
+        callbacks.append(
+            BackboneFinetuningLastLayers(
+                unfreeze_blocks_num=unfreeze_blocks_num,
+                unfreeze_at_epoch=unfreeze_at_epoch,
+                lr_finetuning_range=[lr_finetune, 1e-5],
+                lr_after_finetune=learning_rate,
+                train_dataloader_size=train_dataloader_size,
+            ),
+        )
+        learning_rate = lr_finetune
 
     model_constructor = (
         LitSingleModel if use_single_images else (LitModelRegression if is_regression else LitModelClassification)
     )
+    print("\n\n\nModel constructor", model_constructor)
     model = model_constructor(
         num_classes=num_classes,
         model_name=model_name,

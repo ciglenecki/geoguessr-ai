@@ -65,6 +65,7 @@ class LitModelClassification(pl.LightningModule):
         optimizer_type: str,
         unfreeze_at_epoch: int,
     ):
+        print("\nLitModelClassification init\n")
         super().__init__()
         self.register_buffer(
             "class_to_crs_centroid_map", class_to_crs_centroid_map.clone().detach()  # type: ignore
@@ -199,6 +200,7 @@ class LitModelClassification(pl.LightningModule):
         return data_dict
 
     def configure_optimizers(self):
+        print("\n", self.__class__.__name__, "Configure optimizers\n")
 
         if self.optimizer_type == OptimizerType.ADAMW.value:
             optimizer = torch.optim.AdamW(self.parameters(), lr=float(self.learning_rate), weight_decay=5e-3)
@@ -214,7 +216,7 @@ class LitModelClassification(pl.LightningModule):
         config_dict = {
             "optimizer": optimizer,
             "lr_scheduler": {
-                "monitor": "val/loss",
+                "monitor": "val/loss_epoch",
                 # How many epochs/steps should pass between calls to `scheduler.step()`.1 corresponds to updating the learning  rate after every epoch/step.
                 # If "monitor" references validation metrics, then "frequency" should be set to a multiple of "trainer.check_val_every_n_epoch".
                 "frequency": 1,
@@ -231,27 +233,28 @@ class LitModelClassification(pl.LightningModule):
                 max_lr=best_onecycle_initial_lr,  # TOOD:self.learning_rate,
                 final_div_factor=best_onecycle_initial_lr / best_onecycle_min_lr,
                 total_steps=self.trainer.estimated_stepping_batches,
+                verbose=True,
             )
             interval = "step"
-            reduce_on_plateau = False
         else:  # SchedulerType.PLATEAU
             scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                optimizer, "min", factor=0.5, patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ // 2) - 1
+                optimizer,
+                "min",
+                factor=0.5,
+                patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ // 2) - 1,
+                verbose=True,
             )
             interval = "epoch"
-            reduce_on_plateau = True
 
         config_dict["lr_scheduler"].update(
             {
                 "scheduler": scheduler,
                 "interval": interval,
-                "reduce_on_plateau": reduce_on_plateau,
             }
         )
         return config_dict
 
     def lr_scheduler_step(self, scheduler, optimizer_idx, metric):
-        print("\n\nCurretn vs ufnreeze", self.current_epoch, self.unfreeze_at_epoch)
         if self.current_epoch < self.unfreeze_at_epoch:
             return
         if metric is None:
@@ -259,37 +262,10 @@ class LitModelClassification(pl.LightningModule):
         else:
             scheduler.step(metric)
 
-    def optimizer_step(
-        self,
-        epoch: int,
-        batch_idx: int,
-        optimizer,
-        optimizer_idx: int,
-        optimizer_closure,
-        on_tpu: bool = False,
-        using_native_amp: bool = False,
-        using_lbfgs: bool = False,
-    ) -> None:
-
-        num_of_steps_to_skip = int(self.train_dataloader_size * self.unfreeze_at_epoch)
-
-        if self.trainer.global_step < num_of_steps_to_skip:
-            upper_limit = min(self.lr_finetune, 1 - (float(self.trainer.global_step + 1) / num_of_steps_to_skip))
-            lr_scale = max(1e-6, upper_limit)
-            for pg in optimizer.param_groups:
-                pg["lr"] = lr_scale
-        elif (
-            self.trainer.current_epoch == self.unfreeze_at_epoch and self.scheduler_type == SchedulerType.PLATEAU.value
-        ):
-            for pg in optimizer.param_groups:
-                pg["lr"] = self.learning_rate
-
-        optimizer.step(closure=optimizer_closure)
-
 
 class LitSingleModel(LitModelClassification):
     def __init__(self, *args: Any, **kwargs: Any):
-        print("LitSingleModel init")
+        print("\n\nLitSingleModel init\n\n")
         super().__init__(*args, **kwargs)
         self.fc = nn.Linear(self._get_last_fc_in_channels(), self.num_classes)
 
