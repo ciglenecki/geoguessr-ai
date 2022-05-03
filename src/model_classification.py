@@ -45,6 +45,8 @@ class LitModelClassification(pl.LightningModule):
     """
 
     loggers: List[TensorBoardLogger]
+    class_to_crs_centroid_map: torch.Tensor
+    class_to_crs_weighted_map: torch.Tensor
 
     def __init__(
         self,
@@ -59,6 +61,7 @@ class LitModelClassification(pl.LightningModule):
         scheduler_type: str,
         epochs: int,
         class_to_crs_centroid_map: torch.Tensor,
+        class_to_crs_weighted_map: torch.Tensor,
         crs_scaler: MinMaxScaler,
         train_dataloader_size: int,
         optimizer_type: str,
@@ -70,6 +73,10 @@ class LitModelClassification(pl.LightningModule):
             "class_to_crs_centroid_map", class_to_crs_centroid_map.clone().detach()  # type: ignore
         )  # set self.class_to_crs_centroid_map on gpu
 
+        self.register_buffer(
+            "class_to_crs_weighted_map", class_to_crs_weighted_map.clone().detach()  # type: ignore
+        )  # set self.class_to_crs_weighted_map on gpu
+
         self.learning_rate = torch.tensor(learning_rate).float()
         self.lr_finetune = lr_finetune
         self.weight_decay = weight_decay
@@ -80,7 +87,6 @@ class LitModelClassification(pl.LightningModule):
         self.scheduler_type = scheduler_type
         self.epochs = epochs
         self.train_dataloader_size = train_dataloader_size
-        self.class_to_crs_centroid_map = class_to_crs_centroid_map
         self.optimizer_type = optimizer_type
         self.unfreeze_at_epoch = unfreeze_at_epoch
         self.epoch = 0
@@ -148,7 +154,7 @@ class LitModelClassification(pl.LightningModule):
         image_list, y_true, image_true_crs_coords = batch
         y_pred = self(image_list)
 
-        pred_crs_coord = crs_coords_weighed_mean(y_pred, self.class_to_crs_centroid_map, top_k=5)
+        pred_crs_coord = crs_coords_weighed_mean(y_pred, self.class_to_crs_weighted_map, top_k=5)
         haver_dist = get_haversine_from_predictions(self.crs_scaler, pred_crs_coord, image_true_crs_coords)
 
         loss = F.cross_entropy(y_pred, y_true)
@@ -170,7 +176,7 @@ class LitModelClassification(pl.LightningModule):
         image_list, y_true, image_true_crs_coords = batch
         y_pred = self(image_list)
 
-        pred_crs_coord = crs_coords_weighed_mean(y_pred, self.class_to_crs_centroid_map, top_k=5)
+        pred_crs_coord = crs_coords_weighed_mean(y_pred, self.class_to_crs_weighted_map, top_k=5)
         haver_dist = get_haversine_from_predictions(self.crs_scaler, pred_crs_coord, image_true_crs_coords)
 
         loss = F.cross_entropy(y_pred, y_true)
@@ -190,7 +196,7 @@ class LitModelClassification(pl.LightningModule):
         image_list, uuid = batch
         y_pred = self(image_list)
 
-        pred_crs_coord = crs_coords_weighed_mean(y_pred, self.class_to_crs_centroid_map, top_k=5)
+        pred_crs_coord = crs_coords_weighed_mean(y_pred, self.class_to_crs_weighted_map, top_k=5)
         pred_crs_coord = pred_crs_coord.cpu()
         pred_crs_coord_transformed = self.crs_scaler.inverse_transform(pred_crs_coord)
         pred_degree_coords = crs_coords_to_degree(pred_crs_coord_transformed)

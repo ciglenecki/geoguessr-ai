@@ -183,6 +183,7 @@ if __name__ == "__main__":
         scheduler_type=scheduler_type,
         epochs=epochs,
         class_to_crs_centroid_map=datamodule.class_to_crs_centroid_map,
+        class_to_crs_weighted_map=datamodule.class_to_crs_weighted_map,
         crs_scaler=datamodule.crs_scaler,
         train_dataloader_size=train_dataloader_size,
         optimizer_type=optimizer_type,

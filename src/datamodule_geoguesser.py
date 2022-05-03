@@ -81,7 +81,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
         """ Dataframe loading, numclasses handling and min max scaling"""
         df = self._load_dataframe(cached_df)
         df = self._dataframe_create_classes(df)
-        df = self._adding_centroids_distribution(df)
+        df = self._adding_centroids_weighted(df)
         self.crs_scaler = self._get_and_fit_min_max_scaler_for_train_data(df)
         df = self._scale_min_max_crs_columns(df, self.crs_scaler)
         self.df = df
@@ -92,9 +92,11 @@ class GeoguesserDataModule(pl.LightningDataModule):
         assert (
             self.num_classes == self.df["y"].max() + 1
         ), "Number of classes should corespoing to the maximum y value of the csv dataframe"  # Sanity check
-        self.class_to_crs_centroid_map, self.class_to_latlng_centroid_map = self._get_class_to_coords_maps(
-            self.num_classes
-        )
+        (
+            self.class_to_crs_centroid_map,
+            self.class_to_latlng_centroid_map,
+            self.class_to_crs_weighted_map,
+        ) = self._get_class_to_coords_maps(self.num_classes)
 
         self.train_dataset = GeoguesserDataset(
             df=self.df,
@@ -167,19 +169,19 @@ class GeoguesserDataModule(pl.LightningDataModule):
         crs_scaler.fit(df_train.loc[:, ["crs_x", "crs_y"]])
         return crs_scaler
 
-    def _adding_centroids_distribution(self, df: pd.DataFrame) -> pd.DataFrame:
+    def _adding_centroids_weighted(self, df: pd.DataFrame) -> pd.DataFrame:
         df_train = filter_df_by_dataset_split(df, self.dataset_dirs, DatasetSplitType.TRAIN)
-        df_train["lat_centroid_distribution"] = df_train["latitude"].groupby(df_train["y"]).transform("mean")
-        df_train["lng_centroid_distribution"] = df_train["longitude"].groupby(df_train["y"]).transform("mean")
-        df_train["crs_y_centroid_distribution"] = df_train["crs_y"].groupby(df_train["y"]).transform("mean")
-        df_train["crs_x_centroid_distribution"] = df_train["crs_x"].groupby(df_train["y"]).transform("mean")
+        df_train["lat_weighted"] = df_train["latitude"].groupby(df_train["y"]).transform("mean")
+        df_train["lng_weighted"] = df_train["longitude"].groupby(df_train["y"]).transform("mean")
+        df_train["crs_y_weighted"] = df_train["crs_y"].groupby(df_train["y"]).transform("mean")
+        df_train["crs_x_weighted"] = df_train["crs_x"].groupby(df_train["y"]).transform("mean")
         df_filter = df_train.filter(
             items=[
                 "y",
-                "lat_centroid_distribution",
-                "lng_centroid_distribution",
-                "crs_y_centroid_distribution",
-                "crs_x_centroid_distribution",
+                "lat_weighted",
+                "lng_weighted",
+                "crs_y_weighted",
+                "crs_x_weighted",
             ]
         ).drop_duplicates()
         df = df.merge(df_filter, on="y")
@@ -193,12 +195,17 @@ class GeoguesserDataModule(pl.LightningDataModule):
             df: dataframe
         """
         df.loc[:, ["crs_x_minmax", "crs_y_minmax"]] = scaler.transform(df.loc[:, ["crs_x", "crs_y"]])
+
         df.loc[:, ["crs_centroid_x_minmax", "crs_centroid_y_minmax"]] = scaler.transform(
             df.loc[:, ["crs_centroid_x", "crs_centroid_y"]]
         )
+        df.loc[:, ["crs_x_weighted_minmax", "crs_y_weighted_minmax"]] = scaler.transform(
+            df.loc[:, ["crs_x_weighted", "crs_y_weighted"]]
+        )
+
         return df
 
-    def _get_class_to_coords_maps(self, num_classes: int) -> Tuple[torch.Tensor, torch.Tensor]:
+    def _get_class_to_coords_maps(self, num_classes: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Returns list of tuples (lat,lng). Index of the element in the list (class_idx) defines the class and the element (tuple) defines the CRS minmax centroid of the class. note: in the for loop, we take only 1 row with concrete class class. Then we extract the coords from that row.
 
@@ -209,23 +216,48 @@ class GeoguesserDataModule(pl.LightningDataModule):
         """
 
         df_class_info = self.df.loc[
-            :, ["polygon_index", "y", "crs_centroid_x_minmax", "crs_centroid_y_minmax", "centroid_lat", "centroid_lng"]
+            :,
+            [
+                "polygon_index",
+                "y",
+                "crs_centroid_x_minmax",
+                "crs_centroid_y_minmax",
+                "centroid_lat",
+                "centroid_lng",
+                "crs_x_weighted_minmax",
+                "crs_y_weighted_minmax",
+            ],
         ].drop_duplicates()
+
         class_to_crs_centroid_map = []
         class_to_latlng_centroid_map = []
+        class_to_crs_weighted_map = []
+
         for class_idx in range(num_classes):
             row = df_class_info.loc[df_class_info["y"] == class_idx].head(1)  # ensure that only one row is taken
             polygon_crs_x, polygon_crs_y = (
                 row["crs_centroid_x_minmax"].values[0],
                 row["crs_centroid_y_minmax"].values[0],
             )  # values extracts values as numpy array
+
+            polygon_crs_x_weighted, polygon_crs_y_weighted = (
+                row["crs_x_weighted_minmax"].values[0],
+                row["crs_y_weighted_minmax"].values[0],
+            )  # values extracts values as numpy array
+
             polygon_lat, polygon_lng = (
                 row["centroid_lat"].values[0],
                 row["centroid_lng"].values[0],
             )  # values extracts values as numpy array
             class_to_crs_centroid_map.append([polygon_crs_x, polygon_crs_y])
             class_to_latlng_centroid_map.append([polygon_lat, polygon_lng])
-        return torch.tensor(class_to_crs_centroid_map), torch.tensor(class_to_latlng_centroid_map)
+            class_to_crs_weighted_map.append([polygon_crs_x_weighted, polygon_crs_y_weighted])
+
+        return (
+            torch.tensor(class_to_crs_centroid_map),
+            torch.tensor(class_to_latlng_centroid_map),
+            torch.tensor(class_to_crs_weighted_map),
+        )
 
     def store_df_to_report(self, path: Path):
         os.makedirs(path.parents[0])
