@@ -220,10 +220,5 @@ if __name__ == "__main__":
         print(new_lr)
         exit(1)
 
-    # if scheduler_type == SchedulerType.AUTO_LR.value:
-    #     trainer.tune(
-    #         model, datamodule=datamodule, lr_find_kwargs={"num_training": 35, "early_stop_threshold": None}
-    #     )
-
     trainer.fit(model, datamodule, ckpt_path=trainer_checkpoint)
     trainer.test(model, datamodule)

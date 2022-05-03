@@ -93,7 +93,7 @@ class OverrideEpochMetricCallback(Callback):
         self._log_step_as_current_epoch(trainer, pl_module)
 
     def _log_step_as_current_epoch(self, trainer, pl_module: pl.LightningModule):
-        pl_module.log("step", trainer.current_epoch)
+        pl_module.log("step", float(trainer.current_epoch))
 
 
 class BackboneFreezing(Callback):
