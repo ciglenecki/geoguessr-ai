@@ -189,7 +189,6 @@ if __name__ == "__main__":
         unfreeze_at_epoch=unfreeze_at_epoch,
     )
 
-
     tensorboard_logger = pl_loggers.TensorBoardLogger(
         save_dir=str(output_report),
         name=experiment_directory_name,
