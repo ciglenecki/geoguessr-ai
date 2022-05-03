@@ -17,7 +17,9 @@ import matplotlib.pyplot as plt
 from calculate_norm_std import calculate_norm_std
 from datamodule_geoguesser import GeoguesserDataModule
 from defaults import DEFAULT_EARLY_STOPPING_EPOCH_FREQ, DEFAULT_IMAGE_MEAN, DEFAULT_IMAGE_STD
-from model import LitModelClassification, LitModelRegression, LitSingleModel
+from model_classification import LitModelClassification, LitSingleModel
+from model_regression import LitModelRegression
+
 from model_callbacks import (
     BackboneFreezing,
     LogMetricsAsHyperparams,

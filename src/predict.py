@@ -10,7 +10,9 @@ from torchvision import transforms
 
 from datamodule_geoguesser import GeoguesserDataModulePredict
 from defaults import DEFAULT_IMAGE_MEAN, DEFAULT_IMAGE_STD
-from model import LitModelClassification, LitModelRegression, LitSingleModel
+from model_classification import LitModelClassification, LitSingleModel
+from model_regression import LitModelRegression
+
 from utils_paths import PATH_DATA_RAW
 
 

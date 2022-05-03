@@ -4,7 +4,8 @@ from fastapi import APIRouter
 from app.config import config
 from datamodule_geoguesser import GeoguesserDataModulePredict
 from defaults import DEFAULT_IMAGE_MEAN, DEFAULT_IMAGE_SIZE
-from model import LitModelClassification, LitModelRegression, LitSingleModel
+from model_classification import LitModelClassification, LitSingleModel
+from model_regression import LitModelRegression
 from utils_paths import PATH_DATA_COMPLETE, PATH_DATA_RAW, PATH_MODEL
 from ..logger import logger
 from fastapi import FastAPI, HTTPException
