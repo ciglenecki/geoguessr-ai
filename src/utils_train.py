@@ -15,9 +15,7 @@ class SchedulerType(Enum):
 
 
 def get_trainer_steps_in_epoch(trainer: pl.Trainer):
-    print(len(trainer.train_dataloader))
-    print(trainer.num_training_batches)
-
+    
     if trainer.limit_train_batches == 1:
         return len(trainer.train_dataloader)
     elif trainer.limit_train_batches > 1:

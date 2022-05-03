@@ -14,7 +14,7 @@ from torchvision.models.resnet import model_urls as resnet_model_urls
 from time import time
 
 from defaults import DEFAULT_EARLY_STOPPING_EPOCH_FREQ, DEFAULT_TORCHVISION_VERSION
-from pabloppp_optim.delayer_scheduler import DelayerSchedulerOrg
+from pabloppp_optim.delayer_scheduler import DelayerScheduler
 from utils_geo import crs_coords_to_degree, haversine_from_degs
 from utils_model import crs_coords_weighed_mean, model_remove_fc
 from utils_train import OptimizerType, SchedulerType, multi_acc
@@ -148,26 +148,22 @@ class LitModelClassification(pl.LightningModule):
         return data_dict
 
     def validation_step(self, batch, batch_idx):
-        # image_list, y_true, image_true_crs_coords = batch
-        # y_pred = self(image_list)
+        image_list, y_true, image_true_crs_coords = batch
+        y_pred = self(image_list)
 
-        # pred_crs_coord = crs_coords_weighed_mean(y_pred, self.class_to_crs_centroid_map, top_k=5)
-        # haver_dist = get_haversine_from_predictions(self.crs_scaler, pred_crs_coord, image_true_crs_coords)
+        pred_crs_coord = crs_coords_weighed_mean(y_pred, self.class_to_crs_centroid_map, top_k=5)
+        haver_dist = get_haversine_from_predictions(self.crs_scaler, pred_crs_coord, image_true_crs_coords)
 
-        # loss = F.cross_entropy(y_pred, y_true)
-        # acc = multi_acc(y_pred, y_true)
-        # data_dict = {
-        #     "loss": loss,  # the 'loss' key needs to be present
-        #     "val/loss": 1 / (time() - self.time),  # TODO: remove, "loss"
-        #     "val/acc": acc,
-        #     "val/haversine_distance": haver_dist,
-        # }
+        loss = F.cross_entropy(y_pred, y_true)
+        acc = multi_acc(y_pred, y_true)
+
         data_dict = {
-            "loss": 1 / (time() - self.time),  # the 'loss' key needs to be present
-            "val/loss": 1 / (time() - self.time),  # TODO: remove, "loss"
-            "val/acc": (time() - self.time),
-            "val/haversine_distance": 1 / (time() - self.time),
+            "loss": loss,  # the 'loss' key needs to be present
+            "val/loss": loss,
+            "val/acc": acc,
+            "val/haversine_distance": haver_dist,
         }
+
         log_dict = data_dict.copy()
         log_dict.pop("loss", None)
         self.log_dict(log_dict, on_step=True, on_epoch=True, logger=True, prog_bar=True)
@@ -206,6 +202,7 @@ class LitModelClassification(pl.LightningModule):
         return data_dict
 
     def configure_optimizers(self):
+
         if self.optimizer_type == OptimizerType.ADAMW.value:
             optimizer = torch.optim.AdamW(self.parameters(), lr=float(self.learning_rate), weight_decay=5e-3)
         else:
@@ -232,9 +229,9 @@ class LitModelClassification(pl.LightningModule):
         if self.scheduler_type == SchedulerType.ONECYCLE.value:
             scheduler = torch.optim.lr_scheduler.OneCycleLR(
                 optimizer,
-                max_lr=self.hparams.learning_rate,
+                max_lr=1e-1,  # TOOD:self.learning_rate
                 steps_per_epoch=self.train_dataloader_size,
-                epochs=self.epochs - self.epoch,
+                epochs=self.epochs,
             )
             interval = "step"
         else:  # SchedulerType.PLATEAU
@@ -242,11 +239,36 @@ class LitModelClassification(pl.LightningModule):
                 optimizer, "min", patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ // 2) - 1
             )
             interval = "epoch"
-        # if self.unfreeze_backbone_at_epoch:
-        #     scheduler = DelayerSchedulerOrg(scheduler.optimizer, self.unfreeze_backbone_at_epoch, scheduler, warmup_lr=self.learning_rate)  # type: ignore
+
+        if self.unfreeze_backbone_at_epoch:
+            scheduler = DelayerScheduler(
+                delay_epochs=self.unfreeze_backbone_at_epoch,
+                after_scheduler=scheduler,
+                optimizer=scheduler.optimizer,
+                train_dataloader_size=self.train_dataloader_size,
+                interval_mode=interval,
+                warmup_lr=float(self.learning_rate),
+            )  # type: ignore
         config_dict["lr_scheduler"].update({"scheduler": scheduler, "interval": interval})
         return config_dict
+        
+    def optimizer_step(
+        self,
+        epoch: int,
+        batch_idx: int,
+        optimizer,
+        optimizer_idx: int = 0,
+        optimizer_closure,
+        on_tpu: bool = False,
+        using_native_amp: bool = False,
+        using_lbfgs: bool = False,
+    ) -> None:
+        optimizer.step(closure=optimizer_closure)
 
+        if self.trainer.current_epoch < self.unfreeze_backbone_at_epoch:
+            lr_scale = min(1.0, float(self.trainer.global_step + 1) / 500.0)
+            for pg in optimizer.param_groups:
+                pg["lr"] = lr_scale * self.hparams.learning_rate
 
 class LitModelRegression(pl.LightningModule):
     loggers: List[TensorBoardLogger]
@@ -388,7 +410,7 @@ class LitModelRegression(pl.LightningModule):
         return data_dict
 
     def configure_optimizers(self):
-        print("\n\n CONFIGUTE OPTIMIZERS CALLED \n\n")
+
         if self.optimizer_type == OptimizerType.ADAMW.value:
             optimizer = torch.optim.AdamW(self.parameters(), lr=float(self.learning_rate), weight_decay=5e-3)
         else:
@@ -415,8 +437,9 @@ class LitModelRegression(pl.LightningModule):
             scheduler = torch.optim.lr_scheduler.OneCycleLR(
                 optimizer,
                 max_lr=0.01,
-                steps_per_epoch=self.train_dataloader_size,
-                epochs=self.epochs,
+                total_steps=self.trainer.estimated_stepping_batches
+                # steps_per_epoch=self.train_dataloader_size,
+                # epochs=self.epochs,
             )
             interval = "step"
         else:  # SchedulerType.PLATEAU
@@ -427,6 +450,11 @@ class LitModelRegression(pl.LightningModule):
 
         config_dict["lr_scheduler"].update({"scheduler": scheduler, "interval": interval})
         return [config_dict["optimizer"]], config_dict["lr_scheduler"]
+
+
+
+    # def lr_scheduler_step(self, scheduler, optimizer_idx: int, metric: Optional[Any]) -> None:
+    #     return super().lr_scheduler_step(scheduler, optimizer_idx, metric)
 
 
 class LitSingleModel(LitModelClassification):

@@ -243,7 +243,7 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
         pl_args.log_every_n_steps = 2
         args.image_size = 28
         args.batch_size = 2
-        args.unfreeze_backbone_at_epoch = 1
+        # args.unfreeze_backbone_at_epoch = 1
     return args, pl_args
 
 

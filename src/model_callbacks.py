@@ -1,44 +1,23 @@
-from typing import Any, Dict, Iterable, List, Literal, Optional, Union
+from typing import List, Optional, Union
 
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import BackboneFinetuning, Callback, BaseFinetuning
 from torch.nn import Module
 from torch.optim.optimizer import Optimizer
-from pabloppp_optim.delayer_scheduler import DelayerScheduler
 
 from utils_model import get_last_layer, get_model_blocks
-import logging
-from typing import Any, Callable, Iterable, List, Optional, Union
 
-import torch
-from torch.nn import Module, ModuleDict
-from torch.nn.modules.batchnorm import _BatchNorm
+from torch.nn import Module
 from torch.optim.optimizer import Optimizer
 
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks.base import Callback
 from pytorch_lightning.utilities.exceptions import MisconfigurationException
-from pytorch_lightning.utilities.rank_zero import rank_zero_warn
-
-from utils_train import get_trainer_steps_in_epoch
+from pytorch_lightning import loggers as pl_loggers
 
 
 class InvalidArgument(Exception):
     pass
-
-
-min_value = float(0)
-max_value = float(1e5)
-hyperparameter_metrics_init = {
-    "train/loss_epoch": max_value,
-    "train/acc_epoch": min_value,
-    "val/loss_epoch": max_value,
-    "val/acc_epoch": min_value,
-    "val/haversine_distance_epoch": max_value,
-    "test/loss_epoch": max_value,
-    "test/acc_epoch": min_value,
-    "test/haversine_distance_epoch": max_value,
-}
 
 
 class LogMetricsAsHyperparams(pl.Callback):
@@ -48,10 +27,28 @@ class LogMetricsAsHyperparams(pl.Callback):
     For this callback to work, default_hp_metric has to be set to false when creating TensorBoardLogger
     """
 
-    def on_train_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
+    def __init__(self) -> None:
+        super().__init__()
+        min_value = float(0)
+        max_value = float(1e5)
+        self.hyperparameter_metrics_init = {
+            "train/loss_epoch": max_value,
+            "train/acc_epoch": min_value,
+            "val/loss_epoch": max_value,
+            "val/acc_epoch": min_value,
+            "val/haversine_distance_epoch": max_value,
+            "test/loss_epoch": max_value,
+            "test/acc_epoch": min_value,
+            "test/haversine_distance_epoch": max_value,
+            "epoch": float(0),
+        }
+
+    def on_fit_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
+
         if pl_module.loggers:
-            for logger in pl_module.loggers:
-                logger.log_hyperparams(pl_module.hparams, hyperparameter_metrics_init)  # type: ignore
+            for logger in pl_module.loggers:  # type: ignore
+                logger: pl_loggers.TensorBoardLogger
+                logger.log_hyperparams(pl_module.hparams, self.hyperparameter_metrics_init)  # type: ignore
 
 
 class OnTrainEpochStartLogCallback(pl.Callback):
@@ -60,14 +57,14 @@ class OnTrainEpochStartLogCallback(pl.Callback):
     def on_train_epoch_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
         data_dict = {
             "trainable_params_num/epoch": float(pl_module.get_num_of_trainable_params()),  # type: ignore
-            "epoch_true": trainer.current_epoch,
             "step": trainer.current_epoch,
         }
         pl_module.log_dict(data_dict)
-        pl_module.log("step", trainer.current_epoch)
 
 
 class OverrideEpochMetricCallback(Callback):
+    """Override the X axis in Tensorboard for all "epoch" events. X axis will be epoch index instead of step index"""
+
     def __init__(self) -> None:
         super().__init__()
 

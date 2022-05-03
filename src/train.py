@@ -54,14 +54,16 @@ if __name__ == "__main__":
     epochs = args.epochs
     recaculate_norm = args.recaculate_normalization
     optimizer_type = args.optimizer
-    is_quick = args.quick
+    is_quick = args.quick or dataset_frac < 0.1
+    output_report = PATH_REPORT_QUICK if is_quick else args.output_report
 
     timestamp = get_timestamp()
     experiment_codeword = random_codeword()
     filename_report = Path(
-        args.output_report,
-        "__".join(["train", experiment_codeword, timestamp]) + "__quick" if is_quick else "" + ".txt",
+        output_report,
+        "__".join(["train", experiment_codeword, timestamp]) + ("__quick" if is_quick else "") + ".txt",
     )
+
     stdout_to_file(filename_report)
     print(str(filename_report))
     pprint([vars(args), vars(pl_args)])
@@ -95,8 +97,7 @@ if __name__ == "__main__":
     experiment_directory_name = "{}__{}__{}".format(
         experiment_codeword, "regression" if is_regression else "num_classes_" + str(num_classes), timestamp
     )
-    report_dir = PATH_REPORT_QUICK if is_quick else PATH_REPORT
-    datamodule.store_df_to_report(Path(report_dir, experiment_directory_name, "data.csv"))
+    datamodule.store_df_to_report(Path(output_report, experiment_directory_name, "data.csv"))
 
     train_dataloader_size = len(datamodule.train_dataloader())
     log_dictionary = {
@@ -140,10 +141,10 @@ if __name__ == "__main__":
             callback_checkpoint,
             callback_early_stopping,
             TQDMProgressBar(refresh_rate=bar_refresh_rate),
-            # LogMetricsAsHyperparams(),
-            # OnTrainEpochStartLogCallback(),  # TODO: verify that this works this should be enabled
             ModelSummary(max_depth=2),
-            OverrideEpochMetricCallback(),  # TODO: verify that this works
+            LogMetricsAsHyperparams(),
+            OverrideEpochMetricCallback(),
+            OnTrainEpochStartLogCallback(),
             LearningRateMonitor(log_momentum=True),
         ]
 
@@ -175,9 +176,9 @@ if __name__ == "__main__":
         )
 
         tb_logger = pl_loggers.TensorBoardLogger(
-            save_dir=str(report_dir),
+            save_dir=str(output_report),
             name=experiment_directory_name,
-            default_hp_metric=True,
+            default_hp_metric=False,  # default_hp_metric should be turned off unless you log hyperparameters (logger.log_hyperparams(dict)) before the module starts with training
             log_graph=True,
         )
 
@@ -185,8 +186,8 @@ if __name__ == "__main__":
 
         trainer: pl.Trainer = pl.Trainer.from_argparse_args(
             pl_args,
-            logger=tb_logger,
-            default_root_dir=report_dir,
+            logger=[tb_logger],
+            default_root_dir=output_report,
             callbacks=callbacks,
             auto_lr_find=scheduler_type == SchedulerType.AUTO_LR.value,
         )
