@@ -18,7 +18,7 @@ def model_remove_fc(model: ResNet):
     return model
 
 
-def get_model_blocks(model):
+def get_model_blocks(model: nn.Module):
     """
     returns list of model blocks without last layer (classifier/fc)
     """
@@ -26,7 +26,7 @@ def get_model_blocks(model):
         return list(model.features)  # model.children())[-3]
     if type(model) is ResNet:
         return list(model.children())  # model.children())[-3]
-    return []
+    return list(model.children())
 
 
 def get_last_layer(model: nn.Module) -> nn.Module | None:

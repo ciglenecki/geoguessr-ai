@@ -5,6 +5,7 @@ from pprint import pprint
 
 import pytorch_lightning as pl
 from pytorch_lightning import loggers as pl_loggers
+from pytorch_lightning.callbacks import LearningRateMonitor
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from pytorch_lightning.callbacks.model_summary import ModelSummary
@@ -14,29 +15,20 @@ from torchvision.transforms import AutoAugmentPolicy
 
 from calculate_norm_std import calculate_norm_std
 from datamodule_geoguesser import GeoguesserDataModule
-from defaults import DEFAULT_EARLY_STOPPING_EPOCH_FREQ, DEFAULT_IMAGE_MEAN, DEFAULT_IMAGE_STD
+from defaults import (DEFAULT_EARLY_STOPPING_EPOCH_FREQ, DEFAULT_IMAGE_MEAN,
+                      DEFAULT_IMAGE_STD)
 from model import LitModelClassification, LitModelRegression, LitSingleModel
-from model_callbacks import (
-    BackboneFinetuningLastLayers,
-    LogMetricsAsHyperparams,
-    OnTrainEpochStartLogCallback,
-    OverrideEpochMetricCallback,
-)
+from model_callbacks import (BackboneFreezing, LogMetricsAsHyperparams,
+                             OnTrainEpochStartLogCallback,
+                             OverrideEpochMetricCallback)
 from train_args import parse_args_train
-from utils_functions import add_prefix_to_keys, get_timestamp, is_primitive, random_codeword, stdout_to_file
-from utils_paths import PATH_REPORT
+from utils_functions import (add_prefix_to_keys, get_timestamp, is_primitive,
+                             random_codeword, stdout_to_file)
+from utils_paths import PATH_REPORT, PATH_REPORT_QUICK
 from utils_train import SchedulerType
 
 if __name__ == "__main__":
     args, pl_args = parse_args_train()
-
-    timestamp = get_timestamp()
-    experiment_codeword = random_codeword()
-    filename_report = Path(args.output_report, "__".join(["train", experiment_codeword, timestamp]) + ".txt")
-    stdout_to_file(filename_report)
-    print(str(filename_report))
-    pprint([vars(args), vars(pl_args)])
-
     image_size = args.image_size
     num_workers = args.num_workers
     model_names = args.models
@@ -48,6 +40,7 @@ if __name__ == "__main__":
     weight_decay = args.weight_decay
     shuffle_before_splitting = args.shuffle_before_splitting
     train_frac, val_frac, test_frac = args.split_ratios
+    dataset_frac = args.dataset_frac
     dataset_dirs = args.dataset_dirs
     batch_size = args.batch_size
     cached_df = args.cached_df
@@ -57,6 +50,21 @@ if __name__ == "__main__":
     scheduler_type = args.scheduler
     epochs = args.epochs
     recaculate_norm = args.recaculate_normalization
+    optimizer_type = args.optimizer
+    is_quick = args.quick or dataset_frac < 0.1
+    output_report = PATH_REPORT_QUICK if is_quick else args.output_report
+    lr_finetune = args.lr_finetune
+
+    timestamp = get_timestamp()
+    experiment_codeword = random_codeword()
+    filename_report = Path(
+        output_report,
+        "__".join(["train", experiment_codeword, timestamp]) + ("__quick" if is_quick else "") + ".txt",
+    )
+
+    stdout_to_file(filename_report)
+    print(str(filename_report))
+    pprint([vars(args), vars(pl_args)])
 
     mean, std = calculate_norm_std(dataset_dirs) if recaculate_norm else DEFAULT_IMAGE_MEAN, DEFAULT_IMAGE_STD
 
@@ -76,6 +84,7 @@ if __name__ == "__main__":
         train_frac=train_frac,
         val_frac=val_frac,
         test_frac=test_frac,
+        dataset_frac=dataset_frac,
         image_transform=image_transform_train,
         num_workers=num_workers,
         shuffle_before_splitting=shuffle_before_splitting,
@@ -86,8 +95,9 @@ if __name__ == "__main__":
     experiment_directory_name = "{}__{}__{}".format(
         experiment_codeword, "regression" if is_regression else "num_classes_" + str(num_classes), timestamp
     )
-    datamodule.store_df_to_report(Path(PATH_REPORT, experiment_directory_name, "data.csv"))
+    datamodule.store_df_to_report(Path(output_report, experiment_directory_name, "data.csv"))
 
+    train_dataloader_size = len(datamodule.train_dataloader())
     log_dictionary = {
         **add_prefix_to_keys(vars(args), "user_args/"),
         **add_prefix_to_keys(vars(pl_args), "lightning_args/"),
@@ -102,12 +112,14 @@ if __name__ == "__main__":
         # configuration, happen after every training epoch.
         callback_early_stopping = EarlyStopping(
             monitor="val/loss_epoch",
+            mode="min",
             patience=DEFAULT_EARLY_STOPPING_EPOCH_FREQ,
             verbose=True,
-            check_on_train_epoch_end=True,
+            check_on_train_epoch_end=False,
         )
         callback_checkpoint = ModelCheckpoint(
-            monitor="val/haversine_distance_epoch",
+            monitor="val/haversine_epoch",  # TODO: set to val/haversine_distance
+            mode="min",
             filename="__".join(
                 [
                     experiment_codeword,
@@ -118,30 +130,27 @@ if __name__ == "__main__":
                 ]
             ),
             auto_insert_metric_name=False,
+            verbose=True,
+            save_on_train_epoch_end=False,
         )
-        bar_refresh_rate = int(len(datamodule.train_dataloader()) / pl_args.log_every_n_steps)
+        bar_refresh_rate = int(train_dataloader_size / pl_args.log_every_n_steps)
 
         callbacks = [
-            callback_early_stopping,
             callback_checkpoint,
+            callback_early_stopping,
             TQDMProgressBar(refresh_rate=bar_refresh_rate),
-            LogMetricsAsHyperparams(),
-            OnTrainEpochStartLogCallback(),
             ModelSummary(max_depth=2),
+            LogMetricsAsHyperparams(),
             OverrideEpochMetricCallback(),
+            OnTrainEpochStartLogCallback(),
+            LearningRateMonitor(log_momentum=True),
         ]
 
-        if unfreeze_backbone_at_epoch and scheduler_type == SchedulerType.PLATEAU.value:
-            rate_fine_tuning_multiply = 3
-            learning_rate = float(learning_rate * rate_fine_tuning_multiply)
-            multiplicative = lambda epoch: 1
+        if unfreeze_backbone_at_epoch:
             callbacks.append(
-                BackboneFinetuningLastLayers(
-                    unfreeze_blocks_num=unfreeze_blocks_num,
-                    backbone_initial_ratio_lr=1 / rate_fine_tuning_multiply,
-                    unfreeze_backbone_at_epoch=unfreeze_backbone_at_epoch,
-                    lambda_func=multiplicative,
-                ),
+                BackboneFreezing(
+                    unfreeze_blocks_num=unfreeze_blocks_num, unfreeze_backbone_at_epoch=unfreeze_backbone_at_epoch
+                )
             )
 
         model_constructor = (
@@ -152,6 +161,7 @@ if __name__ == "__main__":
             model_name=model_names[0],
             pretrained=pretrained,
             learning_rate=learning_rate,
+            lr_finetune=lr_finetune,
             weight_decay=weight_decay,
             batch_size=batch_size,
             image_size=image_size,
@@ -159,13 +169,15 @@ if __name__ == "__main__":
             epochs=epochs,
             class_to_crs_centroid_map=datamodule.class_to_crs_centroid_map,
             crs_scaler=datamodule.crs_scaler,
-            train_steps_per_epoch=len(datamodule.train_dataloader()),
+            train_dataloader_size=train_dataloader_size,
+            optimizer_type=optimizer_type,
+            unfreeze_backbone_at_epoch=unfreeze_backbone_at_epoch,
         )
 
         tb_logger = pl_loggers.TensorBoardLogger(
-            save_dir=str(PATH_REPORT),
+            save_dir=str(output_report),
             name=experiment_directory_name,
-            default_hp_metric=False,
+            default_hp_metric=False,  # default_hp_metric should be turned off unless you log hyperparameters (logger.log_hyperparams(dict)) before the module starts with training
             log_graph=True,
         )
 
@@ -174,7 +186,7 @@ if __name__ == "__main__":
         trainer: pl.Trainer = pl.Trainer.from_argparse_args(
             pl_args,
             logger=[tb_logger],
-            default_root_dir=PATH_REPORT,
+            default_root_dir=output_report,
             callbacks=callbacks,
             auto_lr_find=scheduler_type == SchedulerType.AUTO_LR.value,
         )

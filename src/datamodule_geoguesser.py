@@ -5,10 +5,10 @@ It handles the creation/loading of the main dataframe where images metadata is s
 """
 from __future__ import annotations, division
 
+import os
 from itertools import combinations
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
-import os
 
 import numpy as np
 import pandas as pd
@@ -23,17 +23,11 @@ from torchvision import transforms
 import preprocess_csv_concat
 import preprocess_csv_create_polygons
 from dataset_geoguesser import GeoguesserDataset, GeoguesserDatasetPredict
-from defaults import (
-    DEAFULT_DROP_LAST,
-    DEAFULT_NUM_WORKERS,
-    DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING,
-    DEFAULT_BATCH_SIZE,
-    DEFAULT_LOAD_DATASET_IN_RAM,
-    DEFAULT_SPACING,
-    DEFAULT_TEST_FRAC,
-    DEFAULT_TRAIN_FRAC,
-    DEFAULT_VAL_FRAC,
-)
+from defaults import (DEAFULT_DROP_LAST, DEAFULT_NUM_WORKERS,
+                      DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING,
+                      DEFAULT_BATCH_SIZE, DEFAULT_DATASET_FRAC,
+                      DEFAULT_LOAD_DATASET_IN_RAM, DEFAULT_SPACING,
+                      DEFAULT_TEST_FRAC, DEFAULT_TRAIN_FRAC, DEFAULT_VAL_FRAC)
 from utils_dataset import DatasetSplitType, filter_df_by_dataset_split
 from utils_functions import print_df_sample
 from utils_paths import PATH_DATA_COMPLETE, PATH_DATA_EXTERNAL, PATH_DATA_RAW
@@ -52,6 +46,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
         train_frac=DEFAULT_TRAIN_FRAC,
         val_frac=DEFAULT_VAL_FRAC,
         test_frac=DEFAULT_TEST_FRAC,
+        dataset_frac=DEFAULT_DATASET_FRAC,
         image_transform: transforms.Compose = transforms.Compose([transforms.ToTensor()]),
         num_workers=DEAFULT_NUM_WORKERS,
         drop_last=DEAFULT_DROP_LAST,
@@ -69,6 +64,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
         self.train_frac = train_frac
         self.val_frac = val_frac
         self.test_frac = test_frac
+        self.dataset_frac = dataset_frac
 
         self.image_transform = image_transform
         self.num_workers = num_workers
@@ -83,7 +79,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
         self.df = df
         print_df_sample(self.df)
 
-        """ Creating cRS hash map for all classes"""
+        """ Creating CRS hash map for all classes"""
         self.num_classes = len(self.df["y"].drop_duplicates())
         assert (
             self.num_classes == self.df["y"].max() + 1
@@ -239,9 +235,21 @@ class GeoguesserDataModule(pl.LightningDataModule):
 
     def setup(self, stage: Optional[str] = None):
 
-        dataset_train_indices = self.df.index[self.df["uuid"].isin(self.train_dataset.uuids)].to_list()  # type: ignore # [indices can be converted to list]
-        dataset_val_indices = self.df.index[self.df["uuid"].isin(self.val_dataset.uuids)].to_list()  # type: ignore # [indices can be converted to list]
-        dataset_test_indices = self.df.index[self.df["uuid"].isin(self.test_dataset.uuids)].to_list()  # type: ignore # [indices can be converted to list]
+        dataset_train_indices = self.df.index[self.df["uuid"].isin(self.train_dataset.uuids)].to_numpy()  # type: ignore # [indices can be converted to list]
+        dataset_val_indices = self.df.index[self.df["uuid"].isin(self.val_dataset.uuids)].to_numpy()  # type: ignore # [indices can be converted to list]
+        dataset_test_indices = self.df.index[self.df["uuid"].isin(self.test_dataset.uuids)].to_numpy()  # type: ignore # [indices can be converted to list]
+
+        if self.dataset_frac != 1:
+            dataset_train_indices = np.random.choice(
+                dataset_train_indices, int(self.dataset_frac * len(dataset_train_indices)), replace=False
+            )
+            dataset_val_indices = np.random.choice(
+                dataset_val_indices, int(self.dataset_frac * len(dataset_val_indices)), replace=False
+            )
+            dataset_test_indices = np.random.choice(
+                dataset_test_indices, int(self.dataset_frac * len(dataset_test_indices)), replace=False
+            )
+
         self._sanity_check_indices(dataset_train_indices, dataset_val_indices, dataset_test_indices)
 
         if self.shuffle_before_splitting:

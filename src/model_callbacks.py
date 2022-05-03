@@ -1,7 +1,11 @@
-from typing import Any, Iterable, List, Optional, Union
+from typing import List, Optional, Union
 
 import pytorch_lightning as pl
-from pytorch_lightning.callbacks import BackboneFinetuning, Callback
+from pytorch_lightning import loggers as pl_loggers
+from pytorch_lightning.callbacks import (BackboneFinetuning, BaseFinetuning,
+                                         Callback)
+from pytorch_lightning.callbacks.base import Callback
+from pytorch_lightning.utilities.exceptions import MisconfigurationException
 from torch.nn import Module
 from torch.optim.optimizer import Optimizer
 
@@ -12,20 +16,6 @@ class InvalidArgument(Exception):
     pass
 
 
-min_value = float(0)
-max_value = float(1e9)
-hyperparameter_metrics_init = {
-    "train/loss_epoch": max_value,
-    "train/acc_epoch": min_value,
-    "val/loss_epoch": max_value,
-    "val/acc_epoch": min_value,
-    "val/haversine_distance_epoch": max_value,
-    "test/loss_epoch": max_value,
-    "test/acc_epoch": min_value,
-    "test/haversine_distance_epoch": max_value,
-}
-
-
 class LogMetricsAsHyperparams(pl.Callback):
     """
     Registeres metrics in the "hparams" tab in TensorBoard
@@ -33,53 +23,46 @@ class LogMetricsAsHyperparams(pl.Callback):
     For this callback to work, default_hp_metric has to be set to false when creating TensorBoardLogger
     """
 
-    def on_train_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
+    def __init__(self) -> None:
+        super().__init__()
+        min_value = float(0)
+        max_value = float(1e5)
+        self.hyperparameter_metrics_init = {
+            "train/loss_epoch": max_value,
+            "train/acc_epoch": min_value,
+            "val/loss_epoch": max_value,
+            "val/acc_epoch": min_value,
+            "val/haversine_distance_epoch": max_value,
+            "test/loss_epoch": max_value,
+            "test/acc_epoch": min_value,
+            "test/haversine_distance_epoch": max_value,
+            "epoch": float(0),
+            "epoch_true": float(0),
+        }
+
+    def on_fit_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
+
         if pl_module.loggers:
-            for logger in pl_module.loggers:
-                logger.log_hyperparams(pl_module.hparams, hyperparameter_metrics_init)  # type: ignore
+            for logger in pl_module.loggers:  # type: ignore
+                logger: pl_loggers.TensorBoardLogger
+                logger.log_hyperparams(pl_module.hparams, self.hyperparameter_metrics_init)  # type: ignore
 
 
 class OnTrainEpochStartLogCallback(pl.Callback):
     """Logs metrics. pl_module has to implement get_num_of_trainable_params function"""
 
-    def on_train_batch_start(
-        self, trainer: pl.Trainer, pl_module: pl.LightningModule, batch: Any, batch_idx: int, unused: int = 0
-    ) -> None:
-        current_lr = trainer.optimizers[0].param_groups[0]["lr"]
-        data_dict = {
-            "current_lr_batch": float(current_lr),
-        }
-        pl_module.log_dict(data_dict)
-
     def on_train_epoch_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
         data_dict = {
-            "epoch": float(trainer.current_epoch),
-            "step": float(trainer.current_epoch),
+            "trainable_params_num/epoch": float(pl_module.get_num_of_trainable_params()),  # type: ignore
+            "epoch_true": trainer.current_epoch,
+            "step": trainer.current_epoch,
         }
         pl_module.log_dict(data_dict)
-
-    def on_train_start(self, trainer, pl_module: pl.LightningModule):
-        log_dict_fix = {
-            "train/loss": max_value,
-            "train/acc": min_value,
-            "val/loss": max_value,
-            "val/acc": min_value,
-            "val/haversine_distance": max_value,
-            "test/loss": max_value,
-            "test/acc": min_value,
-            "test/haversine_distance": max_value,
-        }
-        current_lr = trainer.optimizers[0].param_groups[0]["lr"]
-        data_dict = {
-            "trainable_params_num": float(pl_module.get_num_of_trainable_params()),  # type: ignore
-            "current_lr": float(current_lr),
-            "step": float(trainer.current_epoch),
-            **log_dict_fix,
-        }
-        pl_module.log_dict(data_dict, logger=False)
 
 
 class OverrideEpochMetricCallback(Callback):
+    """Override the X axis in Tensorboard for all "epoch" events. X axis will be epoch index instead of step index"""
+
     def __init__(self) -> None:
         super().__init__()
 
@@ -92,35 +75,53 @@ class OverrideEpochMetricCallback(Callback):
     def on_validation_epoch_end(self, trainer, pl_module: pl.LightningModule):
         self._log_step_as_current_epoch(trainer, pl_module)
 
+    def on_training_epoch_start(self, trainer, pl_module: pl.LightningModule):
+        self._log_step_as_current_epoch(trainer, pl_module)
+
+    def on_test_epoch_start(self, trainer, pl_module: pl.LightningModule):
+        self._log_step_as_current_epoch(trainer, pl_module)
+
+    def on_validation_epoch_start(self, trainer, pl_module: pl.LightningModule):
+        self._log_step_as_current_epoch(trainer, pl_module)
+
     def _log_step_as_current_epoch(self, trainer, pl_module: pl.LightningModule):
         pl_module.log("step", trainer.current_epoch)
 
 
-class BackboneFinetuningLastLayers(BackboneFinetuning):
-    """
-    BackboneFinetuning (base class) callback performs finetuning procedure where only the last layer is trainable. After unfreeze_backbone_at_epoch number of epochs it makes the whole model trainable.
-    BackboneFinetuningLastLayers does the same thing but it makes only last N blocks trainable instead of the whole model (all blocks).
-    https://pytorch-lightning.readthedocs.io/en/stable/api/pytorch_lightning.callbacks.BackboneFinetuning.html
-
-    Args:
-        unfreeze_blocks_num - number of blocks that will be trainable after the finetuning procedure. Argument 'all' will reduce this class to BackboneFinetuning because the whole model will become trainable.
-    """
-
-    def __init__(self, unfreeze_blocks_num: Union[int, str], *args, **kwargs):
+class BackboneFreezing(Callback):
+    def __init__(self, unfreeze_blocks_num: Union[int, str], unfreeze_backbone_at_epoch: int):
         self.unfreeze_blocks_num = unfreeze_blocks_num
-        super().__init__(*args, **kwargs)
+        self.unfreeze_backbone_at_epoch = unfreeze_backbone_at_epoch
+        super().__init__()
+
+    def setup(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule", stage: Optional[str] = None) -> None:
+        BackboneFinetuning.freeze(pl_module.backbone)
+
+    def on_fit_start(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
+        if hasattr(pl_module, "backbone") and isinstance(pl_module.backbone, Module):
+            return super().on_fit_start(trainer, pl_module)
+        raise MisconfigurationException("The LightningModule should have a nn.Module `backbone` attribute")
+
+    def on_train_epoch_start(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
+        from pytorch_lightning.loops.utilities import _get_active_optimizers
+
+        for opt_idx, optimizer in _get_active_optimizers(trainer.optimizers, trainer.optimizer_frequencies):
+            self.unfreeze_if_needed(pl_module, trainer.current_epoch, optimizer, opt_idx)
+
+    def unfreeze_if_needed(
+        self, pl_module: "pl.LightningModule", epoch: int, optimizer: Optimizer, opt_idx: int
+    ) -> None:
+        if epoch == self.unfreeze_backbone_at_epoch:
+            self.unfreeze_and_add_param_group(pl_module.backbone, optimizer)  # type: ignore
 
     def unfreeze_and_add_param_group(
         self,
-        modules: Union[Module, Iterable[Union[Module, Iterable]]],
+        modules: Module,
         optimizer: Optimizer,
-        lr: Optional[float] = None,
-        initial_denom_lr: float = 10,
         train_bn: bool = True,
     ) -> None:
-        # TODO: DONT DO THIS PLS add support for multiple modules, current version suports only one module
-        blocks = get_model_blocks(modules)
 
+        blocks = get_model_blocks(modules)
         trainable_blocks: List[Module] = blocks
         if type(self.unfreeze_blocks_num) is int:
             trainable_blocks = blocks[len(blocks) - self.unfreeze_blocks_num :]
@@ -131,4 +132,8 @@ class BackboneFinetuningLastLayers(BackboneFinetuning):
         if last_layer:
             trainable_blocks.append(last_layer)
 
-        return super().unfreeze_and_add_param_group(trainable_blocks, optimizer, lr, initial_denom_lr, train_bn)
+        BaseFinetuning.make_trainable(trainable_blocks)
+        params = BaseFinetuning.filter_params(trainable_blocks, train_bn=train_bn, requires_grad=True)
+        params = BaseFinetuning.filter_on_optimizer(optimizer, params)
+        if params:
+            optimizer.add_param_group({"params": params})
