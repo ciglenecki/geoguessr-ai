@@ -48,7 +48,6 @@ class BackboneFinetuningLastLayers(BackboneFinetuning):
     initial_denom_lr: float
     backbone_initial_ratio_lr: float
     train_bn: bool
-    unfreeze_blocks_num: Union[int, str]
 
     def __init__(
         self,
