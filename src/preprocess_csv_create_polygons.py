@@ -115,7 +115,7 @@ def generate_spherical_coords(latitude_column, longitude_column, centroid_lat_co
 def generate_src_coords(lat: pd.Series, lng: pd.Series):
     points_geometry = gpd.points_from_xy(lng, lat)  # x is lng y is lat
     df_tmp = gpd.GeoDataFrame(columns=["x", "y"], geometry=points_geometry, crs=DEFAULT_GLOBAL_CRS)  # type: ignore #[geopandas doesnt recognize args]
-    df_tmp: gpd.GeoDataFrame = df_tmp.to_crs(DEFAULT_CROATIA_CRS)  # type: ignore, it cant distinguish from geo/pandas
+    df_tmp: gpd.GeoDataFrame = df_tmp.to_crs(DEFAULT_CROATIA_CRS)  # type: # ignore, it cant distinguish from geo/pandas
     df_tmp["x"] = df_tmp.geometry.apply(lambda p: p.x)
     df_tmp["y"] = df_tmp.geometry.apply(lambda p: p.y)
     return df_tmp["y"], df_tmp["x"]
