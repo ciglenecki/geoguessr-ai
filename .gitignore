@@ -17,6 +17,7 @@ nohup*.out
 __pycache__/
 *.py[cod]
 *$py.class
+nohup.out
 
 # C extensions
 *.so

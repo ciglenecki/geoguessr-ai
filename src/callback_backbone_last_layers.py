@@ -131,7 +131,6 @@ class BackboneFinetuningLastLayers(BackboneFinetuning):
         BaseFinetuning.make_trainable(trainable_blocks)
         params = BaseFinetuning.filter_params(trainable_blocks, train_bn=train_bn, requires_grad=True)
         params = BaseFinetuning.filter_on_optimizer(optimizer, params)
-        print("\n\n\nLEN PARAMS FILTER\n\n\n\n", len(params))
         if params:
             optimizer.add_param_group({"params": params, "lr": lr})
 

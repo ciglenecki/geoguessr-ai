@@ -25,6 +25,7 @@ from model_callbacks import (
     LogMetricsAsHyperparams,
     OnTrainEpochStartLogCallback,
     OverrideEpochMetricCallback,
+    BackboneFinetuning,
 )
 from train_args import parse_args_train
 from utils_functions import add_prefix_to_keys, get_timestamp, is_primitive, random_codeword, stdout_to_file
@@ -153,9 +154,6 @@ if __name__ == "__main__":
     ]
 
     if unfreeze_at_epoch:
-
-        rate_fine_tuning_multiply = 1
-        multiplicative = lambda epoch: 1
         callbacks.append(
             BackboneFinetuningLastLayers(
                 unfreeze_blocks_num=unfreeze_blocks_num,
@@ -169,7 +167,7 @@ if __name__ == "__main__":
     model_constructor = (
         LitSingleModel if use_single_images else (LitModelRegression if is_regression else LitModelClassification)
     )
-    print("\n\n\nModel constructor", model_constructor)
+
     model = model_constructor(
         num_classes=num_classes,
         model_name=model_name,

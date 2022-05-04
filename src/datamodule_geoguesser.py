@@ -155,7 +155,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
         df = df[df["uuid"].isna() == False]  # remove rows for which the image doesn't exist
         map_poly_index_to_y = df.filter(["polygon_index"]).drop_duplicates().sort_values("polygon_index")
         map_poly_index_to_y["y"] = np.arange(len(map_poly_index_to_y))  # cols: polygon_index, y
-        df = df.merge(map_poly_index_to_y, on="polygon_index").sort_values("y")
+        df = df.merge(map_poly_index_to_y, on="polygon_index")
         return df
 
     def _get_and_fit_min_max_scaler_for_train_data(self, df: pd.DataFrame) -> MinMaxScaler:
