@@ -23,6 +23,7 @@ from model_callbacks import (
     OnTrainEpochStartLogCallback,
     OverrideEpochMetricCallback,
 )
+from utils_model import plot_weights
 from train_args import parse_args_train
 from utils_functions import add_prefix_to_keys, get_timestamp, is_primitive, random_codeword, stdout_to_file
 from utils_paths import PATH_REPORT
@@ -172,6 +173,12 @@ if __name__ == "__main__":
                     print("New learning rate found by lr_finder:", new_lr)
                     model.hparams.lr = new_lr  # type: ignore
                     model.learning_rate = new_lr
+
+        # visualize weights - first conv layer
+        plot_weights(model.backbone, 0, single_channel=False)
+        plot_weights(model.backbone, 0, single_channel=True)
+        # plotting single channel images
+        plot_weights(model.backbone, 0, single_channel=True, collated=True)
 
         trainer.fit(model, datamodule, ckpt_path=trainer_checkpoint)
         trainer.test(model, datamodule)
