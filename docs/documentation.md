@@ -24,6 +24,8 @@ geometry: margin=3cm
 numbersections: true
 ---
 
+![\ GeoGuessr logo](./geoguesser-logo.png){ width=150; margin=auto }
+
 
 \pagebreak
 
@@ -31,42 +33,44 @@ numbersections: true
 
 ## Introduction
 
-We were given a set of Google Street View images taken on Croatian roads with the task of determining their coordinates. This problem was inspired by the popular online game [GeoGuessr](https://en.wikipedia.org/wiki/GeoGuessr). In the game, you are positioned at a random location using Google Street View for which you have to infer its location. Our task in this competition is slightly different. The images we were given came in quadruples forming a non-continuous 360° view of the location. This means that the images can't be connected together to from a perfect 360° panorama. Each image represents a cardinal direction (north, south, west, east) from the Street View car. Alongside the images themselves, we also received their locations in the form of latitude and longitude pairs for each set of four image.
+We were given a set of _Google Street View_ images taken on Croatian roads and were tasked with determining their coordinates. This problem was inspired by the popular online game [_GeoGuessr_](https://en.wikipedia.org/wiki/GeoGuessr). In the game, you are positioned at a random location using Google Street View for which you have to determine its location. Our task in this competition is slightly different. The images we were given came in quadruples forming a non-continuous 360° view of the location, meaning that they can't be connected together to from a perfect 360° panorama. Each image represents a cardinal direction (north, south, west, east) from the perspective of the Street View car. Alongside the images themselves, we also received their locations in the form of latitude and longitude pairs for each set of four image.
 
 ![](./images/0.jpg){width=25%}
 ![](./images/90.jpg){width=25%}
 ![](./images/180.jpg){width=25%}
 ![](./images/270.jpg){width=25%}
 \begin{figure}[!h]
-\caption{Example of four Google Street View images taken in a single location. Our model trains on these images.}
+\caption{Example of four Google Street View images taken in a single location. Our model will train on these images.}
 \end{figure}
 
 ![](./coords_at_sea.png){width=50%}
 ![](./no_images_in_class.png){width=50%}
 \begin{figure}[!h]
-\caption{The first image represents a class whose centroid isn’t on land. The second image depicts a class that doesn’t contain any images in it.}
+\caption{The image on the left depicts a class whose centroid isn’t located on land. The image on the right depicts a class that doesn’t contain any images in it.}
 \end{figure}
 
-![\ A map of Croatia divided into distinct regions that represent classes. Red dots represent the centroids of the images, or the closest point on land to the centroid](./data_fig__spacing_0.8__num_class_26.png){ width=150; margin=auto }
+As we previously stated, our task is to predict the coordinates of the images, specifically, the coordinates of the test images we will receive in the last week of the competition. It's important to note that we will not receive the true coordinates for these test images. After providing predicted coordinates for each set of four images, the total error is measured using the [**great-circle distance**](https://en.wikipedia.org/wiki/Great-circle_distance) between the predicted and true coordinates. The great-circle distance measures the distance between two points over a curved surface, e.g. the distance between two cities on the Earth’s curved surface, and it uses the _haversine formula_ to calculate this. Total error is calculated as the mean of all great-circle distances between the true and predicted coordinates for all the images. It's also possible to explain the error in the following way: the further a bird needs to fly from the predicted coordinates to the true coordinates, the larger the error. The total error will be used to determine how successful one method is compared to others.
 
-As we previously stated, our task is to predict the coordinates of the images, specifically, the coordinates of the test images we will receive in the last week of the competition. It's important to note that we will not receive coordinates for these test images. After providing predicted coordinates for each set of four images, the error is measured using the [Great-circle distance](https://en.wikipedia.org/wiki/Great-circle_distance) between the predicted and true coordinates. The great-circle distance measures the distance between two points over a curved surface, e.g. the distance between two cities on the Earth’s curved surface, and it uses the <i>haversine formula</i> to calculate this. Total error is calculated as the mean of all the great-circle distances between the true and predicted coordinates of all the images. It's also possible to explain the error in the following way: the further a bird needs to fly from the predicted coordinates to the true coordinates, the larger the error. The total error will be used to determine how successful one method is compared to the other.
-
-On paper, the problem sounds fairly simple and is not unlike many other computer vision tasks. However, the following problem arises: a country can look very similar over large swathes of land. If we were randomly placed somewhere in the area of [Gorski Kotar](https://en.wikipedia.org/wiki/Gorski_Kotar) it might feel impossible to predict our exact (or even approximate) location. Unless we’ve already seen the landscape or we notice some obvious features of the location, such as a town sign or a famous statue, there is little chance for us to correctly predict our whereabouts. There is a silver lining to this though. Croatia, although small, is very geologically and culturally diverse. Mountains, houses, forests and even fields can look different depending on the region of the country, giving precedence to the idea that the model could catch these differences. That being said, it is still a difficult problem to solve and requires clever feature engineering and careful neural network setups in order to work, which we will talk about in the coming chapters.
-
-![\ Geoguesser logo](./geoguesser-logo.png){ width=150; margin=auto }
+On paper, the problem sounds fairly simple and is not unlike many other computer vision tasks. However, we are faced with the following problem: a country can look very similar over large swathes of land. For example, if we were randomly placed somewhere in the area of [Slavonia](https://en.wikipedia.org/wiki/Slavonia) and were told to say where we are located exactly, it might feel impossible to predict our exact (or even approximate) location. Unless we’ve already seen the landscape or we notice some obvious features of the location, such as a town sign or a famous landmark, there is little chance for us to correctly predict our whereabouts. There is a silver lining to this though. Croatia, although small, is very geologically and culturally diverse. Mountains, houses, forests and even fields can look different depending on the region of the country, giving precedence to the idea that the model could learn to spot these differences. That being said, it is nonetheless a difficult problem to solve and requires clever feature engineering and a careful neural network setup in order to work, which we will talk about in the coming chapters.
 
 ## Computer Vision
 
 Computer vision is an area of research that has arguably seen the most growth from the advent of deep learning. Over the past decade, it grew from a niche research area to one of the most widely applicable fields within machine learning. In computer vision, we use neural networks to analyze a large number of images, extract some potentially useful information from them, and use that information to classify those images into predefined classes or predict a target variable. The problem we were tasked with solving in this competition falls neatly into this category.
 
+What makes computer vision distinct from other fields of deep learning is its usage of **convolutional neural networks**. Because of the fact that images are 2-dimensional data structures, we can’t just turn them into 1-dimensional vectors for training without inducing major information loss. Due to this, CNNs use 2D _filters_ to capture image information. A filter is a matrix of learnable weights that slides across images to detect patterns. Ideally, each filter in a CNN layer would specialize in learning different image features, such as lines and contours, or eyes of animals. By stacking multiple layers of these filters, each layer can learn a higher order of abstraction of image data. For instance, the first layer might only learn to recognize simple lines. The second layer might combine these lines into shapes, while the third layer could finally combine these shapes into something recognizable. Such an architecture mimics how the human brain actually recognizes object by combining smaller elements into larger ones. After we have stacked enough convolutional layers for recognizing objects, we finish off the network by feeding all the results into a fully connected layer for classification or regression and train it with any generic loss function.
+
+A large advantage of CNNs is their interpretability. The filter weights can be visualized to depict what each filter detects in an image, while network weights depict how the filters are combined. This can help in understanding how the network learns and functions. (IMG: insert filter image)
+
+![\ A map of Croatia divided into distinct regions that represent classes. Red dots represent the centroids of the images, or the closest point on land to the centroid](./data_fig__spacing_0.8__num_class_26.png){ width=150; margin=auto }
+
 # Solution
 
 ## Technology stack
 
-Before diving into various components of our model, the technology stack we used will be described briefly.
+Before diving into the various components of our model, the technology stack we used will be described briefly.
 
 - [`python3.8`](https://www.python.org/) - the main programming language used for the project
-- [`git`](https://hr.wikipedia.org/wiki/Git) - version control system
+- [`git`](https://hr.wikipedia.org/wiki/Git) – the popular version control system
 
 Python packages
 
