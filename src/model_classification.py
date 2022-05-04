@@ -247,7 +247,7 @@ class LitModelClassification(pl.LightningModule):
                 optimizer,
                 "min",
                 factor=0.5,
-                patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ // 2) - 1,
+                patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ // 3) - 1,
                 verbose=True,
             )
             interval = "epoch"
