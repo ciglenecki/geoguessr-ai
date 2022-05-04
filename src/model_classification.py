@@ -98,17 +98,21 @@ class LitModelClassification(pl.LightningModule):
         self._set_example_input_array()
         self.save_hyperparameters()
 
-        # def load_state_dict(self, state_dict: "OrderedDict[str, Tensor]", strict: bool = True):
-        #     if "class_to_centroid_map" in state_dict:
-        #         print(state_dict["class_to_centroid_map"])
-        #         for k, v in state_dict["class_to_crs_centroid_map"].items():
-        #             state_dict["class_to_crs_centroid_map"] = self.crs_scaler.transform(v)
-        #         print(state_dict["class_to_crs_centroid_map"])
+    def load_state_dict(self, state_dict: "OrderedDict[str, Tensor]", strict: bool = True):
+        if "class_to_centroid_map" in state_dict:
 
-        #     exit(1)
+            old_key = "class_to_centroid_map"
+            new_key = "class_to_crs_centroid_map"
 
-        # state_dict["class_to_centroid_map"] = state_dict["class_to_centroid_map"]
-        # return super().load_state_dict(state_dict, strict=False)
+            state_dict[new_key] = torch.zeros(state_dict[old_key].size())
+
+            state_dict[new_key][:, 1], state_dict[new_key][:, 0] = state_dict[old_key][:, 0], state_dict[old_key][:, 1]
+
+            state_dict[new_key] = self.crs_scaler.transform(state_dict[new_key])
+            state_dict[new_key] = torch.tensor(state_dict[new_key])
+            state_dict["class_to_crs_weighted_map"] = state_dict[new_key]
+
+        return super().load_state_dict(state_dict, strict=False)
 
     def _set_example_input_array(self):
         num_channels = 3
