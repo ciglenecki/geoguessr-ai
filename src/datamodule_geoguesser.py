@@ -152,17 +152,10 @@ class GeoguesserDataModule(pl.LightningDataModule):
         Args:
             df: dataframe
         """
-        uuid_dir_paths = get_dataset_dirs_uuid_paths(self.dataset_dirs, [DatasetSplitType.TRAIN])
-        train_uuids = [Path(uuid_dir_path).stem for uuid_dir_path in uuid_dir_paths]
-
-        df_tmp = df[
-            df["uuid"].isna() == False & df["uuid"].isin(train_uuids)
-        ]  # remove rows for which the image doesn't exist
-
-        map_poly_index_to_y = df_tmp.filter(["polygon_index"]).drop_duplicates().sort_values("polygon_index")
+        df = df[df["uuid"].isna() == False]  # remove rows for which the image doesn't exist
+        map_poly_index_to_y = df.filter(["polygon_index"]).drop_duplicates().sort_values("polygon_index")
         map_poly_index_to_y["y"] = np.arange(len(map_poly_index_to_y))  # cols: polygon_index, y
         df = df.merge(map_poly_index_to_y, on="polygon_index").sort_values("y")
-        print("ysys", df["y"])
         return df
 
     def _get_and_fit_min_max_scaler_for_train_data(self, df: pd.DataFrame) -> MinMaxScaler:
@@ -178,22 +171,11 @@ class GeoguesserDataModule(pl.LightningDataModule):
         return crs_scaler
 
     def _adding_centroids_weighted(self, df: pd.DataFrame) -> pd.DataFrame:
-        df_train = filter_df_by_dataset_split(df, self.dataset_dirs, [DatasetSplitType.TRAIN, DatasetSplitType.VAL])
-        df_train["lat_weighted"] = df_train["latitude"].groupby(df_train["y"]).transform("mean")
-        df_train["lng_weighted"] = df_train["longitude"].groupby(df_train["y"]).transform("mean")
-        df_train["crs_y_weighted"] = df_train["crs_y"].groupby(df_train["y"]).transform("mean")
-        df_train["crs_x_weighted"] = df_train["crs_x"].groupby(df_train["y"]).transform("mean")
-        df_filter = df_train.filter(
-            items=[
-                "y",
-                "lat_weighted",
-                "lng_weighted",
-                "crs_y_weighted",
-                "crs_x_weighted",
-            ]
-        ).drop_duplicates()
-        print(df_filter, len(df_filter))
-        df = df.merge(df_filter, on="y")
+        df["lat_weighted"] = df["latitude"].groupby(df["y"]).transform("mean")
+        df["lng_weighted"] = df["longitude"].groupby(df["y"]).transform("mean")
+        df["crs_y_weighted"] = df["crs_y"].groupby(df["y"]).transform("mean")
+        df["crs_x_weighted"] = df["crs_x"].groupby(df["y"]).transform("mean")
+
         return df
 
     def _scale_min_max_crs_columns(self, df: pd.DataFrame, scaler: MinMaxScaler) -> pd.DataFrame:
