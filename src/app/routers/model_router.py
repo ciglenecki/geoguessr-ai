@@ -14,6 +14,8 @@ from torchvision import transforms
 import pytorch_lightning as pl
 from predict import InferenceWriter
 import torch
+import time
+
 
 router = APIRouter()
 
@@ -27,12 +29,11 @@ def read_model(model_name: str):
 
     is_regression = False
     use_single_images = False
-    model_constructor = (
-        LitSingleModel if use_single_images else (LitModelRegression if is_regression else LitModelClassification)
-    )
-
+    model_constructor = LitModelClassification
+    start_time = time.time()
     model = model_constructor.load_from_checkpoint(str(model_path), batch_size=2)
     model.eval()
+    print("--- %s seconds ---" % (time.time() - start_time))
 
     mean, std = DEFAULT_IMAGE_MEAN, DEFAULT_IMAGE_SIZE
 

@@ -16,7 +16,7 @@ from fastapi.responses import JSONResponse
 from logger import logger
 
 from app.config import config
-from app.routers import model
+from app.routers import model_router
 from app.server_store import ServerStore, server_store
 
 app = FastAPI(debug=True)
@@ -49,7 +49,7 @@ async def root():
     return {"message": "Hello World"}
 
 
-app.include_router(model.router)
+app.include_router(model_router.router)
 
 
 if __name__ == "__main__":
@@ -57,5 +57,5 @@ if __name__ == "__main__":
         "main:app",
         host="0.0.0.0",
         port=8090,
-        # reload=True,
+        reload=True,
     )

@@ -98,6 +98,18 @@ class LitModelClassification(pl.LightningModule):
         self._set_example_input_array()
         self.save_hyperparameters()
 
+        # def load_state_dict(self, state_dict: "OrderedDict[str, Tensor]", strict: bool = True):
+        #     if "class_to_centroid_map" in state_dict:
+        #         print(state_dict["class_to_centroid_map"])
+        #         for k, v in state_dict["class_to_crs_centroid_map"].items():
+        #             state_dict["class_to_crs_centroid_map"] = self.crs_scaler.transform(v)
+        #         print(state_dict["class_to_crs_centroid_map"])
+
+        #     exit(1)
+
+        # state_dict["class_to_centroid_map"] = state_dict["class_to_centroid_map"]
+        # return super().load_state_dict(state_dict, strict=False)
+
     def _set_example_input_array(self):
         num_channels = 3
         num_of_image_sides = 4
