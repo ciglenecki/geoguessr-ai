@@ -131,6 +131,7 @@ class BackboneFinetuningLastLayers(BackboneFinetuning):
         BaseFinetuning.make_trainable(trainable_blocks)
         params = BaseFinetuning.filter_params(trainable_blocks, train_bn=train_bn, requires_grad=True)
         params = BaseFinetuning.filter_on_optimizer(optimizer, params)
+        print("\n\n\nLEN PARAMS FILTER\n\n\n\n", len(params))
         if params:
             optimizer.add_param_group({"params": params, "lr": lr})
 
@@ -139,25 +140,7 @@ class BackboneFinetuningLastLayers(BackboneFinetuning):
     ) -> None:
         """Called when the epoch begins."""
 
-        if epoch < self.unfreeze_backbone_at_epoch:
-            trainer = pl_module.trainer
-            num_of_steps_to_skip = int(trainer.num_training_batches * self.unfreeze_at_epoch)
-            progress_percentage = float(trainer.global_step) / num_of_steps_to_skip
-            lr_delta = self.lr_total_diff * progress_percentage
-            new_lr = self.lr_finetuning_min + lr_delta
-            for pg in optimizer.param_groups:
-                pg["lr"] = new_lr
-
-            self.previous_backbone_lr = new_lr
-            if self.verbose:
-                print("\nFinetuning LR:", new_lr)
-
-        elif epoch == self.unfreeze_backbone_at_epoch:
-            for pg in optimizer.param_groups:
-                pg["lr"] = self.lr_after_finetune
-
-            self.previous_backbone_lr = self.lr_after_finetune
-
+        if epoch == self.unfreeze_backbone_at_epoch:
             self.unfreeze_and_add_param_group(
                 modules=pl_module.backbone,
                 optimizer=optimizer,

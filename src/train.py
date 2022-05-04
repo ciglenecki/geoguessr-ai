@@ -160,12 +160,11 @@ if __name__ == "__main__":
             BackboneFinetuningLastLayers(
                 unfreeze_blocks_num=unfreeze_blocks_num,
                 unfreeze_at_epoch=unfreeze_at_epoch,
-                lr_finetuning_range=[lr_finetune, 1e-5],
+                lr_finetuning_range=[learning_rate, learning_rate],
                 lr_after_finetune=learning_rate,
                 train_dataloader_size=train_dataloader_size,
             ),
         )
-        learning_rate = lr_finetune
 
     model_constructor = (
         LitSingleModel if use_single_images else (LitModelRegression if is_regression else LitModelClassification)

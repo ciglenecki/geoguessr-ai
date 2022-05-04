@@ -16,10 +16,13 @@ class DatasetSplitType(Enum):
     PRED = "pred"
 
 
-def filter_df_by_dataset_split(df: pd.DataFrame, dataset_dirs: List[Path], split_type: DatasetSplitType):
+def filter_df_by_dataset_split(df: pd.DataFrame, dataset_dirs: List[Path], split_types: List[DatasetSplitType]):
     """Returns the dataframe with rows filtered by uuid. Only the uudis' from dataset_dirs with split_type=train/val/test are returned"""
     uuid_dir_paths = flatten(
-        [glob(str(Path(dataset_dir, "images", split_type.value, "*"))) for dataset_dir in dataset_dirs]
+        [
+            glob(str(Path(dataset_dir, "images", split_type.value, "*")))
+            for dataset_dir, split_type in product(dataset_dirs, split_types)
+        ]
     )
     uuids = [Path(uuid_dir_path).stem for uuid_dir_path in uuid_dir_paths]
     df_split_type = df.loc[df["uuid"].isin(uuids), :]

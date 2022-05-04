@@ -35,7 +35,7 @@ from defaults import (
     DEFAULT_TRAIN_FRAC,
     DEFAULT_VAL_FRAC,
 )
-from utils_dataset import DatasetSplitType, filter_df_by_dataset_split
+from utils_dataset import DatasetSplitType, filter_df_by_dataset_split, get_dataset_dirs_uuid_paths
 from utils_functions import print_df_sample
 from utils_paths import PATH_DATA_COMPLETE, PATH_DATA_EXTERNAL, PATH_DATA_RAW
 
@@ -91,7 +91,9 @@ class GeoguesserDataModule(pl.LightningDataModule):
         self.num_classes = len(self.df["y"].drop_duplicates())
         assert (
             self.num_classes == self.df["y"].max() + 1
-        ), "Number of classes should corespoing to the maximum y value of the csv dataframe"  # Sanity check
+        ), "Number of classes should corespoing to the maximum y value of the csv dataframe {}, {}".format(
+            self.num_classes, self.df["y"].max() + 1
+        )  # Sanity check
         (
             self.class_to_crs_centroid_map,
             self.class_to_latlng_centroid_map,
@@ -150,11 +152,17 @@ class GeoguesserDataModule(pl.LightningDataModule):
         Args:
             df: dataframe
         """
+        uuid_dir_paths = get_dataset_dirs_uuid_paths(self.dataset_dirs, [DatasetSplitType.TRAIN])
+        train_uuids = [Path(uuid_dir_path).stem for uuid_dir_path in uuid_dir_paths]
 
-        df = df[df["uuid"].isna() == False]  # remove rows for which the image doesn't exist
-        map_poly_index_to_y = df.filter(["polygon_index"]).drop_duplicates().sort_values("polygon_index")
+        df_tmp = df[
+            df["uuid"].isna() == False & df["uuid"].isin(train_uuids)
+        ]  # remove rows for which the image doesn't exist
+
+        map_poly_index_to_y = df_tmp.filter(["polygon_index"]).drop_duplicates().sort_values("polygon_index")
         map_poly_index_to_y["y"] = np.arange(len(map_poly_index_to_y))  # cols: polygon_index, y
-        df = df.merge(map_poly_index_to_y, on="polygon_index")
+        df = df.merge(map_poly_index_to_y, on="polygon_index").sort_values("y")
+        print("ysys", df["y"])
         return df
 
     def _get_and_fit_min_max_scaler_for_train_data(self, df: pd.DataFrame) -> MinMaxScaler:
@@ -164,13 +172,13 @@ class GeoguesserDataModule(pl.LightningDataModule):
         Args:
             df: dataframe
         """
-        df_train = filter_df_by_dataset_split(df, self.dataset_dirs, DatasetSplitType.TRAIN)
+        df_train = filter_df_by_dataset_split(df, self.dataset_dirs, [DatasetSplitType.TRAIN])
         crs_scaler = MinMaxScaler()
         crs_scaler.fit(df_train.loc[:, ["crs_x", "crs_y"]])
         return crs_scaler
 
     def _adding_centroids_weighted(self, df: pd.DataFrame) -> pd.DataFrame:
-        df_train = filter_df_by_dataset_split(df, self.dataset_dirs, DatasetSplitType.TRAIN)
+        df_train = filter_df_by_dataset_split(df, self.dataset_dirs, [DatasetSplitType.TRAIN, DatasetSplitType.VAL])
         df_train["lat_weighted"] = df_train["latitude"].groupby(df_train["y"]).transform("mean")
         df_train["lng_weighted"] = df_train["longitude"].groupby(df_train["y"]).transform("mean")
         df_train["crs_y_weighted"] = df_train["crs_y"].groupby(df_train["y"]).transform("mean")
@@ -184,6 +192,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
                 "crs_x_weighted",
             ]
         ).drop_duplicates()
+        print(df_filter, len(df_filter))
         df = df.merge(df_filter, on="y")
         return df
 
