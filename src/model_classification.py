@@ -100,17 +100,21 @@ class LitModelClassification(pl.LightningModule):
         self._set_example_input_array()
         self.save_hyperparameters()
 
-        # def load_state_dict(self, state_dict: "OrderedDict[str, Tensor]", strict: bool = True):
-        #     if "class_to_centroid_map" in state_dict:
-        #         print(state_dict["class_to_centroid_map"])
-        #         for k, v in state_dict["class_to_crs_centroid_map"].items():
-        #             state_dict["class_to_crs_centroid_map"] = self.crs_scaler.transform(v)
-        #         print(state_dict["class_to_crs_centroid_map"])
+    def load_state_dict(self, state_dict: "OrderedDict[str, Tensor]", strict: bool = True):
+        if "class_to_centroid_map" in state_dict:
 
-        #     exit(1)
+            old_key = "class_to_centroid_map"
+            new_key = "class_to_crs_centroid_map"
 
-        # state_dict["class_to_centroid_map"] = state_dict["class_to_centroid_map"]
-        # return super().load_state_dict(state_dict, strict=False)
+            state_dict[new_key] = torch.zeros(state_dict[old_key].size())
+
+            state_dict[new_key][:, 1], state_dict[new_key][:, 0] = state_dict[old_key][:, 0], state_dict[old_key][:, 1]
+
+            state_dict[new_key] = self.crs_scaler.transform(state_dict[new_key])
+            state_dict[new_key] = torch.tensor(state_dict[new_key])
+            state_dict["class_to_crs_weighted_map"] = state_dict[new_key]
+
+        return super().load_state_dict(state_dict, strict=False)
 
     def _set_example_input_array(self):
         num_channels = 3
@@ -169,7 +173,7 @@ class LitModelClassification(pl.LightningModule):
         image_list, y_true, image_true_crs_coords = batch
         y_pred = self(image_list)
 
-        pred_crs_coord = crs_coords_weighed_mean(y_pred, self.class_to_crs_weighted_map, top_k=5)
+        pred_crs_coord = crs_coords_weighed_mean(y_pred, self.class_to_crs_weighted_map, top_k=self.num_classes)
         haver_dist = get_haversine_from_predictions(self.crs_scaler, pred_crs_coord, image_true_crs_coords)
 
         loss = F.cross_entropy(y_pred, y_true)
@@ -191,7 +195,7 @@ class LitModelClassification(pl.LightningModule):
         image_list, y_true, image_true_crs_coords = batch
         y_pred = self(image_list)
 
-        pred_crs_coord = crs_coords_weighed_mean(y_pred, self.class_to_crs_weighted_map, top_k=5)
+        pred_crs_coord = crs_coords_weighed_mean(y_pred, self.class_to_crs_weighted_map, top_k=self.num_classes)
         haver_dist = get_haversine_from_predictions(self.crs_scaler, pred_crs_coord, image_true_crs_coords)
 
         loss = F.cross_entropy(y_pred, y_true)
@@ -212,7 +216,7 @@ class LitModelClassification(pl.LightningModule):
         with torch.no_grad():
             y_pred = self(image_list)
 
-        pred_crs_coord = crs_coords_weighed_mean(y_pred, self.class_to_crs_weighted_map, top_k=5)
+        pred_crs_coord = crs_coords_weighed_mean(y_pred, self.class_to_crs_weighted_map, top_k=self.num_classes)
         pred_crs_coord = pred_crs_coord.cpu()
         pred_crs_coord_transformed = self.crs_scaler.inverse_transform(pred_crs_coord)
         pred_degree_coords = crs_coords_to_degree(pred_crs_coord_transformed)
@@ -227,7 +231,10 @@ class LitModelClassification(pl.LightningModule):
             optimizer = torch.optim.AdamW(self.parameters(), lr=float(self.learning_rate), weight_decay=5e-3)
         else:
             optimizer = torch.optim.Adam(
-                self.parameters(), lr=float(self.learning_rate), weight_decay=self.weight_decay
+                self.parameters(),
+                lr=float(self.learning_rate),
+                weight_decay=self.weight_decay,
+                betas=(0.85, 0.95),
             )
 
         if self.scheduler_type is SchedulerType.AUTO_LR.value:
@@ -263,7 +270,7 @@ class LitModelClassification(pl.LightningModule):
                 optimizer,
                 "min",
                 factor=0.66,
-                patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ // 3) - 1,
+                patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ // 2) - 1,
                 verbose=True,
             )
             interval = "epoch"
