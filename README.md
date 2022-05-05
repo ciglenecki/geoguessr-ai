@@ -38,6 +38,9 @@ def function(arg1, arg2) -> List[arg1, arg2]:
     list of length 2 which contains both arguments
   """
 ```
+- [ ] Server API:
+  - [ ] add cache as file for uuid/predictions in json file format
+  - [ ] add image uploader and save files to directory 
 
 - [ ] **Create local server that can predict an image**
   - use FastAPI, it's simple and it can self-document <https://fastapi.tiangolo.com/tutorial/first-steps/>
@@ -107,6 +110,8 @@ def function(arg1, arg2) -> List[arg1, arg2]:
       - optional: third: REPROJECT to default (4326) if you need lat lng values again. In the gpd.GeoDataFrame You might even access the original lat,lng without reprojecting but i'm not sure.
 
 ## 🧠 Brainstorming
+
+- best inital lr for onecycle 0.13182567385564073, best minimum is 0.00025
 
 - Create a grid for Croatia. Each square of a grid represents a class. Instead of regression, try classification where these squares will be different classes. Classification should have a probabilistic interpretation. Multiply probabilities (the certainty of each block) to get the final coordinate. Size of the square is a hyperparameter.
 

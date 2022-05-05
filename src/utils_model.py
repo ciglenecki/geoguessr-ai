@@ -8,8 +8,23 @@ import torch.nn.functional as F
 from matplotlib import pyplot as plt
 from torchvision.models.efficientnet import EfficientNet
 from torchvision.models.resnet import ResNet
-
+from sklearn.preprocessing import MinMaxScaler
 from utils_functions import tensor_sum_of_elements_to_one
+from utils_geo import crs_coords_to_degree, haversine_from_degs
+
+
+def get_haversine_from_predictions(
+    crs_scaler: MinMaxScaler, pred_crs_coord: torch.Tensor, image_true_crs_coords: torch.Tensor
+):
+    pred_crs_coord = pred_crs_coord.cpu()
+    image_true_crs_coords = image_true_crs_coords.cpu()
+
+    pred_crs_coord_transformed = crs_scaler.inverse_transform(pred_crs_coord)
+    true_crs_coord_transformed = crs_scaler.inverse_transform(image_true_crs_coords)
+
+    pred_degree_coords = crs_coords_to_degree(pred_crs_coord_transformed)
+    true_degree_coords = crs_coords_to_degree(true_crs_coord_transformed)
+    return haversine_from_degs(pred_degree_coords, true_degree_coords)
 
 
 def plot_filters_single_channel_big(t):
@@ -127,7 +142,7 @@ def model_remove_fc(model: ResNet):
     return model
 
 
-def get_model_blocks(model):
+def get_model_blocks(model: nn.Module):
     """
     returns list of model blocks without last layer (classifier/fc)
     """
@@ -135,7 +150,7 @@ def get_model_blocks(model):
         return list(model.features)  # model.children())[-3]
     if type(model) is ResNet:
         return list(model.children())  # model.children())[-3]
-    return []
+    return list(model.children())
 
 
 def get_last_layer(model: nn.Module) -> nn.Module | None:
@@ -181,7 +196,7 @@ def crs_coords_weighed_mean(y_pred: torch.Tensor, class_map, top_k: int) -> torc
     picked_coords = class_map[indices]
 
     scaled_coords = picked_coords * preds
-    weighted_sum = torch.sum(scaled_coords, dim=-2).squeeze()
+    weighted_sum = torch.sum(scaled_coords, dim=-2).squeeze(dim=0)
     return weighted_sum
 
 

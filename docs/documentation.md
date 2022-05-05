@@ -219,6 +219,11 @@ Aside from image size and batch size, another important parameter to be adjusted
 
 Inference is performed after the entire training phase of our model is over. It is the process of testing our best performing model on never before seen images and can be described as the training phase in reverse: instead of seeing an image’s coordinates and training our model on them, we now have to look only at the image itself and predict it’s coordinates. The true image coordinates are hidden from us and are compared against our answers without us overseeing any part of the process. This is how our model will finally be tested and compared against other models in the end to assess its final performance. More about how this is done can be found in our Technical Documentation (TM).
 
+_test_
+**test**
+*test*
+
+
 ----
 To do:
 
