@@ -262,7 +262,7 @@ class LitModelClassification(pl.LightningModule):
             scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
                 optimizer,
                 "min",
-                factor=0.5,
+                factor=0.66,
                 patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ // 3) - 1,
                 verbose=True,
             )
