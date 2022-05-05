@@ -10,13 +10,14 @@
 .idea/
 *.ckpt
 *ignoreme*
-reports/22*
-reports/train*
+reports-quick/
+reports/
 old_reports/
 nohup*.out
 __pycache__/
 *.py[cod]
 *$py.class
+nohup.out
 
 # C extensions
 *.so

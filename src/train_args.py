@@ -7,19 +7,22 @@ import argparse
 from typing import Dict, Tuple
 
 import pytorch_lightning as pl
+from torchvision.models.resnet import model_urls as resnet_model_urls
 
 from defaults import (
     DEAFULT_NUM_WORKERS,
     DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING,
-    DEFAULT_AUTO_LR,
     DEFAULT_BATCH_SIZE,
-    DEFAULT_DATASET_SIZE,
+    DEFAULT_DATASET_FRAC,
+    DEFAULT_EPOCHS,
     DEFAULT_FINETUNING_EPOCH_PERIOD,
     DEFAULT_IMAGE_SIZE,
     DEFAULT_LOAD_DATASET_IN_RAM,
     DEFAULT_LR,
+    DEFAULT_LR_FINETUNE,
     DEFAULT_MODEL,
     DEFAULT_PRETRAINED,
+    DEFAULT_SCHEDULER,
     DEFAULT_TEST_FRAC,
     DEFAULT_TRAIN_FRAC,
     DEFAULT_UNFREEZE_LAYERS_NUM,
@@ -27,7 +30,6 @@ from defaults import (
     DEFAULT_WEIGHT_DECAY,
     LOG_EVERY_N,
 )
-from model import allowed_models
 from utils_functions import (
     is_between_0_1,
     is_positive_int,
@@ -37,6 +39,7 @@ from utils_functions import (
     is_valid_unfreeze_arg,
 )
 from utils_paths import PATH_DATA_EXTERNAL, PATH_DATA_RAW, PATH_REPORT
+from utils_train import OptimizerType, SchedulerType
 
 ARGS_GROUP_NAME = "General arguments"
 
@@ -63,15 +66,13 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
         help="Select regression model for training",
     )
     user_group.add_argument(
-        "-s",
         "--dataset-frac",
         metavar="float",
-        default=DEFAULT_DATASET_SIZE,
+        default=DEFAULT_DATASET_FRAC,
         type=is_between_0_1,
         help="Size of the dataset that will be trained",
     )
     user_group.add_argument(
-        "-i",
         "--image-size",
         metavar="int",
         default=DEFAULT_IMAGE_SIZE,
@@ -79,7 +80,6 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
         help="Image size",
     )
     user_group.add_argument(
-        "-w",
         "--num-workers",
         metavar="int",
         default=DEAFULT_NUM_WORKERS,
@@ -87,13 +87,21 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
         help="Number of workers",
     )
     user_group.add_argument(
-        "-m",
-        "--models",
-        default=[DEFAULT_MODEL],
+        "--model",
+        default=DEFAULT_MODEL,
         type=str,
         help="Models used for training",
-        nargs="*",
-        choices=allowed_models,
+        choices=[
+            "resnet18",
+            "resnet34",
+            "resnet50",
+            "resnet101",
+            "resnet152",
+            "resnext50_32x4d",
+            "resnext101_32x8d",
+            "wide_resnet50_2",
+            "wide_resnet101_2",
+        ],
     )
     user_group.add_argument(
         "-l",
@@ -118,7 +126,6 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
     )
 
     user_group.add_argument(
-        "-r",
         "--output-report",
         metavar="dir",
         type=str,
@@ -128,7 +135,7 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
     user_group.add_argument(
         "-b",
         "--unfreeze-blocks",
-        metavar="['all', n]",
+        metavar="['all', 'layer3.2', n]",
         type=is_valid_unfreeze_arg,
         help="Number of trainable blocks. Parameters of trainable block will be updated (required_grad=True) during the training. This argument changes nothing if argument `--pretrained` isn't set. If model isn't pretrained its weights are random.It doesn't make sense to freeze blocks which have random (untrained) weights.",
         default=DEFAULT_UNFREEZE_LAYERS_NUM,
@@ -148,12 +155,20 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
     )
 
     user_group.add_argument(
+        "--recaculate-normalization",
+        help="Calls calculate_norm_std during before training to ensure that images are properly normalize with training data only.",
+        action="store_true",
+        default=False,
+    )
+
+    user_group.add_argument(
         "-q",
         "--quick",
         help="Simulates --limit_train_batches 2 --limit_val_batches 2 --limit_test_batches 2 --image-size 28",
         action="store_true",
         default=False,
     )
+
     user_group.add_argument(
         "-t",
         "--trainer-checkpoint",
@@ -161,9 +176,10 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
         metavar="path",
         type=str,
     )
+
     user_group.add_argument(
         "-u",
-        "--unfreeze-backbone-at-epoch",
+        "--unfreeze-at-epoch",
         help="Backbone Finetuning. Trains only last layer for n epoches.",
         metavar="N",
         type=is_positive_int,
@@ -182,6 +198,12 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
         default=DEFAULT_BATCH_SIZE,
     )
     user_group.add_argument(
+        "--lr-finetune",
+        type=float,
+        default=DEFAULT_LR_FINETUNE,
+    )
+
+    user_group.add_argument(
         "--load-in-ram",
         action="store_true",
         help="Load the dataset in RAM ~ 20GB",
@@ -195,10 +217,23 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
     )
 
     user_group.add_argument(
-        "--no-auto-lr",
-        action="store_true",
-        help="Use Lightning's automatic LR finder",
-        default=not DEFAULT_AUTO_LR,
+        "--scheduler",
+        default=DEFAULT_SCHEDULER,
+        type=str,
+        choices=[scheduler_type.value for scheduler_type in SchedulerType],
+    )
+
+    user_group.add_argument(
+        "--optimizer",
+        default=DEFAULT_SCHEDULER,
+        type=str,
+        choices=[optimizer_type.value for optimizer_type in OptimizerType],
+    )
+
+    user_group.add_argument(
+        "--epochs",
+        default=DEFAULT_EPOCHS,
+        type=is_positive_int,
     )
 
     args = parser.parse_args()
@@ -213,19 +248,13 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
     args, pl_args = args_dict[ARGS_GROUP_NAME], args_dict["pl.Trainer"]
 
     """User arguments that override PyTorch Lightning arguments"""
-    if args.dataset_frac != DEFAULT_DATASET_SIZE:
-        pl_args.limit_train_batches = args.dataset_frac
-        pl_args.limit_val_batches = args.dataset_frac
-        pl_args.limit_test_batches = args.dataset_frac
-
     if args.quick:
-        pl_args.limit_train_batches = 8
-        pl_args.limit_val_batches = 8
-        pl_args.limit_test_batches = 8
+        pl_args.limit_train_batches = 4
+        pl_args.limit_val_batches = 4
+        pl_args.limit_test_batches = 4
         pl_args.log_every_n_steps = 1
-        args.image_size = 28
+        args.image_size = 16
         args.batch_size = 2
-        args.unfreeze_backbone_at_epoch = 1
     return args, pl_args
 
 

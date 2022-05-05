@@ -34,6 +34,7 @@ PATH_DATA_SAMPLER = Path(PATH_DATA, "coord_sampler")
 PATH_WORLD_BORDERS = Path(PATH_DATA, "world-borders", "world_no_croatia_islands.shp")
 
 PATH_REPORT = Path(WORK_DIR, "reports")
+PATH_REPORT_QUICK = Path(WORK_DIR, "reports-quick")
 PATH_FIGURE = Path(PATH_REPORT, "figures")
 PATH_MODEL = Path(WORK_DIR, "models")
 

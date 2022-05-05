@@ -35,7 +35,7 @@ import pandas as pd
 from asgiref import sync
 from tqdm import tqdm
 
-from utils_functions import get_timestamp
+from utils_functions import get_timestamp, safely_save_df
 from utils_paths import PATH_DATA_SAMPLER
 
 
@@ -202,22 +202,6 @@ def chunker(df: pd.DataFrame, size: int):
         start = pos
         end = pos + size
         yield df[start:end]
-
-
-def safely_save_df(df: pd.DataFrame, filepath: Path):
-    """Safely save the dataframe by using and removing temporary files"""
-
-    print("Saving file...", filepath)
-    path_tmp = Path(str(filepath) + ".tmp")
-    path_bak = Path(str(filepath) + ".bak")
-    df.to_csv(path_tmp, mode="w+", index=True, header=True)
-
-    if os.path.isfile(filepath):
-        os.rename(filepath, path_bak)
-    os.rename(path_tmp, filepath)
-
-    if os.path.isfile(path_bak):
-        os.remove(path_bak)
 
 
 def main(args):
