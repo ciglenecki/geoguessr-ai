@@ -10,9 +10,13 @@ class LitModelClassification(pl.LightningModule):
 
         self.image_size = image_size
 
-        backbone = torch.hub.load(DEFAULT_TORCHVISION_VERSION, model_name, pretrained=pretrained)
+        backbone = torch.hub.load(
+            DEFAULT_TORCHVISION_VERSION, model_name, pretrained=pretrained
+        )
         self.backbone = model_remove_fc(backbone)
-        self.fc = nn.Linear(get_last_fc_in_channels(self.image_size, self.batch_size), num_classes)
+        self.fc = nn.Linear(
+            get_last_fc_in_channels(self.image_size, self.batch_size), num_classes
+        )
 
         self.save_hyperparameters()
 
@@ -66,7 +70,9 @@ class LitModelClassification(pl.LightningModule):
                 # 1: check if learning rate has to be updated after every epoch/step
                 "frequency": 1,
                 "interval": "epoch",
-                "monitor": "val/loss_epoch",  # what metric to monitor? Reduce learning rate when val loss isn't going down anymore
+                # what metric to monitor?
+                # Reduce learning rate when val loss isn't going down anymore
+                "monitor": "val/loss_epoch",
             },
         }
 
