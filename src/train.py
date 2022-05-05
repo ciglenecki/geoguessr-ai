@@ -124,7 +124,7 @@ if __name__ == "__main__":
     )
 
     callback_checkpoint = ModelCheckpoint(
-        monitor="val/loss_epoch",
+        monitor="val/haversine_distance_epoch",
         mode="min",
         filename="__".join(
             [
