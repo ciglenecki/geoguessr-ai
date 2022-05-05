@@ -27,10 +27,9 @@ from model_callbacks import (
     OverrideEpochMetricCallback,
     BackboneFinetuning,
 )
-from utils_model import plot_weights
 from train_args import parse_args_train
-from utils_functions import add_prefix_to_keys, get_timestamp, is_primitive, random_codeword, stdout_to_file
-from utils_paths import PATH_REPORT, PATH_REPORT_QUICK
+from utils_functions import add_prefix_to_keys, get_timestamp, random_codeword, stdout_to_file
+from utils_paths import PATH_REPORT_QUICK
 from utils_train import SchedulerType
 
 if __name__ == "__main__":
