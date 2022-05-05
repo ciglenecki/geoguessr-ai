@@ -1,30 +1,27 @@
-import os
 import sys
 from pathlib import Path
 
+# include project path so that .env file can be read from all locations
 sys.path.append(str(Path(__file__).parent.resolve().parents[0]))
 
-import os
+import json
 import traceback
-from glob import glob
 from pathlib import Path
 
 import uvicorn
 from fastapi import FastAPI, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
-from logger import logger
 
 from app.config import config
-from app.routers import model_router
-from app.server_store import ServerStore, server_store
+from app.routers import router
+from logger import logger
+from descriptions import predict_desc, api_description
 
-app = FastAPI(debug=True)
 
-
-async def catch_exceptions_middleware(request, call_next):
+def catch_exceptions_middleware(request, call_next):
     try:
-        return await call_next(request)
+        return call_next(request)
     except Exception as err:
         logger.error(traceback.format_exc())
         return JSONResponse(
@@ -33,29 +30,37 @@ async def catch_exceptions_middleware(request, call_next):
         )
 
 
+tags_metadata = [
+    {
+        "name": "available models",
+        "description": "All available models from the `MODEL_DIRECTORY` directory defined in the `.env` file",
+    },
+    {
+        "name": "predict",
+        "description": predict_desc,
+    },
+]
+
+app = FastAPI(debug=True, openapi_tags=tags_metadata, description=api_description)
 app.middleware("http")(catch_exceptions_middleware)
 
 
 @app.on_event("shutdown")
 def shutdown_event():
-    with open("log.txt", mode="a") as log:
-        log.write("Application shutdown")
+    logger.info("Application shutdown")
 
 
-@app.get("/")
-async def root():
-    logger.warning("Hello 43")
+app.include_router(router.router)
 
-    return {"message": "Hello World"}
-
-
-app.include_router(model_router.router)
-
+with open(Path(Path(__file__).parent.resolve(), "openapi_spec.json"), "w+") as file:
+    file.write(json.dumps(app.openapi()))
+    file.close()
 
 if __name__ == "__main__":
     uvicorn.run(
         "main:app",
-        host="0.0.0.0",
-        port=8090,
-        reload=True,
+        host=config["HOST"],
+        port=int(config["PORT"]),
+        loop="asyncio",
+        reload=bool(int(config["HOT_RELOAD"])),
     )

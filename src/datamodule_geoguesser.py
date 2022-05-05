@@ -353,6 +353,7 @@ class GeoguesserDataModulePredict(pl.LightningDataModule):
         batch_size: int = DEFAULT_BATCH_SIZE,
         image_transform: transforms.Compose = transforms.Compose([transforms.ToTensor()]),
         num_workers=DEAFULT_NUM_WORKERS,
+        dataset_frac: float = 1.0,
     ) -> None:
         super().__init__()
         print("GeoguesserDataModule init")
@@ -365,7 +366,9 @@ class GeoguesserDataModulePredict(pl.LightningDataModule):
         self.predict_dataset = GeoguesserDatasetPredict(
             images_dirs=images_dirs,
             num_classes=self.num_classes,
+            image_transform=image_transform,
         )
+        self.dataset_frac = dataset_frac
 
     def _validate_sizes(self, train_frac, val_frac, test_frac):
         if sum([train_frac, val_frac, test_frac]) != 1:
@@ -375,7 +378,9 @@ class GeoguesserDataModulePredict(pl.LightningDataModule):
         pass
 
     def setup(self, stage: Optional[str] = None):
-        pass
+        new_lenght = min(self.dataset_frac, 1) * len(self.predict_dataset)
+        indices = np.arange(new_lenght).astype(int)
+        self.predict_sampler = SubsetRandomSampler(indices)
 
     def predict_dataloader(self):
         return DataLoader(
@@ -384,6 +389,7 @@ class GeoguesserDataModulePredict(pl.LightningDataModule):
             num_workers=self.num_workers,
             drop_last=self.drop_last,
             shuffle=False,
+            sampler=self.predict_sampler,
         )
 
 

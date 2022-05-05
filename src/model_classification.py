@@ -15,6 +15,8 @@ from defaults import DEFAULT_EARLY_STOPPING_EPOCH_FREQ, DEFAULT_TORCHVISION_VERS
 from utils_geo import crs_coords_to_degree, haversine_from_degs
 from utils_model import crs_coords_weighed_mean, model_remove_fc
 from utils_train import OptimizerType, SchedulerType, multi_acc
+import time
+import sys
 
 
 def get_haversine_from_predictions(
@@ -119,6 +121,7 @@ class LitModelClassification(pl.LightningModule):
         self.example_input_array = torch.stack(list_of_images)
 
     def _get_last_fc_in_channels(self) -> Any:
+
         """
         Returns:
             number of input channels for the last fc layer (number of variables of the second dimension of the flatten layer). Fake image is created, passed through the backbone and flattened (while perseving batches).
@@ -206,7 +209,8 @@ class LitModelClassification(pl.LightningModule):
 
     def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> Any:
         image_list, uuid = batch
-        y_pred = self(image_list)
+        with torch.no_grad():
+            y_pred = self(image_list)
 
         pred_crs_coord = crs_coords_weighed_mean(y_pred, self.class_to_crs_weighted_map, top_k=5)
         pred_crs_coord = pred_crs_coord.cpu()
@@ -258,7 +262,7 @@ class LitModelClassification(pl.LightningModule):
             scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
                 optimizer,
                 "min",
-                factor=0.5,
+                factor=0.66,
                 patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ // 3) - 1,
                 verbose=True,
             )

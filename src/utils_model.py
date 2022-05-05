@@ -87,7 +87,7 @@ def crs_coords_weighed_mean(y_pred: torch.Tensor, class_map, top_k: int) -> torc
     picked_coords = class_map[indices]
 
     scaled_coords = picked_coords * preds
-    weighted_sum = torch.sum(scaled_coords, dim=-2).squeeze()
+    weighted_sum = torch.sum(scaled_coords, dim=-2).squeeze(dim=0)
     return weighted_sum
 
 

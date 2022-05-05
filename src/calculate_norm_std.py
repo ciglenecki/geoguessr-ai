@@ -7,7 +7,7 @@ from PIL import Image
 from torchvision.transforms import transforms
 
 from utils_dataset import DatasetSplitType
-from utils_functions import flatten
+from utils_functions import flatten, get_dirs_only
 
 
 def calculate_norm_std(dataset_dirs: List[Path]):
@@ -23,7 +23,8 @@ def calculate_norm_std(dataset_dirs: List[Path]):
 
     for dataset_dir in dataset_dirs:
         path_images = Path(dataset_dir, "images", DatasetSplitType.TRAIN.value)
-        uuid_dir_paths = glob(str(Path(path_images, "*")))
+
+        uuid_dir_paths = get_dirs_only(Path(path_images))
         uuids = [Path(uuid_dir_path).stem for uuid_dir_path in uuid_dir_paths]
 
         for uuid in uuids:
