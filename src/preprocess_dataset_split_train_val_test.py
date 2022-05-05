@@ -15,11 +15,11 @@ import numpy as np
 from tqdm import tqdm
 
 from defaults import DEFAULT_TEST_FRAC, DEFAULT_TRAIN_FRAC, DEFAULT_VAL_FRAC
-from utils_functions import (is_valid_dir, is_valid_fractions_array,
-                             split_by_ratio)
+from utils_functions import is_valid_dir, is_valid_fractions_array, split_by_ratio
 
 
 def parse_args(args):
+    print(args)
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--dataset-dir",
@@ -38,7 +38,7 @@ def parse_args(args):
         metavar="[float, float, float]",
         nargs=3,
         default=[DEFAULT_TRAIN_FRAC, DEFAULT_VAL_FRAC, DEFAULT_TEST_FRAC],
-        type=is_valid_fractions_array,
+        type=float,
         help="Fractions of train, validation and test that will be used to split the dataset. E.g. 0.8 0.1 0.1",
     )
 
@@ -53,9 +53,13 @@ def create_train_val_test_dirs(out_dir: Path):
 
 def main(args):
     args = parse_args(args)
+
     dataset_dir = args.dataset_dir
     out_dir = args.dataset_dir if args.out is None else args.out
     split_ratios = args.split_ratios
+
+    if sum(split_ratios) != 1:
+        raise argparse.ArgumentError(split_ratios, "There has to be 3 fractions (train, val, test) that sum to 1")
 
     uuids = sorted(next(os.walk(dataset_dir))[1])
     uuid_indices = np.arange(len(uuids))
