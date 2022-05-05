@@ -15,7 +15,6 @@ class ServerStore:
         self.batch_size = int(config["PREDICT_BATCH_SIZE"])
         self.cached_models = {}
         self.refresh_model_filepaths()
-        print("\n\n\nSTORE MODEL PATHS", self.model_filepaths)
 
     def refresh_model_filepaths(self) -> Dict[str, Path]:
         """

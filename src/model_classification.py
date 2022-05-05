@@ -141,11 +141,10 @@ class LitModelClassification(pl.LightningModule):
         return sum(param.numel() for param in self.parameters() if param.requires_grad)
 
     def forward(self, image_list) -> Any:
-        with torch.no_grad():
-            outs_backbone = [self.backbone(image) for image in image_list]
-            out_backbone_cat = torch.cat(outs_backbone, dim=1)
-            out_flatten = torch.flatten(out_backbone_cat, 1)
-            out = self.fc(out_flatten)
+        outs_backbone = [self.backbone(image) for image in image_list]
+        out_backbone_cat = torch.cat(outs_backbone, dim=1)
+        out_flatten = torch.flatten(out_backbone_cat, 1)
+        out = self.fc(out_flatten)
         return out
 
     def training_step(self, batch, batch_idx):

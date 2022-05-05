@@ -25,6 +25,7 @@ T = TypeVar("T")
 
 
 def get_dirs_only(path: Path):
+    """Return only top level directories in the path"""
     return [d for d in (os.path.join(path, d1) for d1 in os.listdir(path)) if os.path.isdir(d)]
 
 
