@@ -149,6 +149,7 @@ if __name__ == "__main__":
                 "haversine_{val/haversine_distance_epoch:.4f}",
                 "val_acc_{val/acc_epoch:.4f}",
                 "val_loss_{val/loss_epoch:.4f}",
+                "val",
                 timestamp,
             ]
         ),
