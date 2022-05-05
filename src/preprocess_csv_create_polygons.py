@@ -125,6 +125,7 @@ def main(args, df_object=None):
     args = parse_args(args)
     path_csv, no_out, out_dir_csv = _handle_arguments(args, df_object)
     spacing, out_dir_fig, fig_format = args.spacing, args.out_fig, args.fig_format
+    fig_format = "." + fig_format
 
     default_crs = DEFAULT_GLOBAL_CRS
 
@@ -210,22 +211,26 @@ def main(args, df_object=None):
     df_polys_without_data = gpd.GeoDataFrame({"geometry": polys_without_data})
     intersecting_points_df = gpd.GeoDataFrame({"geometry": [c.point for c in clipped_centroid]})
 
+    basename = "data_fig__spacing_{}__num_class_{}".format(spacing, num_valid_polys)
+
     ax = country_shape.plot(color="green")
-
-    df_polys_with_data.plot(ax=ax, alpha=1, facecolor="none", linewidth=0.6, edgecolor="black")
-    df_polys_without_data.plot(ax=ax, alpha=1, facecolor="none", linewidth=0.6, edgecolor="red")
-
-    intersecting_points_df.plot(ax=ax, alpha=1, linewidth=0.2, markersize=2, edgecolor="white", color="red")
     ax.set_xlabel("Longitude")
     ax.set_ylabel("Latitude")
 
-    filepath_fig = Path(
-        out_dir_fig,
-        "data_fig__spacing_{}__num_class_{}.{}".format(spacing, num_valid_polys, fig_format),
-    )
+    plt.savefig(Path(out_dir_fig, "croatia.png"), dpi=1200)
 
-    plt.savefig(filepath_fig, dpi=1200)
-    print("Saved file:", filepath_fig)
+    df_polys_with_data.plot(ax=ax, alpha=1, facecolor="none", linewidth=0.6, edgecolor="black")
+    plt.savefig(Path(out_dir_fig, basename + "__polygons" + fig_format), dpi=1200)
+
+    df_polys_without_data.plot(ax=ax, alpha=1, facecolor="none", linewidth=0.6, edgecolor="red")
+    plt.savefig(Path(out_dir_fig, basename + "__polygons_nodata" + fig_format), dpi=1200)
+
+    intersecting_points_df.plot(ax=ax, alpha=1, linewidth=0.2, markersize=2, edgecolor="white", color="red")
+    plt.savefig(Path(out_dir_fig, basename + "__centroid" + fig_format), dpi=1200)
+
+    path_final_figure = Path(out_dir_fig, basename + fig_format)
+    plt.savefig(path_final_figure, dpi=1200)
+    print("Saved file:", str(path_final_figure))
     return df
 
 

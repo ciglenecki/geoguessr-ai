@@ -12,7 +12,7 @@ from sklearn.preprocessing import MinMaxScaler
 from torch import nn
 
 from defaults import DEFAULT_EARLY_STOPPING_EPOCH_FREQ, DEFAULT_TORCHVISION_VERSION
-from src.model_classification import get_haversine_from_predictions
+from model_classification import get_haversine_from_predictions
 from utils_geo import crs_coords_to_degree
 from utils_model import crs_coords_weighed_mean, model_remove_fc
 from utils_train import OptimizerType, SchedulerType
