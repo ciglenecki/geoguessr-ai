@@ -116,7 +116,7 @@ if __name__ == "__main__":
     # configuration, happen after every training epoch.
 
     callback_early_stopping = EarlyStopping(
-        monitor="val/loss_epoch",
+        monitor="val/haversine_distance_epoch",
         mode="min",
         patience=DEFAULT_EARLY_STOPPING_EPOCH_FREQ,
         check_on_train_epoch_end=False,  # note: this is extremely important for model checkpoint loading
@@ -124,14 +124,31 @@ if __name__ == "__main__":
     )
 
     callback_checkpoint = ModelCheckpoint(
+        monitor="val/haversine_distance_epoch",
+        mode="min",
+        filename="__".join(
+            [
+                experiment_codeword,
+                "haversine_{val/haversine_distance_epoch:.4f}",
+                "val_acc_{val/acc_epoch:.4f}",
+                "val_loss_{val/loss_epoch:.4f}",
+                timestamp,
+            ]
+        ),
+        auto_insert_metric_name=False,
+        save_on_train_epoch_end=False,  # note: this is extremely important for model checkpoint loading
+        verbose=True,
+    )
+
+    callback_checkpoint_val = ModelCheckpoint(
         monitor="val/loss_epoch",
         mode="min",
         filename="__".join(
             [
                 experiment_codeword,
                 "haversine_{val/haversine_distance_epoch:.4f}",
-                "val_acc_{val/acc_epoch:.2f}",
-                "val_loss_{val/loss_epoch:.2f}",
+                "val_acc_{val/acc_epoch:.4f}",
+                "val_loss_{val/loss_epoch:.4f}",
                 timestamp,
             ]
         ),
@@ -144,6 +161,7 @@ if __name__ == "__main__":
 
     callbacks = [
         callback_checkpoint,
+        callback_checkpoint_val,
         callback_early_stopping,
         TQDMProgressBar(refresh_rate=bar_refresh_rate),
         ModelSummary(max_depth=3),
