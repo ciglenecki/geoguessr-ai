@@ -26,10 +26,10 @@ async def predict_images(model_name: str, images: List[UploadFile]):
 @router.post(
     "/{model_name}/predict-cardinal-images",
     tags=["predict"],
-    response_model=List[models.PredictImagesResponse],
+    response_model=List[models.PredictImagesCardinalResponse],
     description=predict_cardinal_desc,
 )
-async def predict_cardinal_images(model_name: str, images: List[models.PostPredictCardinal]):
+async def predict_cardinal_images(model_name: str, images: List[UploadFile]):
     return await controller.predict_cardinal_images(model_name, images)
 
 

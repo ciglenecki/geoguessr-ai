@@ -6,7 +6,7 @@ import copy
 import io
 import os
 from pathlib import Path
-from typing import Dict, List, Literal
+from typing import Dict, List, Literal, Union
 
 import pytorch_lightning as pl
 import torch
@@ -78,39 +78,51 @@ def _process_image(image: Image.Image, image_size: int) -> torch.Tensor:
     return image_transform(image)
 
 
-async def predict_cardinal_images(model_name: str, images: List[models.PostPredictCardinal]):
-    sides = images[0].dict().keys()
-    print(sides)
-
-    for image in images:
-        for side in sides:
-            print(image[side].content_type)
-    exit(1)
-
-    if any([image.content_type != "image/jpeg" and image.content_type != "image/png" for image in images]):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "File has to be .jpg or .pong image")
-
+async def predict_cardinal_images(model_name: str, images: List[UploadFile]):
     sides = ["0", "90", "180", "270"]
 
-    all([Path(image.filename).stem for image in images])
+    if len(images) != 4:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "Exactly 4 images named '0.{jpg, png}', '90.{jpg, png}', '180.{jpg, png}', '270.{jpg, png}' should be sent.",
+        )
+
+    filename_stems = [Path(image.filename).stem for image in images]
+    if any([side not in filename_stems for side in sides]):
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "Exactly 4 images named '0.{jpg, png}', '90.{jpg, png}', '180.{jpg, png}', '270.{jpg, png}' should be sent.",
+        )
+
+    if len(images) != 4:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "Exactly 4 images named '0.{jpg, png}', '90.{jpg, png}', '180.{jpg, png}', '270.{jpg, png}' should be sent.",
+        )
+    if any([image.content_type != "image/jpeg" and image.content_type != "image/png" for image in images]):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "File should be images with extension '.jpg' or '.png'")
+
+    images = sorted(images, key=lambda image: int(str((Path(image.filename).stem))))
 
     _verify_model_name(model_name)
     model = _load_model(model_name)
 
     response_object: List[Dict[Literal["latitude", "longitude"], float]] = []
+
+    image_list = []
     for image in images:
         image_io = await image.read()
         image_pil = Image.open(io.BytesIO(image_io))  # type: ignore
 
         image_tensor = _process_image(image_pil, model.image_size)
         image_tensor = image_tensor.unsqueeze(dim=0)
-        image_list = [image_tensor] * 4
+        image_list.append(image_tensor)
 
-        y_pred = model.forward(image_list)
-        pred_degree_coords = _get_lat_lng_predictions(y_pred, model)
-        lat, lng = pred_degree_coords.squeeze()
-        lat, lng = float(lat), float(lng)
-        response_object.append({"latitude": lat, "longitude": lng})
+    y_pred = model.forward(image_list)
+    pred_degree_coords = _get_lat_lng_predictions(y_pred, model)
+    lat, lng = pred_degree_coords.squeeze()
+    lat, lng = float(lat), float(lng)
+    response_object.append({"latitude": lat, "longitude": lng})
     return response_object
 
 
@@ -149,9 +161,11 @@ def read_model(model_name: str, body: models.PostPredictDatasetRequest):
     _verify_model_name(model_name)
     dataset_directory_path = _verify_dataset_directory_path(body.dataset_directory_path)
 
-    if body.csv_path:
-        os.makedirs(os.path.dirname(body.csv_path), exist_ok=True)
-        open(body.csv_path, "w").close()
+    if body.csv_filename:
+        parent_dir = Path(body.csv_filename).absolute().parent
+        if os.path.isdir(parent_dir):
+            os.makedirs(os.path.dirname(parent_dir), exist_ok=True)
+        open(body.csv_filename, "w").close()
 
     model = _load_model(model_name)
     with torch.no_grad():
@@ -168,8 +182,8 @@ def read_model(model_name: str, body: models.PostPredictDatasetRequest):
         predict_datamodule.setup()
 
         callbacks = []
-        if body.csv_path:
-            callbacks.append(InferenceWriter(Path(body.csv_path)))
+        if body.csv_filename:
+            callbacks.append(InferenceWriter(Path(body.csv_filename)))
 
         trainer = pl.Trainer(
             callbacks=callbacks,
@@ -181,9 +195,13 @@ def read_model(model_name: str, body: models.PostPredictDatasetRequest):
             datamodule=predict_datamodule,
         )  # type: ignore [lightning doesnt know what we return in predict]
 
-    predictions: List[Dict]  # keys in one dictionary: uuid longitude latitude
-    response_dict: Dict[str, Dict[Literal["latitude", "longitude"], float]] = {}
+    predictions: List[
+        Dict[Literal["uuid", "latitude", "longitude"], Union[str, float]]
+    ]  # keys in one dictionary: uuid longitude latitude
+
+    response_list = []
+
     for pred_dict in predictions:
         for uuid, longitude, latitude in zip(pred_dict["uuid"], pred_dict["longitude"], pred_dict["latitude"]):
-            response_dict[uuid] = {"longitude": longitude, "latitude": latitude}
-    return response_dict
+            response_list.append(dict(uuid=uuid, longitude=longitude, latitude=latitude))
+    return response_list

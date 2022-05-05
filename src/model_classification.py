@@ -208,14 +208,6 @@ class LitModelClassification(pl.LightningModule):
         self.log_dict(log_dict, on_step=True, on_epoch=True, logger=True, prog_bar=True)
         return data_dict
 
-    def on_predict_start(self) -> None:
-        self.eval()
-        for param in self.parameters():
-            param.requires_grad = False
-        for param in self.backbone.parameters():
-            param.requires_grad = False
-        return super().on_predict_start()
-
     def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> Any:
         image_list, uuid = batch
         with torch.no_grad():
