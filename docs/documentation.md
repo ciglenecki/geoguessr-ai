@@ -14,11 +14,19 @@ mainfontoptions:
 - BoldFont=*-Bold
 - ItalicFont=*-Italic
 - BoldItalicFont=*-BoldItalic
-
+colorlinks: true
+linkcolor: red
+urlcolor: blue
 output:
 	pdf_document:
 		toc: yes
 		toc_depth:
+
+# author:
+# 	- Filip Wolf
+# 	- Leonardo Čuljak
+# 	- Borna Katović
+# 	- Matej Ciglenečki
 
 geometry: margin=3cm
 numbersections: true
@@ -33,33 +41,52 @@ title: |
 
 ## Introduction
 
-We all know and love the famous online game [_GeoGuessr_](https://en.wikipedia.org/wiki/GeoGuessr). You are dropped in the middle of nowhere in _Google Street View_ and are tasked with determining your location as closely as possible. “Am I on the North or South Pole?”, “Is this the African or South American jungle” and “On which end of Russia am I?” are only some of the questions players are asking while playing. Fortunately, the problem we were tasked with is a little simpler (keyword: _a little_). Instead of playing GeoGuessr on a global scale, we play it only within Croatia. To do this, we were given a set of Google Street View images taken on Croatian roads along with their coordinates. The images come in quadruplets forming a non-continuous 360° view of the location, where each image was taken in a cardinal direction (north, south, west, east) from the perspective of the Street View car. Alongside the images themselves, we also received their locations in the form of latitude and longitude pairs for each set of four image. An example of the four images is displayed in Figure 1.
+Most of use know and love the famous online game [_GeoGuessr_](https://en.wikipedia.org/wiki/GeoGuessr). You are dropped in the middle of nowhere in [_Google Street View_](https://www.google.com/streetview/) and tasked with determining the location as closely as possible. “Am I on the North or South Pole?”, “Is this the African or South American jungle?” and “On which end of Russia am I?” are only some of the questions players are asking while playing the game. Fortunately, the problem we were tasked with is a little simpler (keyword: _a little_). Instead of playing GeoGuessr on a global scale, we play it only within Croatia. However, we won't be playing GeoGuessr, rather, we will do our best to create a model which will determinate the location. [Photomath](https://photomath.com/en/), the sponsor of this competition, provided a **train set** of Google Street View images taken on Croatian roads along with their coordinates. The images come in quadruplets forming a non-continuous 360° view of the location, where each image was taken in a cardinal direction (north, south, west, east) from the perspective of the Street View car. Alongside the images themselves, we also received their locations in the form of latitude and longitude pairs for each set of four image. An example of the four images is displayed in Figure 1.
 
 ![](./images/0.jpg){width=25%}
 ![](./images/90.jpg){width=25%}
 ![](./images/180.jpg){width=25%}
 ![](./images/270.jpg){width=25%}
 \begin{figure}[!h]
-\caption{Example of four Google Street View images taken in a single location. Our model will train on these images.}
+\caption{Example of four Google Street View images taken at the location latitude: 45.131946, longitude: 14.002129.}
 \end{figure}
 
 ## The Task
 
-As we previously stated, our task is to predict the coordinates of the images, specifically, the coordinates of the test images we will receive in the last week of the competition (kept of course in the most secret government bunkers, shut away from our prying eyes). It's important to note that we will not receive the true coordinates for these test images. After providing predicted coordinates for each set of four images, the total error is measured using the [**great-circle distance**](https://en.wikipedia.org/wiki/Great-circle_distance) between the predicted and true coordinates. The great-circle distance measures the distance between two points over a curved surface, e.g. the distance between two cities on the Earth’s curved surface, and it uses the _haversine formula_ to calculate this (fortunately for you, we won’t go into detail about this). Total error is calculated as the mean of all great-circle distances between the true and predicted coordinates for all the images. It's also possible to explain the error in the following way: the further a bird needs to fly from the predicted coordinates to the true coordinates, the larger the error. The total error will be used to determine how successful one method is compared to others.
+As we previously stated, our task is to predict the coordinates of the images, specifically, the coordinates of the images from the **test set** which we will receive in the last week of the competition (kept of course in the most secret government bunkers, shut away from our prying eyes). It's important to note that we will not receive the true coordinates for images in the test set. After we provide  predicted coordinates for each location from the test set, the total error is measured using the [**great-circle distance**](https://en.wikipedia.org/wiki/Great-circle_distance) between the predicted and true coordinates. The great-circle distance measures the distance between two points over a curved surface, e.g. the distance between two cities on the Earth’s curved surface, and it uses the [_haversine formula_](https://www.igismap.com/haversine-formula-calculate-geographic-distance-earth/) to calculate this (fortunately for you, we won’t go into detail about this). Total error is calculated as the mean of all great-circle distances between the true and predicted coordinates for all locations. It's also possible to explain the error in the following way: the further a bird needs to fly from the predicted coordinates to the true coordinates, the larger the error. The total error will be used to determine how successful one method is compared to others.
 
-![\ An image of a sphere where the dotted red line represents the great circle distance between two points on the sphere’s surface. Notice that it is alarger distance than a direct straight line through the sphere.](./The-great-circle-distance-between-origin-and-destination.png){ width=50% }
+![An image of a sphere where the dotted red line represents the great-circle distance between two points on the sphere’s surface. Notice that the great-circle circle distance is larger than a [direct straight line (Euclidean distance)](https://en.wikipedia.org/wiki/Euclidean_distance) through the sphere.](./The-great-circle-distance-between-origin-and-destination.png){ width=50% }
 
-On paper, the problem sounds fairly simple and is not unlike many other computer vision tasks. However, we are faced with the following problem: a country can look very similar over large swathes of land. Turns out, the grass is green and the sky is blue wherever you are in the world. For example, if we were randomly placed somewhere in the area of [Slavonia](https://en.wikipedia.org/wiki/Slavonia) and were told to say where we are located exactly, it might feel impossible to predict our exact (or even approximate) location (the unending flatness might give us a clue though). Unless we’ve already seen the landscape or we notice some obvious features of the location, such as a town sign or a famous landmark, there is little chance for us to correctly predict our whereabouts. There is a silver lining to this though. Croatia, although small, is very geologically and culturally diverse (thank you centuries of non-independence). Due to this, mountains, houses, forests and even fields can look different depending on the region of the country, giving precedence to the idea that the model could learn to spot these differences. That being said, it is nonetheless a difficult problem to solve and requires clever feature engineering and a careful neural network setup in order to work, which we will talk about in the coming chapters.
+## Solution method - computer vision
 
-## Computer Vision
+The type of data we were provided with are images (aside from latitude and longitude of the location). When trying to solve a problem which includes images as the main source of data, the method for the solution will most likely come from the area of [computer vision](#computer-vision). Computer vision is an area of research that has arguably seen the most growth from the advent of deep learning, being right up there with with meaningless buzzwords. Over the past decade, it grew from a niche research area to one of the most widely applicable fields within machine learning. Today in computer vision, we use neural networks to analyze a large number of images, extract some potentially useful information from them, and use that information to classify those images into predefined classes or predict a target variable. It can be used in almost anything, from detecting traffic sings for self-driving cars to distinguishing fake works of art from real ones. The problem we were tasked with solving in this competition falls neatly into this category. Indeed, we will methods and knowledge from the computer vision to solve the problem.
 
-Computer vision is an area of research that has arguably seen the most growth from the advent of deep learning, being right up there with meaningless buzzwords and failed startups. Over the past decade, it grew from a niche research area to one of the most widely applicable fields within machine learning. In computer vision, we use neural networks to analyze a large number of images, extract some potentially useful information from them, and use that information to classify those images into predefined classes or predict a target variable. It can be used in almost anything, from detecting traffic sings for self-driving cars to distinguishing fake works of art from real ones. The problem we were tasked with solving in this competition falls neatly into this category.
+On paper, our problem sounds fairly simple and is not unlike many other computer vision tasks. However, we are faced with the following problem: a country can look very similar over large swathes of land. Turns out, the grass is green and the sky is blue wherever you are in the world. For example, if we were randomly placed somewhere in the area of [Slavonia](https://www.google.com/maps/@45.4743188,17.5110713,8.75z) and were told to say where we are located exactly, it might feel impossible to predict our exact (or even approximate) location (the unending flatness of Slavonia might give the model a clue though). Unless we’ve already seen the landscape or we notice some obvious features of the location, such as a town sign or a famous landmark, there is little chance for us to correctly predict our whereabouts. There is a silver lining to this though. Croatia, although small, is very geologically and culturally diverse (thank you centuries of non-independence). Due to this, mountains, houses, forests and even fields can look different depending on the region of the country, giving precedence to the idea that the model could learn to spot these differences. That being said, it is nonetheless a difficult problem to solve and requires clever feature engineering and a careful neural network setup in order to work, which we will talk about in the coming chapters.
 
 ### Convolutional Neural Networks
 
-What makes computer vision distinct from other fields of deep learning is its usage of **convolutional neural networks** and its unmatched ability to infringe on privacy. Here, we will focus on the former. Because of the fact that images are 2-dimensional data structures, we can’t just turn them into 1-dimensional vectors and feed them into our network for training without inducing major information loss. Due to this, CNNs use 2D _filters_ to capture image information. A filter is a matrix of learnable weights that slides across images to detect patterns. Ideally, each filter in a CNN layer would specialize in learning different image features, such as lines and contours, or eyes of animals. By stacking multiple layers of these filters, each layer can learn a higher order of abstraction of the image data. For instance, the first layer might only learn to recognize simple lines. The second layer might combine these lines into shapes, while the third layer could finally combine these shapes into something recognizable, like a car. Such an architecture mimics how the human brain actually recognizes objects, that is to say, by combining smaller elements we see into larger ones. After we have stacked enough convolutional layers for recognizing objects, we finish off the network by feeding all the results into a fully connected layer for classification or regression and train it with any generic loss function.
+What makes computer vision distinct from other fields of deep learning is its usage of **convolutional neural networks**. The main assumption convolutional neural networks (CNN) is that our data (images) has composite structure. The fancy term means that the data has a structure in which larger parts are created from smaller parts. For example, the Google Street view image might contain a house, a road, a car and a tree. A house contains front doors, windows, facade and chimney. The front door contains a knob, a small glass window and a sign. The composite structure assumption for convolutional neural networks (CNN) is important because of how they work: convolutional neural networks (CNN) is made up of multiple layers and each layer is in charge of learning large, medium or small features (simplified) of the image:
+
+1. the first layer would learn how to recognize low level features -  basic geometric shapes like angled lines and contours
+2. the second layer would learn how to recognize medium level features - doors, windows, facade and chimney
+3. the third layer would learn how to recognize high level features - a house, a road, a car, a tree
+
+Before continuing with CNNs, let's first ask ourselves the following question:
+
+> Why should we use convolutional neural networks for the computer vision problems? Why can't we turn the 2-dimensional data structures (an image) into a vector with `n` features and feed it to already existing models like linear regression or SVM?
+
+We _can_ do this, but we _shouldn't_. In the past, computer vision problems were solved by this approach. However this method has some serious issues
+
+1. it isn't robust to slight differences in images that appear very similar (to us humans)
+2. models that were trained on images that were turned into vectors with `n` features need **a lot images** compared to convolutional neural networks to predict the location for unseen images
+
+The concept of predicting the values (locations) of unseen data (images that model didn't yet see) is called **model generalization**. It can also be described as model's ability to adapt properly to new, previously unseen data, drawn from the same distribution (in our case the distribution are Google Street view images in Croatia) as the one used to create the mode. The key takeaway is that convolutional neural networks generalize better than SVM for images.
+
+Each layer in CNN uses 2D _filters_ to capture image features. A filter is a 2D matrix where each element has it's own learnable weights. This filter slides across images to detect patterns. You can think of it like a magnifying glass that slides across the image. Ideally, each filter (magnifying glass) in a CNN layer would specialize in learning different image features. The top level magnifying glasses would learn how to recognize high level features (a house, a road, a car, a tree) while the low level ones would learn to recognize low level features (basic geometric shapes like angled lines and contours). By stacking multiple layers of these filters, each layer can learn a higher order of abstraction of the image data. For instance, the first layer might only learn to recognize simple lines. The second layer might combine these lines into shapes, while the third layer could finally combine these shapes into something recognizable, like a car. Such an architecture mimics how the human brain actually recognizes objects, that is to say, by combining smaller elements we see into larger ones. After we have stacked enough convolutional layers for recognizing objects, we finish off the network by feeding all the results into a fully connected layer for classification or regression and train it with any generic loss function.
 
 A large advantage of CNNs compared to other network architectures is their interpretability. The filter weights can be visualized to depict what each filter detects in an image, while network weights depict how the filters are combined. This can help us in understanding how the network learns from images. (IMG: insert filter image)
+
+![Example: feature maps of the CNN trained on car images](images/example_feature_map_car.png){width=50%}
 
 # Solution
 
@@ -79,27 +106,48 @@ Python Packages
 - [`Pandas`](https://pandas.pydata.org/) - the popular Python data analysis library. Used for loading, managing and decorating *.csv files
 - [`geopandas`](https://geopandas.org/en/stable/) - Pandas version used for geospatial data. Used to wrangle, manage and generate geospatial data
 - [`imageio`](https://imageio.readthedocs.io/en/stable/) - write and read image files
-- [`isort`](https://github.com/PyCQA/isort) - sort *.py imports
-- [`matplotlib`](https://matplotlib.org/) - visualization with Python
+- [`isort`](https://github.com/PyCQA/isort) - sort python imports
+- [`matplotlib`](https://matplotlib.org/) - data visualization with Python
 - [`NumPy`](https://numpy.org/) - mathematical functions and management of multi-dimensional arrays. Does anything even run without this?
 - `requests` - a HTTP library for Python. The goal of the project is to make HTTP requests simpler and more human-friendly
 - `scikit-learn` - a free machine learning library for Python. It features various classification, regression and clustering algorithms
-- `Shapely` - a BSD-licensed Python package for manipulation and analysis of planar geometric objects. It is based on the widely deployed GEOS (the engine of PostGIS) and JTS (from which GEOS is ported) libraries
+- `Shapely` - package for manipulation and analysis of planar geometric objects. It is based on the widely deployed GEOS (the engine of PostGIS) and JTS (from which GEOS is ported) libraries
 - `tabulate` - easy and pretty Python tables
 - `tensorboard` - library used for fetching and visualizing machine learning model training data in a browser
 - `tqdm` - easy Python progress bars
 
-## Solution Architecture
+## Solution architecture - [PyTorch Lightning](https://pytorch-lightning.readthedocs.io/en/latest/starter/introduction.html)
 
-Our model was composed of four main modules, as well as numerous helper functions. The helper functions were mainly used for tasks that were separate from the training process itself, such as transforming data into a format appropriate for training, generating classes, visualization, saving and loading, etc. Even though they probably do most of the work, we will here promptly ignore them and explain only the interesting parts of our solution, namely, the four main modules.
+The core library used for this project is PyTorch Lightning (PL) which was started by [William Falcon](https://www.williamfalcon.com/). You should glance through it's [introduction website](https://pytorch-lightning.readthedocs.io/en/stable/starter/introduction.html) to get a sense of what PyTorch Lightning actually does.  PyTorch Lightning (PL) doesn't introduce significant complexity to the _existing_ PyTorch code, in fact, it organizes the _existing_ PyTorch code in intuitive PyTorch Lightning modules. Example of organizing already existing PyTorch code can be seen [here](https://pytorch-lightning.readthedocs.io/en/latest/starter/converting.html). It's important the main component [`LightningModule`](https://pytorch-lightning.readthedocs.io/en/stable/common/lightning_module.html) is a [`torch.nn.Module`](https://pytorch.org/docs/stable/generated/torch.nn.Module.html) but with added functionality. You don't need to know the details of this fact but it's useful to keep it in mind. PyTorch Lightning to note that .PyTorch Lightning library passively forced us to write clean code with smaller overhead (compared to raw PyTorch code) and allowed us to quickly add crucial functionalities like logging, model checkpoints, general prototyping, and more. Kudos to [PyTorch Lightning team](https://www.pytorchlightning.ai/team) for creating, maintaining and improving this great library.
 
-### GeoguesserDataModule
+Key PyTorch Lightning moduels are:
+**pl.Trainer**
 
-The first module we will describe here is the `GeoguesserDataModule`. It inherits the `LightningDataModule` class and is used for simpler dataset loading. First, we load the dataset into memory and perform the necessary transformations on it to make it suitable for training. We then create the classes needed for classification together with their centroids, and add them to the dataset. We also perform some dataset statistics extraction, as well as some data standardization. Finally, we split the data into the train, validation and test dataset and create the dataset instances that will be described in the next paragraph. We also do some sanity checking to make sure everything is in order before continuing.
+Our solution is composed of four main modules, as well as numerous utility functions. Utility functions were mainly used for tasks that were separate from the training process itself, such as transforming data into a format appropriate for training, geospatial data manipulation, visualization, report saving and loading, etc. Even though we love our utility functions which are crucial to this project, they are generally responsible for lower level work which isn't the focus of this project. Here, we will promptly ignore them and explain only the higher level components of our solution, namely, the four main modules.
 
-### GeoguesserDataset
 
-To make training simpler, we define datasets for the train, validation and test part of the dataset separately. This is done by creating instances of the `GeoguesserDataset` module which inherits the standard `PyTorch Dataset` class. The most important operation that this module performs, aside from saving the dataset and its information, is define what happens when an instance of the dataset is retrieved. This includes fetching the data from both the image folders and the CSV file, loading the images, making them ready for input into the neural network, and transforming them with the specified transformations.
+### GeoguesserDataset ([src/dataset_geoguesser.py](../src/dataset_geoguesser.py))
+
+`GeoguesserDataset` is responsible for lazily fetching images and their coordinates during the training. We initialize `GeoguesserDataset` three times (train, validation and test set). Now, each of the three `GeoguesserDataset`s is responsible only for fetching the data from it's corresponding appropriate set. For example, `GeoguesserDataset` with parameter  `dataset_type = DatasetSplitType.TRAIN` will only return the images from the train set. The most important operation that the `GeoguesserDataset` module performs, aside from defining from which set images are fetched, is lazily fetching and **passing the location and four images** (one for each cardinal side) **to the pl.Trainer** during the training, validation and testing phase. Essentially, this module answers the question **"What data will start coming in batches once I start the training process ?"**
+
+It's also worth mentioning that any image or coordinate transformation is generally done in this module. What does this mean?
+> Let's say we want to resize our original image, 640x640 pixels, to a size of 224x224 pixels. Model obviously requires more time to train on large images. Since this competition lasts a few months and not a few years (this would be interesting), we will resize our images to 224x224 pixels. Instead of resizing images on the disk we can do this in runtime (during the training). You might say "yes but it would be faster to resize them in advance so that the program doesn't waste precious resources". That's true, but computation required to resize the image is negligible compared to other actions that occur during the training phase. Okay, so we settled on resizing the images during the runtime. So who is responsible for resizing images during the training phase? That would be exactly `GeoguesserDataset`. Before returning the image and coordinate to the trainer (which sends it further to the model), the `GeoguesserDataset` will apply resize transformation for the image. In fact, any transformation can be specified before we create the `GeoguesserDataset` and that exact transformation will be applied before trainer gets the data. Examples of such image transformations, alongside resizing, include cropping, translation, noise injection, color space transformations, and [more](https://journalofbigdata.springeropen.com/articles/10.1186/s40537-019-0197-0).
+
+`GeoguesserDataset` inherits the [torch.utils.data.Dataset](https://pytorch.org/tutorials/beginner/data_loading_tutorial.html) class.
+
+### GeoguesserDataModule (src/datamodule_geoguesser.py)
+
+The `GeoguesserDataModule` is mainly responsible for two things:
+
+1. preprocessing that can't be done by `GeoguesserDataset`. This preprocessed data is sent to the `GeoguesserDataset`.
+2. creating train, val and test [`DataLoader`s](https://pytorch.org/tutorials/beginner/basics/data_tutorial.html#preparing-your-data-for-training-with-dataloaders), each for one `GeoguesserDataset`
+
+
+We will first describe what kind of preprocessing actually happens here. `GeoguesserDataModule`
+
+The first module we will describe is the `GeoguesserDataModule`. It inherits the [`LightningDataModule`](https://pytorch-lightning.readthedocs.io/en/stable/extensions/datamodules.html) class and is used for simple dataset loading. First, we load the dataset into memory and perform the necessary transformations on it to make it suitable for training. We then create the classes needed for classification together with their centroids, and add them to the dataset. We also perform some dataset statistics extraction, as well as some data standardization. Finally, we split the data into the train, validation and test dataset and create the dataset instances that will be described in the next paragraph. We also do some sanity checking to make sure everything is in order before continuing.
+
+`GeoguesserDataset` inherits the [`LightningDataModule`](https://pytorch-lightning.readthedocs.io/en/stable/extensions/datamodules.htm) class.
 
 ### Model Definition
 
@@ -221,8 +269,7 @@ Inference is performed after the entire training phase of our model is over. It 
 
 _test_
 **test**
-*test*
-
+_test_
 
 ----
 To do:
