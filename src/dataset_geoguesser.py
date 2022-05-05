@@ -3,6 +3,9 @@ from __future__ import annotations, division, print_function
 from glob import glob
 from pathlib import Path
 from typing import Callable, List, Tuple
+from os import walk
+import time
+import sys
 
 import numpy as np
 import pandas as pd
@@ -13,7 +16,7 @@ from torchvision import transforms
 
 from defaults import DEFAULT_LOAD_DATASET_IN_RAM
 from utils_dataset import DatasetSplitType, get_dataset_dirs_uuid_paths
-from utils_functions import flatten, one_hot_encode
+from utils_functions import flatten, get_dirs_only, one_hot_encode
 
 
 class GeoguesserDataset(Dataset):
@@ -129,7 +132,8 @@ class GeoguesserDatasetPredict(Dataset):
         self.degrees = ["0", "90", "180", "270"]
         self.image_transform = image_transform
 
-        self.uuid_dir_paths = flatten([glob(str(Path(images_dir, "*"))) for images_dir in images_dirs])
+        self.uuid_dir_paths = flatten([get_dirs_only(images_dir) for images_dir in images_dirs])
+
         self.uuids = [Path(uuid_dir_path).stem for uuid_dir_path in self.uuid_dir_paths]
 
         """ Build image cache """

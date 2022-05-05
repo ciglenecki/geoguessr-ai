@@ -15,6 +15,8 @@ from defaults import DEFAULT_EARLY_STOPPING_EPOCH_FREQ, DEFAULT_TORCHVISION_VERS
 from utils_geo import crs_coords_to_degree, haversine_from_degs
 from utils_model import crs_coords_weighed_mean, model_remove_fc
 from utils_train import OptimizerType, SchedulerType, multi_acc
+import time
+import sys
 
 
 def get_haversine_from_predictions(
@@ -119,6 +121,7 @@ class LitModelClassification(pl.LightningModule):
         self.example_input_array = torch.stack(list_of_images)
 
     def _get_last_fc_in_channels(self) -> Any:
+
         """
         Returns:
             number of input channels for the last fc layer (number of variables of the second dimension of the flatten layer). Fake image is created, passed through the backbone and flattened (while perseving batches).
@@ -138,10 +141,11 @@ class LitModelClassification(pl.LightningModule):
         return sum(param.numel() for param in self.parameters() if param.requires_grad)
 
     def forward(self, image_list) -> Any:
-        outs_backbone = [self.backbone(image) for image in image_list]
-        out_backbone_cat = torch.cat(outs_backbone, dim=1)
-        out_flatten = torch.flatten(out_backbone_cat, 1)
-        out = self.fc(out_flatten)
+        with torch.no_grad():
+            outs_backbone = [self.backbone(image) for image in image_list]
+            out_backbone_cat = torch.cat(outs_backbone, dim=1)
+            out_flatten = torch.flatten(out_backbone_cat, 1)
+            out = self.fc(out_flatten)
         return out
 
     def training_step(self, batch, batch_idx):
@@ -204,9 +208,18 @@ class LitModelClassification(pl.LightningModule):
         self.log_dict(log_dict, on_step=True, on_epoch=True, logger=True, prog_bar=True)
         return data_dict
 
+    def on_predict_start(self) -> None:
+        self.eval()
+        for param in self.parameters():
+            param.requires_grad = False
+        for param in self.backbone.parameters():
+            param.requires_grad = False
+        return super().on_predict_start()
+
     def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> Any:
         image_list, uuid = batch
-        y_pred = self(image_list)
+        with torch.no_grad():
+            y_pred = self(image_list)
 
         pred_crs_coord = crs_coords_weighed_mean(y_pred, self.class_to_crs_weighted_map, top_k=5)
         pred_crs_coord = pred_crs_coord.cpu()

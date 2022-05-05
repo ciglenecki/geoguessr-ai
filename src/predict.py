@@ -33,7 +33,7 @@ class InferenceWriter(Callback):
         dataloader_idx: int,
     ) -> None:
         tmp_df = pd.DataFrame(outputs)
-        tmp_df.to_csv(self.output_path, mode="a+", index=False, header=False)
+        tmp_df.to_csv(self.output_path, mode="a+", index=True, header=False)
 
 
 if __name__ == "__main__":

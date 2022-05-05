@@ -3,6 +3,7 @@ from glob import glob
 from itertools import product
 from pathlib import Path
 from typing import List, Union
+from utils_functions import flatten, get_dirs_only
 
 import pandas as pd
 
@@ -18,12 +19,8 @@ class DatasetSplitType(Enum):
 
 def filter_df_by_dataset_split(df: pd.DataFrame, dataset_dirs: List[Path], split_types: List[DatasetSplitType]):
     """Returns the dataframe with rows filtered by uuid. Only the uudis' from dataset_dirs with split_type=train/val/test are returned"""
-    uuid_dir_paths = flatten(
-        [
-            glob(str(Path(dataset_dir, "images", split_type.value, "*")))
-            for dataset_dir, split_type in product(dataset_dirs, split_types)
-        ]
-    )
+
+    uuid_dir_paths = get_dataset_dirs_uuid_paths(dataset_dirs, split_types)
     uuids = [Path(uuid_dir_path).stem for uuid_dir_path in uuid_dir_paths]
     df_split_type = df.loc[df["uuid"].isin(uuids), :]
     return df_split_type
@@ -46,7 +43,7 @@ def get_dataset_dirs_uuid_paths(
 
     uuid_dir_paths = flatten(
         [
-            glob(str(Path(dataset_dir, "images", dataset_split_type.value, "*")))
+            get_dirs_only(Path(dataset_dir, "images", dataset_split_type.value))
             for dataset_dir, dataset_split_type in product(dataset_dirs, dataset_split_types)
         ]
     )
