@@ -21,7 +21,7 @@ class InferenceWriter(Callback):
         super().__init__()
         self.output_path = output_path
         self.df = pd.DataFrame(columns=["uuid", "latitude", "longitude"])
-        self.df.to_csv(self.output_path, mode="w+", index=True, header=True)
+        self.df.to_csv(self.output_path, mode="w+", index=False, header=True)
 
     def on_predict_batch_end(
         self,

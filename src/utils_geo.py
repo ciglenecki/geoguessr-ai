@@ -36,7 +36,7 @@ def haversine_from_degs(
     return haver_dist
 
 
-def crs_coords_to_degree(xy: Union[pd.Series, np.ndarray, torch.Tensor]) -> Union[pd.Series, np.ndarray, torch.Tensor]:
+def crs_coords_to_degree(xy: Union[pd.Series, np.ndarray, torch.Tensor]) -> np.ndarray:
     transformer = Transformer.from_crs(DEFAULT_CROATIA_CRS, DEFAULT_GLOBAL_CRS)
     x = xy[:, 0]
     y = xy[:, 1]

@@ -24,6 +24,11 @@ class InvalidRatios(Exception):
 T = TypeVar("T")
 
 
+def get_dirs_only(path: Path):
+    """Return only top level directories in the path"""
+    return [d for d in (os.path.join(path, d1) for d1 in os.listdir(path)) if os.path.isdir(d)]
+
+
 def tensor_sum_of_elements_to_one(ten: torch.Tensor, dim):
     """Scales elements of the tensor so that the sum is 1"""
     return ten / torch.sum(ten, dim=dim, keepdim=True)
@@ -175,7 +180,7 @@ def is_positive_int(value):
 
 def is_valid_unfreeze_arg(arg):
     """Positive int or 'all'"""
-    if type(arg) is str and (arg == "all" or 'layer' in arg):
+    if type(arg) is str and (arg == "all" or "layer" in arg):
         return arg
     try:
         if is_positive_int(arg):  # is_positive_int's raise will be caught by the except

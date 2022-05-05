@@ -15,6 +15,8 @@ from defaults import DEFAULT_EARLY_STOPPING_EPOCH_FREQ, DEFAULT_TORCHVISION_VERS
 from utils_geo import crs_coords_to_degree, haversine_from_degs
 from utils_model import crs_coords_weighed_mean, model_remove_fc
 from utils_train import OptimizerType, SchedulerType, multi_acc
+import time
+import sys
 
 
 def get_haversine_from_predictions(
@@ -123,6 +125,7 @@ class LitModelClassification(pl.LightningModule):
         self.example_input_array = torch.stack(list_of_images)
 
     def _get_last_fc_in_channels(self) -> Any:
+
         """
         Returns:
             number of input channels for the last fc layer (number of variables of the second dimension of the flatten layer). Fake image is created, passed through the backbone and flattened (while perseving batches).
@@ -170,7 +173,7 @@ class LitModelClassification(pl.LightningModule):
         image_list, y_true, image_true_crs_coords = batch
         y_pred = self(image_list)
 
-        pred_crs_coord = crs_coords_weighed_mean(y_pred, self.class_to_crs_weighted_map, top_k=5)
+        pred_crs_coord = crs_coords_weighed_mean(y_pred, self.class_to_crs_weighted_map, top_k=self.num_classes)
         haver_dist = get_haversine_from_predictions(self.crs_scaler, pred_crs_coord, image_true_crs_coords)
 
         loss = F.cross_entropy(y_pred, y_true)
@@ -192,7 +195,7 @@ class LitModelClassification(pl.LightningModule):
         image_list, y_true, image_true_crs_coords = batch
         y_pred = self(image_list)
 
-        pred_crs_coord = crs_coords_weighed_mean(y_pred, self.class_to_crs_weighted_map, top_k=5)
+        pred_crs_coord = crs_coords_weighed_mean(y_pred, self.class_to_crs_weighted_map, top_k=self.num_classes)
         haver_dist = get_haversine_from_predictions(self.crs_scaler, pred_crs_coord, image_true_crs_coords)
 
         loss = F.cross_entropy(y_pred, y_true)
@@ -210,9 +213,10 @@ class LitModelClassification(pl.LightningModule):
 
     def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> Any:
         image_list, uuid = batch
-        y_pred = self(image_list)
+        with torch.no_grad():
+            y_pred = self(image_list)
 
-        pred_crs_coord = crs_coords_weighed_mean(y_pred, self.class_to_crs_weighted_map, top_k=5)
+        pred_crs_coord = crs_coords_weighed_mean(y_pred, self.class_to_crs_weighted_map, top_k=self.num_classes)
         pred_crs_coord = pred_crs_coord.cpu()
         pred_crs_coord_transformed = self.crs_scaler.inverse_transform(pred_crs_coord)
         pred_degree_coords = crs_coords_to_degree(pred_crs_coord_transformed)
@@ -227,7 +231,10 @@ class LitModelClassification(pl.LightningModule):
             optimizer = torch.optim.AdamW(self.parameters(), lr=float(self.learning_rate), weight_decay=5e-3)
         else:
             optimizer = torch.optim.Adam(
-                self.parameters(), lr=float(self.learning_rate), weight_decay=self.weight_decay
+                self.parameters(),
+                lr=float(self.learning_rate),
+                weight_decay=self.weight_decay,
+                betas=(0.85, 0.95),
             )
 
         if self.scheduler_type is SchedulerType.AUTO_LR.value:
@@ -262,8 +269,8 @@ class LitModelClassification(pl.LightningModule):
             scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
                 optimizer,
                 "min",
-                factor=0.5,
-                patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ // 3) - 1,
+                factor=0.66,
+                patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ // 2) - 1,
                 verbose=True,
             )
             interval = "epoch"
