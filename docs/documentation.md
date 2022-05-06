@@ -16,7 +16,7 @@ mainfontoptions:
 - BoldItalicFont=*-BoldItalic
 colorlinks: true
 linkcolor: red
-urlcolor: blue
+urlcolor: red
 output:
 	pdf_document:
 		toc: yes
@@ -28,7 +28,7 @@ output:
 # 	- Borna Katović
 # 	- Matej Ciglenečki
 
-geometry: margin=1cm
+geometry: margin=1.2cm
 numbersections: true
 title: |
 	Documentation
@@ -47,6 +47,7 @@ Most of use know and love the famous online game [_GeoGuessr_](https://en.wikipe
 ![](img/90.jpg){width=25%}
 ![](img/180.jpg){width=25%}
 ![](img/270.jpg){width=25%}
+
 \begin{figure}[!h]
 \caption{Example: location latitude: 45.131946, longitude: 14.002129}
 \end{figure}
@@ -89,12 +90,12 @@ Each layer in CNN uses 2D _filters_ to capture image features. A filter is a 2D 
 
 A large advantage of CNNs compared to other network architectures is their interpretability. The filter weights can be visualized to depict what each filter detects in an image, while network weights depict how the filters are combined. This can help us in understanding how the network learns from images. (IMG: insert filter image)
 
-![Example: feature maps of the CNN trained on car images](images/example_feature_map_car.png){width=50%}
+![Example: feature maps of the CNN trained on car images](img/example_feature_map_car.png){width=50%}
 
 
 ## Data and Feature Engineering
 
-The dataset we received contains directory with images and a `data.csv` file. Images should be self explanatory (apologies to blind people) but we will explore the `data.csv` further. The `data.csv` looks something like this:
+The dataset we received contains directory with images and a `data.csv` file. Images should be self explanatory (apologies to the blind) but we will explore the `data.csv` further. The `data.csv` looks something like this:
 
 | uuid                                 | latitude          | longitude         |
 | ------------------------------------ | ----------------- | ----------------- |
@@ -107,65 +108,101 @@ It's quite simple. `uuid` represents the directory name which contains four imag
 
 In this chapter, we describe how transformed this `data.csv` to a new csv which we will call **statically enriched csv**
 
-| uuid                                 | latitude | longitude | poly_idx | centroid_lng | centroid_lat | crs_y      | crs_x      | crs_center_x | crs_center_y |
-| ------------------------------------ | -------- | --------- | -------- | ------------ | ------------ | ---------- | ---------- | -------------- | -------------- |
-| 69387a76-b6f6-4a76-9d82-59367e14cb12 | 45.55    | 18.53     | 45.0     | 18.74        | 45.64        | 5531731.02 | 159131.42  | 5542646.88     | 175076.29      |
-| 83fd0354-8781-4325-9139-653ba0ce718f | 45.11    | 14.82     | 25.0     | 14.74        | 45.14        | 5482666.09 | -132009.38 | 5486160.17     | -137869.68     |
-| 5e2f692d-a2e6-45b1-b18b-3cec90b31b64 | 45.42    | 18.76     | 45.0     | 18.74        | 45.64        | 5518068.75 | 177432.28  | 5542646.88     | 175076.29      |
-| b3447ea2-8ea2-4c4e-b2a8-8611c8253995 | 46.15    | 17.05     | 50.0     | 17.21        | 46.11        | 5596833.61 | 43038.47   | 5592979.06     | 55064.69       |
+| uuid                                 | lat   | lon   | poly_idx | center_lng | center_lat | crs_y   | crs_x   | crs_center_x | crs_center_y |
+| ------------------------------------ | ----- | ----- | -------- | ---------- | ---------- | ------- | ------- | ------------ | ------------ |
+| 69387a76-b6f6-4a76-9d82-59367e14cb12 | 45.55 | 18.53 | 45.0     | 18.74      | 45.64      | 5531731 | 159131  | 5542646      | 175076       |
+| 83fd0354-8781-4325-9139-653ba0ce718f | 45.11 | 14.82 | 25.0     | 14.74      | 45.14      | 5482666 | -132009 | 5486160      | -137869      |
+| 5e2f692d-a2e6-45b1-b18b-3cec90b31b64 | 45.42 | 18.76 | 45.0     | 18.74      | 45.64      | 5518068 | 177432  | 5542646      | 175076       |
+| b3447ea2-8ea2-4c4e-b2a8-8611c8253995 | 46.15 | 17.05 | 50.0     | 17.21      | 46.11      | 5596833 | 43038   | 5592979      | 55064        |
+
+One more thing that would be interesting is to visually inspect the distribution of the locations. Understanding the distribution of the data gives us the insight into things we might not be aware of.
+
+![Distribution of the dataset. It's visible that the mountainous part of Croatia contains the least amount of locations in the dataset.](img/croatia_data.png)
 
 ## Data Representation
 
-The problem of predicting the coordinate given four Google Street view images can be approached from two different angles. Fearing encroaching on any originality, we will call them the **Classification approach** and the **Regression approach**. In the Classification approach, we classify images into a fixed set of regions of Croatia in the form of a grid on the map (notice: we lose the information about the image's exact location here), while in the regression approach we try regressing the image coordinates to a continuous output from the model that will be restricted by the minimum and maximum possible coordinates (bounds of Croatia).
+Because Croatia is a small country (though not as small as Slovenia) and its coordinates have a range of no more then a few degrees in both latitude and longitude, we needed to normalize them. But, before doing that, there was another transformation we needed to perform. The thing is, we can’t use the haversine distance function during the training phase of the model due to its slowness (it contains a lot of trigonometric operations that don’t cooperate nicely with GPU-s). But we also can’t use regular coordinates even after transforming them because the Earth’s surface is curved (even though some would want you to believe otherwise) and generic loss functions don’t take this into account. Coordinates that are expressed as a latitude and longitude pair live in the [ESPG:4326](https://en.wikipedia.org/wiki/EPSG_Geodetic_Parameter_Dataset#:~:text=EPSG%3A4326%20%2D%20WGS%2084%2C,including%20Google%20Maps%20and%20OpenStreetMap.) latitude/longitude coordinate system that's based on the Earth's center of mass. Notice that coordinates in the ESPG:4326 system are coordinates that we _do not want_. Before we continue, let's forget those four digits by calling the ESPG:4326 space a **global space**. The issue with **coord space** is that the straight path distance (a.k.a "digging a tunnel" a.k.a the Euclidean distance) between coordinates isn't scaled well. For example, straight path distance locations (lat: 10, lng: 0) and (lat: 20, lng: 0) isn't the same as the distance from location (lat: 20, lng: 0) to (lat: 30, lng: 0). **What we want are new and simple `x` and `y` coordinates in 2D Euclidean space in which we can use straight path distance without remorse!**  Multiple ideas were tested to solve this, including cosine transforming the coordinates, as well as projecting them into Cartesian coordinate system. Finally, we ended up using a much more elegant solution with fewer steps: the [**_coordinate reference system (CRS) projection_**](https://en.wikipedia.org/wiki/Spatial_reference_system). Here’s how it works. It transforms every coordinate on Earth’s curved surface into a different coordinate on a flat surface (2D Euclidean space) using a projection. Essentially, the projection transforms the latitude and longitude pair to x and y pair. Wonderful thing about x and y is that they are expressed in meters and the error of the Croatia's projection is minimal (no more than about 1m). Maybe most importantly, a generic [mean square error](https://youtu.be/Mhw_-xHVmaE) loss function is directly applicable to these coordinates, or at least, the standardized version of them. The exact name of the new space is called [ESPG:3766](https://epsg.io/3766) which we will call **Croatia CRS space**, tailor made for projecting Croatia's latitude and longitude coordinates into x and y coordinates which live in 2D Euclidean space.
 
-Because Croatia is a small country (though not as small as Slovenia) and its coordinates have a range of no more then a few degrees in both latitude and longitude, we needed to normalize them. But, before doing that, there was another transformation we needed to perform. The thing is, we can’t use the haversine distance function during the training phase of the model due to its slowness (it contains a lot of trigonometric operations that don’t cooperate nicely with GPU-s). But we also can’t use regular coordinates even after transforming them because the Earth’s surface is curved (even though some would want you to believe otherwise) and generic loss functions don’t take this into account. Multiple ideas were tested to solve this, including cosine transforming the coordinates, as well as projecting them into Cartesian space. Finally, we ended up using a much more elegant solution with fewer steps: the [_coordinate reference system (CRS)_](https://en.wikipedia.org/wiki/Spatial_reference_system). Here’s how it works. It transforms every coordinate on Earth’s curved surface into a different coordinate on a flat surface using a projection. It is expressed in meters and the error of the projection is minimal (no more than about 1 m). Maybe most importantly, a generic loss function is directly applicable to these coordinates, or at least, the standardized version of them. Splendid! Now we simply need to find the maximum and minimum coordinates of the dataset and use them to normalize the data into a 0 – 1 range. This is done to improve training stability and simplify the output. It is worth noting that we calculate these values only on the training part of the dataset, as using other parts of the dataset would essentially give the model access to their information, which wouldn’t be fair at all. Also, functions like the haversine distance function take as input radians, so that was also a necessary transformation.
+Splendid! Now we simply need to find the maximum and minimum coordinates of the train dataset and use them to normalize the data into a 0 – 1 range. This is done to improve training stability and simplify the output. It is worth noting that we calculate these values only on the training part of the dataset, as using other parts of the dataset would essentially give the model access to their information, which wouldn’t be fair at all (this term is called [Data Leakage](https://machinelearningmastery.com/data-leakage-machine-learning/)). Since our model will be predicting coordinates in the Croatia CRS space  we need to re-project them back into to global space so we can properly calculate the great-circle distance. Degrees to radian transformation is one more transformation that will also be applied since functions like the haversine distance take radians as the input.
 
-![](img/data_fig__spacing_0.8__num_class_26.png){width=50%}
-![](img/data_fig__spacing_0.5__num_class_55.png){width=50%}
+![Croatia. [We have lot of islands](https://www.google.com/maps/@44.2652721,16.2377694,8.25z) but images from islands are not included in the dataset](./img/croatia.png){width=50%}
+
+
+
+## Classification Approach
+
+The problem of predicting the coordinate given four Google Street view images can be approached from two different angles. Fearing encroaching on any originality, we will call them the **Classification approach** and the **Regression approach**.
+
+In the Classification approach, we classify images into a fixed set of regions of Croatia in the form of a grid on the map (notice: we lose the information about the image's exact location here), while in the regression approach we try regressing the image coordinates to a continuous output from the model that will be restricted by the minimum and maximum possible coordinates (bounds of Croatia).
+
+The set of regions of Croatia we mentioned above can be represented in the form of square regions on a map. Each region corresponds to a single class and each region also has a centroid that represents the coordinates assigned to the class. The idea is that, instead of predicting the _exact_ coordinates of an image, the model classifies the images into regions from the previously described set of regions (you can also see them on the figure below). Notice that we  we don’t predict coordinates for each set of four images, rather we predict the class (region). Model will classify four images into a single region. Later however, we do have to provide a concrete value for the latitude and longitude coordinates. How will we decide what's the final coordinate, given that our model classifed an image to some region? We declare the predicted coordinates to be the **centroid of the predicted region**. Centroid of the region will be used to calculate our error in regards to that centroid. Notice that the image's true coordinates might be relatively distant from the centroid of the region into which the image was classified. This error shrinks as the number of specified regions (classes) grows.
+
+![Croatia divided into region (square) regions. In this case, there are 115 regions that intersect with Croatia.](img/croata_n_115_grid.png){width=50%}
+
+
+### Class Creation
+
+How is this grid-like set of regions created? First, we create a generic grid that is located fully inside the bounds of Croatia. It contains numerous regions (squares) which are adjacent to each other. Although we are working with a fixed number of regions, not every region is created equal. This is because, unfortunately, some of them aren’t located in Croatia at all, as they don’t really intersect Croatian territory. Therefore, they shouldn’t be taken into consideration further on and are filtered out. After this is done, we proceed to the task of finding the centroids of these regions. Using the [`geopandas`](https://geopandas.org/en/stable/) library, this problem can be reduced to a single simple Python property: `region.centroid`. Great! Now we have a set of classes for our model. But before we continue the journey let us double-check what we did so far...
+
 \begin{figure}[!h]
 \caption{Examples of maps of Croatia divided into distinct regions that represent classes. Red dots represent the centroids of the regions, or otherwise, the point on land closest to the centroid if the centroid is at sea. The image on the right has a denser grid than the image on the left, meaning that it contains more classes.}
 \end{figure}
 
-## Classification Approach
 
-The set of regions of Croatia we mentioned above can be represented in the form of square polygons on a map. Each polygon corresponds to a single class and each polygon also has a centroid that represents the coordinates assigned to the class. The idea is that, instead of predicting the _exact_ coordinates of an image, the model classifies the images into regions from the previously described set of regions. Since now we don’t have specific coordinates we predict for each set of four images, we instead declare the predicted coordinates to be the centroid of the region where the image was classified and calculate our error in regards to that centroid. Notice that the image's true coordinates might be relatively distant from the centroid of the region into which the image was classified. This error shrinks as the number of specified regions (classes) grows. An image of Croatia divided into square regions can be seen in Figure 4.
-
-![](img/coords_at_sea.png){width=50%}
-![](img/no_images_in_class.png){width=50%}
-\begin{figure}[!h]
-\caption{The image on the left depicts a class whose centroid isn’t located on land, and has thus been relocated to the closest point on land . The image on the right depicts a class that doesn’t contain any images in it due to being mostly made up of sea. This class will be ignored during prediction.}
-\end{figure}
-
-### Class Creation
-
-How is this grid-like set of regions created? First, we create a generic grid that is located fully inside the bounds of Croatia. It contains numerous polygons (squares) which are adjacent to each other. Although we are working with a fixed number of polygons, not every polygon is created equal. This is because, unfortunately, some of them aren’t located in Croatia at all, as they don’t really intersect Croatian territory. Therefore, they shouldn’t be taken into consideration further on and are filtered out. After this is done, we proceed to the task of finding the centroids of these polygons. Using the [`geopandas`](https://geopandas.org/en/stable/) library, this problem can be reduced to a single simple expression: `polygon.centroid`. Great! Now we have a list of classes for our model. But before we continue to the next section, we should double-check what we did so far.
 
 ### Problems That Arise
 
-Let us observe the following example. Even though the centroids of the polygons were calculated correctly (they’re in the center of the squares), some of them decided to go sailing and ended up in the middle of the sea. This doesn’t make sense for our prediction, as we know for a fact that the dataset contains images only taken on land. This has to change. Therefore, we introduce _clipped centroids_. Clipped centroids are a modification of regular centroids that fix the previously stated issue by clipping the undesirable centroid to the closest possible point on land. By doing this, we reduce the error rate of the model by moving seaborne centroids closer to the image’s true coordinates, which are on land.
+Let us observe the following example. Even though the centroids of the regions were calculated correctly (they’re in the center of the squares), some of them decided to go sailing and ended up in the middle of the sea. This doesn’t make sense for our prediction, as we know for a fact that the dataset contains images only taken on land. This has to change. Therefore, we introduce _clipped centroids_. Clipped centroids are a modification of regular centroids that fix the previously stated issue by clipping the undesirable centroid to the closest possible point on land. By doing this, we reduce the error rate of the model by moving seaborne centroids closer to the image’s true coordinates, which are on land.
 
-We have previously mentioned that it's possible to specify the number of classes we desire before creating the grid and thereby make it more or less dense. By choosing a dense grid, we can essentially simulate something akin to regression. This is because, as the number of classes increases and the size of each class decreases, more polygons and centroid values are available as potential classes. A smaller class means that the theoretical maximum distance between a class’ centroid and the true image coordinates is also smaller, and therefore has the potential of decreasing the total prediction error. Note that, at the end of the day, this is what matters, not the accuracy of our class predictions, because we calculate the final error by measuring the distance between an image’s coordinates (here the class centroid) and its true coordinates. Even if we classify all images correctly, we will still have a potentially large average haversine distance because we never actually predict the true image coordinates, only the class centroids. If we take this to the extreme, which is an infinite number of classes, we can come quite close to regression, but there is a caveat. In classification models, each class needs a certain number of images to effectively train. If this number is too low, the model simply can’t extract enough meaningful information from the images of a class to learn the features of that class.
+![Clipped centroid (red dot). The true centroid isn't located at the center of the region so the centroid is relocated (clipped) to the nearest point on the land.](img/clipping_example.png){width=50%}
 
-Another problem arises because of Croatia’s unique shape, only matched by that of Chile and The Gambia. For some polygons, the intersection area with Croatia's territory is only a few tiny spots, meaning that the majority of the polygon's area ends up in a neighboring country. If this was anywhere before 1991., this wouldn’t be a problem, but it isn’t. The usage of clipped centroids we previously defined somewhat alleviates this issue, but another problem arises because there simply might not exist any images in the dataset that are located in that tiny area of the polygon, that is, within Croatia. And in fact, we did end up in such a situation. We solved this by discarding these polygons and pretending like they didn't exist in the list of classes we could classify the images into. Fortunately, this doesn’t happen too often as the dataset is fairly large and the image’s locations are uniformly distributed.
+
+We have previously mentioned that it's possible to specify the number of classes we desire before creating the grid and thereby make it more or less dense. By choosing a dense grid, we can essentially simulate something akin to regression. This is because, as the number of classes increases and the size of each class decreases, more regions and centroid values are available as potential classes. A smaller class means that the theoretical maximum distance between a class’ centroid and the true image coordinates is also smaller, and therefore has the potential of decreasing the total prediction error. Note that, at the end of the day, this is what matters, not the accuracy of our class predictions, because we calculate the final error by measuring the distance between an image’s coordinates (here the class centroid) and its true coordinates. Even if we classify all images correctly, we will still have a potentially large average haversine distance because we never actually predict the true image coordinates, only the class centroids. If we take this to the extreme, which is an infinite number of classes, we can come quite close to regression, but there is a caveat. In classification models, each class needs a certain number of images to effectively train. If this number is too low, the model simply can’t extract enough meaningful information from the images of a class to learn the features of that class.
+
+![](img/croata_n_20_grid.png){width=30%}
+![](img/croata_n_55_grid.png){width=30%}
+![](img/croata_n_115_grid.png){width=30%}
+\begin{figure}[!h]
+\caption{Grids for different number of regions (20, 55, 115).}
+\end{figure}
+
+
+
+Another problem arises because of Croatia’s unique shape, only matched by that of Chile and The Gambia. For some regions, the intersection area with Croatia's territory is only a few tiny spots, meaning that the majority of the region's area ends up in a neighboring country. If this was anywhere before 1991., this wouldn’t be a problem, but it isn’t. The usage of clipped centroids we previously defined somewhat alleviates this issue, but another problem arises because there simply might not exist any images in the dataset that are located in that tiny area of the region, that is, within Croatia. And in fact, we did end up in such a situation. We solved this by discarding these regions and pretending like they didn't exist in the list of classes we could classify the images into. Fortunately, this doesn’t happen too often as the dataset is fairly large and the image’s locations are uniformly distributed.
+
+
+
+In the late stage of the project, someone got a light bulb above his head. Why do we declare a centroid (clipped or not) as the final coordinate of the region? What if the region inside of the region is a mountainous terrain? However technologically advanced, Google's car would have issues climbing in some parts of [Lika](https://www.google.com/maps/@44.7471723,15.2368329,9.25z/data=!5m1!1e4). Naturally, more Google Street View images would come from a subpart of the region. To take this into account, we created **weighted centroids** for each region. Weighted centroid is calculated as a mean location of all images in a specific region. Note: only the images from the train set were used in this process (drip, drip, remember the data leakage!).
+
+
+![Image on the depicts a class which doesn’t contain any images from the train set due to being mostly made up of sea. This class will be ignored during training and prediction.](img/no_images_in_class.png){width=50%}
 
 ### Loss Function
 
-Lastly, as with most classification approaches, we use cross entropy loss on the predicted and true classes. The true classes are represented with a one-hot encoded vector, while the predicted classes are represented with a vector of probabilities for the likelihood of each class. To obtain the coordinates from these probabilities, we extract the centroid information for each of the classes and multiply it by the predicted probabilities. We add everything app and end up with an average of all the predictions. This way, our final predicted image coordinates are not necessarily within our predicted class, but as our model becomes more sure in its predictions, so do these averaged coordinates come closer to the class. We have noticed that this averaging approach improves performance.
+Lastly, as with most classification approaches, we use [cross entropy loss](https://www.youtube.com/watch?v=6ArSys5qHAU) on the predicted and true classes. If you don't know what cross entropy loss is we won't bother to explain the details but will try to pass you the intuition behind it. Essentially, the dialog between the cross entropy loss and the model would look something like this:
+
+> Cross entropy loss to the model: "I will make sure that you classify the image in the true region!" 
+>
+> Model: "Okay, can I classify the image so that it belongs to all regions at once? Then I surely classified the image in the true region! At least on some level..."
+>
+> Cross entropy: "No. Your classification can't be indecisive. I will punish your indecisiveness for the true region! But I don't care how indecisiveness you are about _other_ regions."
+>
+> Model: "So if the true region is region 0, you will punish me the same for these two predicted probabilities: [0.6, 0.3, 0.1], [0.6, 0.2, 0.2] ?
+>
+> Cross entropy: "That's right. The only thing I care about is that the next time I see you, the number 0.6 rises as close to 1.0 as possible." 
+
+The true classes are represented with a one-hot encoded vector ([1, 0, 0]), while the predicted classes are represented with a vector of probabilities for the likelihood of each class ([0.6, 0.3, 0.1]). Now that we have probabilities for each class/region, how do we obtain the final coordinates? Firstly, we extract the centroid from all classes. Secondly, we multiply locations with corresponding probabilities. You can think of probabilities as weights in this context. Thirdly, we add everything up and end up with a [weighted arithmetic mean
+](https://en.wikipedia.org/wiki/Weighted_arithmetic_mean). Notice that our final predicted image coordinate is not necessarily within our predicted class, but as our model becomes more sure in its predictions, so do these averaged coordinates come closer to the class. We have noticed that this averaging approach improves performance.
 
 ## Regression Approach
 
-This approach is a bit more obvious. Each set of images has its target coordinate, and we task our model with predicting these coordinates. Therefore, the size of the output of the model is not determined by the number of classes, but is simply 2, accounting for the latitude and longitude (or to be precise, the CRS standardized versions of latitude and longitude we explained earlier). We directly compare these output coordinates to the true image coordinates and calculate the error using the haversine formula. Unlike in the classification approach, the loss function we use for the model can also tell us an accurate state of our predictions, as we are not bound by an artificial limit like having classes. That being said, in practice, we noticed that this approach often performs worse than the classification approach and is also slower. It appears that the presence of classes does help the model in training somewhat.
+This approach is a bit more obvious. Each set of images has its target coordinate, and we task our model with predicting these coordinates. Therefore, the size of the output of the model is not determined by the number of classes, but is simply 2, accounting for the latitude and longitude (or to be precise, the standardized versions of the x and y coordinates from the Croatia local space). We directly compare these output coordinates to the true image coordinates and calculate the distance (error) using the mean squared error. This distance (error) is almost exactly the same as the haversine between two coordinates in the global space. Unlike in the classification approach, the loss function we use for the model can also tell us an accurate state of our predictions, as we are not bound by an artificial limit like having classes. That being said, in practice, we noticed that this approach often performs worse than the classification approach and is also slower. It appears that the presence of classes does help the model in training somewhat. Regression approach might be perform better if we were patient enough to train the model for more than a few days. 
 
 ### Loss Function
 
-For the loss function, we use mean squared error loss and we predict the coordinates directly, so no transformations are necessary unlike in classification. It is worth noting that these two approaches, classification and regression, can only be compared using the haversine distance metric, as their loss functions work in very different ways and output vastly different values. Therefore, they can’t be compared during training, but only during validation and testing, because we calculate the haversine distance value only then.
+For the loss function, we use mean squared error loss and we predict the coordinates directly. After we obtained predicted coordinates we re-project them back into global space and calculate the haversine distance for the purposes of logging and statistics. It is worth noting that these two approaches, classification and regression, can only be compared using the haversine distance metric, as their loss functions work in very different ways and output vastly different values. Therefore, they can’t be compared during training, but only during validation and testing, because we calculate the haversine distance value only then.
 
-![](img/model_arh.png){width=50%}
-![](img/model_arh_high.png){width=50%}
 
-\begin{figure}[!h]
-\caption{On the image on the left, we can see an overview of the model we used for training. Inputs are fed into the ResNeXt layer with four images being processed in parallel. The output is then fed into a linear layer which can either classify the results into distinct classes or predict coordinates directly as output. On the image on the right, a closeup of the ResNeXt backbone is shown. We can see that it is composed of an early convolution layer, followed by multiple sequential layers who all contain their own convolutions and transformations.}
-\end{figure}
 
 ## Technology Stack
 
@@ -175,6 +212,7 @@ Before diving into the architecture of the solution, the technology stack we use
 - [`git`](https://hr.wikipedia.org/wiki/Git) – the quintessential version control system
 
 Some of the Python packages we used:
+
 - [`PyTorch`](https://pytorch.org/) - an open source deep learning framework based on the Torch library used for applications such as computer vision and natural language processing. Although it is primarily developed by Facebook's AI Research lab, we can assure you that it does not collect any data from your computer
 - [`PyTorch Lightning`](https://www.pytorchlightning.ai/) - a PyTorch framework which allowed us to skip a lot of boilerplate code and organize PyTorch code in a sensible and efficient way
 - [`black`](https://github.com/psf/black) - code formatter, so we’re all on the same page (pun intended)
@@ -191,7 +229,8 @@ Some of the Python packages we used:
 - `tabulate` - easy and pretty Python tables
 - `tensorboard` - library used for fetching and visualizing machine learning model training data in a browser
 - `tqdm` - easy Python progress bars
-- 
+
+
 ## Solution architecture - [PyTorch Lightning](https://pytorch-lightning.readthedocs.io/en/latest/starter/introduction.html)
 
 The core library used for this project is PyTorch Lightning (PL) which was started by [William Falcon](https://www.williamfalcon.com/). You should glance through it's [introduction website](https://pytorch-lightning.readthedocs.io/en/stable/starter/introduction.html) to get a sense of what PyTorch Lightning actually does.  PyTorch Lightning (PL) doesn't introduce significant complexity to the _existing_ PyTorch code, in fact, it organizes the _existing_ PyTorch code in intuitive PyTorch Lightning modules. Example of organizing already existing PyTorch code can be seen [here](https://pytorch-lightning.readthedocs.io/en/latest/starter/converting.html). It's important the main component [`LightningModule`](https://pytorch-lightning.readthedocs.io/en/stable/common/lightning_module.html) is a [`torch.nn.Module`](https://pytorch.org/docs/stable/generated/torch.nn.Module.html) but with added functionality. You don't need to know the details of this fact but it's useful to keep it in mind. PyTorch Lightning to note that .PyTorch Lightning library passively forced us to write clean code with smaller overhead (compared to raw PyTorch code) and allowed us to quickly add crucial functionalities like logging, model checkpoints, general prototyping, and more. Kudos to [PyTorch Lightning team](https://www.pytorchlightning.ai/team) for creating, maintaining and improving this great library.
@@ -225,7 +264,7 @@ To get a sense of how PL organizes the code we will show a _simplified_ version 
    3. Calling the Callbacks (logging, model checkpoints, learning rate scheduling...) at the appropriate times
    4. Putting batches and computations on the correct devices
 
-### GeoguesserDataset ([src/dataset_geoguesser.py](../src/dataset_geoguesser.py))
+### GeoguesserDataset ([src/dataset_geoguesser.py](../src/dataset_geoguesser.py)) - The Pawn
 
 `GeoguesserDataset` is responsible for lazily fetching images and their coordinates during the training. We initialize `GeoguesserDataset` three times (train, validation and test set). Now, each of the three `GeoguesserDataset`s is responsible only for fetching the data from it's corresponding appropriate set. For example, `GeoguesserDataset` with parameter  `dataset_type = DatasetSplitType.TRAIN` will only return the images from the train set. The most important operation that the `GeoguesserDataset` module performs, aside from defining from which set images are fetched, is lazily fetching and **passing the location and four images** (one for each cardinal side) **to the pl.Trainer** during the training, validation and testing phase. Essentially, this module answers the question **"What data will start coming in batches once I start the training process ?"**
 
@@ -234,29 +273,33 @@ It's also worth mentioning that any image or coordinate transformation is genera
 
 `GeoguesserDataset` inherits the [torch.utils.data.Dataset](https://pytorch.org/tutorials/beginner/data_loading_tutorial.html) class.
 
-### GeoguesserDataModule (src/datamodule_geoguesser.py)
+### GeoguesserDataModule (src/datamodule_geoguesser.py) - The Bishop
 
 The `GeoguesserDataModule` is mainly responsible for two things:
 
 1. preprocessing that can't be done by `GeoguesserDataset`. This preprocessed data is sent to the `GeoguesserDataset`.
 2. creating train, val and test [`DataLoader`s](https://pytorch.org/tutorials/beginner/basics/data_tutorial.html#preparing-your-data-for-training-with-dataloaders), each for one `GeoguesserDataset`
 
-We will first describe what kind of preprocessing actually happens here. `GeoguesserDataModule` will receive the CSV file which contains information about image's locations, polygons in which they are placed.
+We will first describe what kind of preprocessing actually happens here. `GeoguesserDataModule` will receive the CSV file which contains information about image's locations, regions in which they are placed. Then this CSV is enriched with new columns in advance, values which we would need to calculate during the training. For example, we create a new column `crs_x_minmax` which is the x coordinate in Croatia's local system scaled to [0, 1]. We mentioned how we exclude the regions that contain no image data. But how can we know this in advance? What if someone decides to add more images (like we did) in the sets and suddenly some region that was long forgotten becomes a viable option? This is why we create classes in `GeoguesserDataModule`, during the runtime. The weighted mean centroid of each region is also calculated here. We also perform some dataset statistics extraction, as well as data standardization for all CRS features. Finally, we split the data into the train, validation and test dataset and create the dataset instances that will be described in the next paragraph. We also do some sanity checking to make sure everything is in order before continuing. 
+<todo: insert image of croatia, grid and each class and its number>
 
-
-The first module we will describe is the `GeoguesserDataModule`. It inherits the [`LightningDataModule`](https://pytorch-lightning.readthedocs.io/en/stable/extensions/datamodules.html) class and is used for simple dataset loading. First, we load the dataset into memory and perform the necessary transformations on it to make it suitable for training. We then create the classes needed for classification together with their centroids, and add them to the dataset. We also perform some dataset statistics extraction, as well as some data standardization. Finally, we split the data into the train, validation and test dataset and create the dataset instances that will be described in the next paragraph. We also do some sanity checking to make sure everything is in order before continuing.
+Great thing about this module is that it's dynamic in terms of defining the size of the dataset. Parameters that define the fraction each set (`train_frac`,`val_frac`,`test_frac`) or the dataset as a whole (`dataset_frac`) turned out to be quite useful during the prototyping phase of the problem solving. Although you almost always want to use all your available data (`dataset_frac = 1`) it's nice to have options too.
 
 `GeoguesserDataset` inherits the [`LightningDataModule`](https://pytorch-lightning.readthedocs.io/en/stable/extensions/datamodules.htm) class.
 
-### Model Definition
+### LitModelClassification (src/model_classification.py) or LitModelRegression (src/model_regression.py) - The King
 
-The neural network model that is going to perform the training is defined in the model module. The different models we defined here (classification and regression) all inherit the `LightningModule` class to make things as simple as possible. Each model fetches a pretrained network and changes its last layer to a layer more suitable for the model’s task. We then define each model’s `forward` function, which defines how our data is processed through all the layers of the model, as well as define and all of the training, validation and testing functions. Each function performs an iteration of training through its respective dataset and calculates error, and additionally in the case of validation and testing, the haversine distance function. We then log all the parameters of the model into a file for later fetching and usage.
+The convolutional neural network model that is going to perform the training is defined in the model module. The different models we defined here (classification and regression) all inherit the `LightningModule` class to make things as simple as possible. Each model fetches a pretrained network and changes its last layer to a layer more suitable for the model’s task. We then define each model’s `forward` function, which defines how our data is processed through all the layers of the model, as well as define and all of the training, validation and testing functions. Each function performs an iteration of training through its respective dataset and calculates error, and additionally in the case of validation and testing, the haversine distance function. We then log all the parameters of the model into a file for later fetching and usage.
 
-### Train Function
+
+#### Forward function - The King 
+<Todo: populate this>
+
+### Train Function - The Queen
 
 Finally, we join everything together in the `train` function. Here, we parse the arguments passed to the model, define the data transformations, initiate the `GeoguesserDataModule` module, initiate the logger, create the specified model, define our optimization algorithm and how the learning rate behaves, and finally, train the model. Optionally, we can also visualize our results after training.
 
-### Optimizers and LR Schedulers (configure_optimizers)
+### Optimizers and LR Schedulers (configure_optimizers) - The Rooks
 
 Our solution is composed of four main modules, as well as numerous utility functions. Utility functions were mainly used for tasks that were separate from the training process itself, such as transforming data into a format appropriate for training, geospatial data manipulation, visualization, report saving and loading, etc. Even though we love our utility functions which are crucial to this project, they are generally responsible for lower level work which isn't the focus of this project. Here, we will promptly ignore them and explain only the higher level components of our solution, namely, the four main modules.
 
@@ -265,25 +308,79 @@ Our solution is composed of four main modules, as well as numerous utility funct
 
 ## Pretrained networks
 
-Because deep learning progresses at such a breakneck pace, there are numerous approaches that are considered state-of-the-art at the moment, all using vastly different architectures. As readily available high performance models that were pretrained on large datasets are the norm and us being extremely lazy, we chose to use one of these models instead of creating our own from scratch. Originally, we chose the EfficientNet architecture due to it showing both good performance and having lower system requirements when compared to other approaches. However, after doing some experimenting, we ended up using a version of ResNet called ResNeXt instead, as it simply proved more effective.
+Because deep learning progresses at such a breakneck pace, there are numerous approaches that are considered state-of-the-art at the moment, all using vastly different architectures. As readily available high performance models that were pretrained on large datasets are the norm and us being extremely lazy, we chose to use one of these models instead of creating our own from scratch. The pretrained model is usually trained on large dataset (e.g. [ImageNet](https://www.image-net.org/)) which include many different types of images and classes. 
+
+![Sample of images from the ImageNet dataset used for creating pretrained models.](img/imagenet.jpg){width=30%}
+
+\begin{figure}[!h]
+\end{figure}[!h]
+
+Although solving a problem, where the content of images come in many different shapes, seems extremely hard, the model that learns to generalize on these datasets can usually be _tuned_ to solve some another problem (like predicting the location of images). This method of using the pretrained model to solve another problem is called [_transferred learning_](https://www.youtube.com/watch?v=yofjFQddwHE). The main advantages of fine-tuning when solving computer vision tasks are the following:
+
+1. the pretrained model already learned to generalize on key features of images (general shapes). Our model doesn't have to learn this again
+2. robustness to small dataset - although this isn't a problem in our case since we have a fairly large dataset, we appreciate that transferred learning allows for training the model on smaller datasets 
+
 
 ## ResNeXt
 
-ResNeXt is a highly modular architecture that revolves around repeating powerful building blocks that aggregate sets of transformations. It first processes the images with a simple convolution layer. It then feeds this into a sequential layer composed of multiple bottleneck layers. A bottleneck layer has the function of reducing the data dimensionality, thereby forcing the network to learn the data representations instead of just memorizing them. Each bottleneck layer is again composed of multiple convolution layers for information extraction. After the sequential layer is done, the network is fed into another sequential layer. This process is repeated multiple times. Finally, after all the sequential layers have processed their outputs, the data is fed into a fully connected layer for classification or regression. Of course, all of the mentioned layers also use numerous normalization techniques, such as batch normalization. This process is visualized in Figure 6. Due to this modularity of the layers, ResNeXt includes few hyperparameters that have to be tuned for the architecture to be effective. Aside from the described architecture, we had to do some modifications to the network ourselves in order to make them work with our dataset. There were two modifications we made.
+Originally, we chose the EfficientNet architecture due to it showing both good performance and having lower system requirements when compared to other approaches. However, for reason we didn't explore enough, we had worse results and slower convergence compared to the model we settled for. After some experimenting, we ended up using a version of ResNet called ResNeXt instead, as it simply proved more effective. It can easily be loaded in PyTorch with the following expression `torch.hub.load("pytorch/vision", "resnext101_32x8d")`. 
+
+ResNeXt is a highly modular architecture that revolves around repeating powerful building blocks that aggregate sets of transformations. It first processes the images with a simple convolution layer. It then feeds this into a sequential layer composed of multiple bottleneck layers. A bottleneck layer has the function of reducing the data dimensionality, thereby forcing the network to learn the data representations instead of just memorizing them. Each bottleneck layer is again composed of multiple convolution layers for information extraction. After the sequential layer is done, the network is fed into another sequential layer. This process is repeated multiple times. Finally, after all the sequential layers have processed their outputs, the data is fed into a fully connected layer for classification or regression. Of course, all of the mentioned layers also use numerous normalization techniques, such as batch normalization. This process is visualized in the figure below. Due to this modularity of the layers, ResNeXt includes few hyperparameters that have to be tuned for the architecture to be effective. Aside from the described architecture, we had to do some modifications to the network ourselves in order to make them work with our dataset. There were two modifications we made.
+
+![Single ResNext block](img/resnext_block.png){width=30%}
 
 ## Modifications
 
 Firstly, we removed the last layer of the network and replaced it with our own classification or regression layer in the form of a simple linear layer that had the appropriate output dimension for our problem. Secondly, because, as we mentioned before, every location contained four images, we modified our network to perform its forward operations for the four images in tandem and then concatenate the outputs before imputing them into the last layer. We did this after doing some research on what was the best way to compute the outputs of separate, but statistically linked images.
 
+![](img/model_arh.png){width=50%}
+![](img/model_arh_high.png){width=50%}
+
+\begin{figure}[!h]
+\caption{On the image on the left, we can see an overview of the model we used for training. Inputs are fed into the ResNeXt layer with four images being processed in parallel. The output is then fed into a linear layer which can either classify the results into distinct classes or predict coordinates directly as output. On the image on the right, a closeup of the ResNeXt backbone is shown. We can see that it is composed of an early convolution layer, followed by multiple sequential layers who all contain their own convolutions and transformations.}
+\end{figure}
+
+
+
+| Name | Type               | Params            | In sizes | Out sizes        |
+| ---- | ------------------ | ----------------- | -------- | ---------------- | ---------------- |
+| 0    | backbone           | ResNet            | 86.7 M   | [8, 3, 112, 112] | [8, 2048]        |
+| 1    | backbone.conv1     | Conv2d            | 9.4 K    | [8, 3, 112, 112] | [8, 64, 56, 56]  |
+| 2    | backbone.bn1       | BatchNorm2d       | 128      | [8, 64, 56, 56]  | [8, 64, 56, 56]  |
+| 3    | backbone.relu      | ReLU              | 0        | [8, 64, 56, 56]  | [8, 64, 56, 56]  |
+| 4    | backbone.maxpool   | MaxPool2d         | 0        | [8, 64, 56, 56]  | [8, 64, 28, 28]  |
+| 5    | backbone.layer1    | Sequential        | 420 K    | [8, 64, 28, 28]  | [8, 256, 28, 28] |
+| 6    | backbone.layer1.0  | Bottleneck        | 118 K    | [8, 64, 28, 28]  | [8, 256, 28, 28] |
+| 7    | backbone.layer1.1  | Bottleneck        | 151 K    | [8, 256, 28, 28] | [8, 256, 28, 28] |
+| 8    | backbone.layer1.2  | Bottleneck        | 151 K    | [8, 256, 28, 28] | [8, 256, 28, 28] |
+| 9    | backbone.layer2    | Sequential        | 2.4 M    | [8, 256, 28, 28] | [8, 512, 14, 14] |
+| 10   | backbone.layer2.0  | Bottleneck        | 602 K    | [8, 256, 28, 28] | [8, 512, 14, 14] |
+| 11   | backbone.layer2.1  | Bottleneck        | 601 K    | [8, 512, 14, 14] | [8, 512, 14, 14] |
+| 12   | backbone.layer2.2  | Bottleneck        | 601 K    | [8, 512, 14, 14] | [8, 512, 14, 14] |
+| 13   | backbone.layer2.3  | Bottleneck        | 601 K    | [8, 512, 14, 14] | [8, 512, 14, 14] |
+| 14   | backbone.layer3    | Sequential        | 55.2 M   | [8, 512, 14, 14] | [8, 1024, 7, 7]  |
+| 15   | backbone.layer3.0  | Bottleneck        | 2.4 M    | [8, 512, 14, 14] | [8, 1024, 7, 7]  |
+| 16   | backbone.layer3.1  | Bottleneck        | 2.4 M    | [8, 1024, 7, 7]  | [8, 1024, 7, 7]  |
+| 17   | backbone.layer3.2  | Bottleneck        | 2.4 M    | [8, 1024, 7, 7]  | [8, 1024, 7, 7]  |
+| ...  | ...                | ...               | ...      | ...              | ...              |
+| 37   | backbone.layer3.22 | Bottleneck        | 2.4 M    | [8, 1024, 7, 7]  | [8, 1024, 7, 7]  |
+| 38   | backbone.layer4    | Sequential        | 28.7 M   | [8, 1024, 7, 7]  | [8, 2048, 4, 4]  |
+| 39   | backbone.layer4.0  | Bottleneck        | 9.6 M    | [8, 1024, 7, 7]  | [8, 2048, 4, 4]  |
+| 40   | backbone.layer4.1  | Bottleneck        | 9.6 M    | [8, 2048, 4, 4]  | [8, 2048, 4, 4]  |
+| 41   | backbone.layer4.2  | Bottleneck        | 9.6 M    | [8, 2048, 4, 4]  | [8, 2048, 4, 4]  |
+| 42   | backbone.avgpool   | AdaptiveAvgPool2d | 0        | [8, 2048, 4, 4]  | [8, 2048, 1, 1]  |
+| 43   | backbone.fc        | Identity          | 0        | [8, 2048]        | [8, 2048]        |
+| 44   | fc                 | Linear            | 434 K    | [8, 8192]        | [8, 53]          |
+
 # Training
 
 ## Basics
 
-Due to using pretrained models, we first performed what is called fine-tuning. During fine-tuning, we leave the weights of the early layers of a network unchanged and only train the weights of the last few layers. ResNeXt was pretrained on ImageNet, a large image dataset with a diverse assortment of objects. This gives the early layers of ResNeXt a collection of learned shapes and lines that are relatively similar to our own domain. In addition, our own dataset is much smaller than the number of ResNeXt parameters. If we were to train ResNeXt from scratch, we would quickly overfit. By using a model pretrained on a large generic dataset and then fine-tuning only the last layers, we preserve all the fine detail learned by all the early network layers and only overwrite the last layers where we essentially assemble these details into images. However, after performing fine-tuning for a sufficient time, we periodically unlock other network layers so that they can be trained along with the last few layers. During this phase, by using a sufficiently small learning rate, we induce our dataset information into all the network layers without overwriting the previously trained model.
+Due to using pretrained models, we first performed what is called _fine-tuning_. During fine-tuning, we leave the weights of the early layers of a network unchanged and only train the weights of the last few layers. ResNeXt was pretrained on ImageNet, a large image dataset with a diverse assortment of objects. This gives the early layers of ResNeXt a collection of learned shapes and lines that are relatively similar to our own domain. In addition, our own dataset is much smaller than the number of ResNeXt parameters. If we were to train ResNeXt from scratch, we would quickly overfit. By using a model pretrained on a large generic dataset and then fine-tuning only the last layers, we preserve all the fine detail learned by all the early network layers and only overwrite the last layers where we essentially assemble these details into images. However, after performing fine-tuning for a sufficient number of epochs, we unlock other network layers so that they can be trained along with the last few layers. During this phase, by using a sufficiently small learning rate, we induce our dataset information into all the network layers without overwriting the previously trained model.
 
 ## Dataset
 
-As previously mentioned, the dataset is divided into two components. The first one is a collection of folders each containing four images taken in the same location. Each folder is named with a unique identifier. The second component is a CSV table where each row contains one of the previously mentioned folder IDs and the corresponding image’s latitudes and longitudes expressed in degrees. We divided the data by hand into a training, validation and testing subfolder in a 80%/10%/10% split (for some models, it was 90%/5%/5%). This way, the data could be easily loaded during the training process from the appropriate folder depending on if we are in the training, validation or testing phase. Due to the datasets (and image’s) large size, we were unable to load the whole dataset directly into memory (we only had a _measly_ 12 GB or RAM available on our GPU). We wanted to do this because it had the potential of greatly decreasing training times, but we were forced to figure out other methods of speeding up training, like using only parts of the dataset during experimentation and employing smarter learning rate schedulers.
+As previously mentioned, the dataset is divided into two components. The first one is a collection of folders each containing four images taken in the same location. Each folder is named with a unique identifier. The second component is a CSV table where each row contains one of the previously mentioned folder IDs and the corresponding image’s latitudes and longitudes expressed in degrees. We divided the data by hand into a training, validation and testing subfolder in a 80%/10%/10% split (for some models, it was 90%/5%/5%). This way, the data could be easily loaded during the training process from the appropriate folder depending on if we are in the training, validation or testing phase. Due to the datasets (and image’s) large size, we were unable to load the whole dataset directly into memory (we only had a _measly_ 12 GB of VRAM available on our GPU). We wanted to do this because it had the potential of greatly decreasing training times, but we were forced to figure out other methods of speeding up training, like using only parts of the dataset during experimentation and employing smarter learning rate schedulers.
 
 Before the training process itself could begin, we needed to first process the data to make it more suitable for training. This entailed modifying the CSV file to include data such as class affiliation, class centroid information and the image’s and centroids latitude and longitude information in CRS format. Aside from this, image information such as the minimum and maximum value of each channel had to be also stored for fetching during the training process, and later, inference.
 
@@ -316,24 +413,3 @@ Aside from image size and batch size, another important parameter to be adjusted
 ## Inference
 
 Inference is performed after the entire training phase of our model is over. It is the process of testing our best performing model on never before seen images and can be described as the training phase in reverse: instead of seeing an image’s coordinates and training our model on them, we now have to look only at the image itself and predict it’s coordinates. The true image coordinates are hidden from us and are compared against our answers without us overseeing any part of the process. This is how our model will finally be tested and compared against other models in the end to assess its final performance. More about how this is done can be found in our Technical Documentation (TM).
-
-_test_
-**test**
-_test_
-
-----
-To do:
-
-Datasets
-
-- split
-
-Connecting datasets ( data module ):
-
-- hashing, mean, std, calculations
-
-Training
-	-
-	- dataset
-
-External sampling
