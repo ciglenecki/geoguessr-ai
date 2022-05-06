@@ -42,7 +42,7 @@ def parse_args(args):
     )
 
     parser.add_argument(
-        "--images-dirs",
+        "--image-dirs",
         metavar="dir",
         type=str,
         help="Image directories (directories with UUIDs) for which the norm and std will be caculated.",
