@@ -10,9 +10,8 @@ from shapely.geometry.point import Point
 from shapely.ops import nearest_points
 from tqdm import tqdm
 
-from defaults import DEFAULT_COUNTRY_ISO2, DEFAULT_GLOBAL_CRS
-from utils_geo import (get_country_shape,
-                       minimal_distance_from_point_to_geodataframe)
+from config import DEFAULT_COUNTRY_ISO2, DEFAULT_GLOBAL_CRS
+from utils_geo import get_country_shape, minimal_distance_from_point_to_geodataframe
 from utils_paths import PATH_WORLD_BORDERS
 
 

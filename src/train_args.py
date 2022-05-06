@@ -9,19 +9,36 @@ from typing import Dict, Tuple
 import pytorch_lightning as pl
 from torchvision.models.resnet import model_urls as resnet_model_urls
 
-from defaults import (DEAFULT_NUM_WORKERS,
-                      DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING,
-                      DEFAULT_BATCH_SIZE, DEFAULT_DATASET_FRAC, DEFAULT_EPOCHS,
-                      DEFAULT_FINETUNING_EPOCH_PERIOD, DEFAULT_IMAGE_SIZE,
-                      DEFAULT_LOAD_DATASET_IN_RAM, DEFAULT_LR,
-                      DEFAULT_LR_FINETUNE, DEFAULT_MODEL, DEFAULT_PRETRAINED,
-                      DEFAULT_SCHEDULER, DEFAULT_TEST_FRAC, DEFAULT_TRAIN_FRAC,
-                      DEFAULT_UNFREEZE_LAYERS_NUM, DEFAULT_VAL_FRAC,
-                      DEFAULT_WEIGHT_DECAY, LOG_EVERY_N)
+from config import (
+    DEAFULT_NUM_WORKERS,
+    DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING,
+    DEFAULT_BATCH_SIZE,
+    DEFAULT_DATASET_FRAC,
+    DEFAULT_EPOCHS,
+    DEFAULT_FINETUNING_EPOCH_PERIOD,
+    DEFAULT_IMAGE_SIZE,
+    DEFAULT_LOAD_DATASET_IN_RAM,
+    DEFAULT_LR,
+    DEFAULT_LR_FINETUNE,
+    DEFAULT_MODEL,
+    DEFAULT_PRETRAINED,
+    DEFAULT_SCHEDULER,
+    DEFAULT_TEST_FRAC,
+    DEFAULT_TRAIN_FRAC,
+    DEFAULT_UNFREEZE_LAYERS_NUM,
+    DEFAULT_VAL_FRAC,
+    DEFAULT_WEIGHT_DECAY,
+    LOG_EVERY_N,
+)
 from src.config import DEFAULT_OPTIMIZER
-from utils_functions import (is_between_0_1, is_positive_int, is_valid_dir,
-                             is_valid_fractions_array, is_valid_image_size,
-                             is_valid_unfreeze_arg)
+from utils_functions import (
+    is_between_0_1,
+    is_positive_int,
+    is_valid_dir,
+    is_valid_fractions_array,
+    is_valid_image_size,
+    is_valid_unfreeze_arg,
+)
 from utils_paths import PATH_DATA_EXTERNAL, PATH_DATA_RAW, PATH_REPORT
 from utils_train import OptimizerType, SchedulerType
 

@@ -11,7 +11,7 @@ from typing import Dict, List, Literal, Union
 import pytorch_lightning as pl
 import torch
 from datamodule_geoguesser import GeoguesserDataModulePredict
-from defaults import DEFAULT_IMAGE_MEAN, DEFAULT_IMAGE_STD
+from config import DEFAULT_IMAGE_MEAN, DEFAULT_IMAGE_STD
 from fastapi import HTTPException, UploadFile, status
 from model_classification import LitModelClassification
 from PIL import Image

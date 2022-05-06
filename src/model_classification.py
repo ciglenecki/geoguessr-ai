@@ -13,8 +13,7 @@ from pytorch_lightning.loggers import TensorBoardLogger
 from sklearn.preprocessing import MinMaxScaler
 from torch import nn
 
-from defaults import (DEFAULT_EARLY_STOPPING_EPOCH_FREQ,
-                      DEFAULT_TORCHVISION_VERSION)
+from config import DEFAULT_EARLY_STOPPING_EPOCH_FREQ, DEFAULT_TORCHVISION_VERSION
 from utils_geo import crs_coords_to_degree, haversine_from_degs
 from utils_model import crs_coords_weighed_mean, model_remove_fc
 from utils_train import OptimizerType, SchedulerType, multi_acc

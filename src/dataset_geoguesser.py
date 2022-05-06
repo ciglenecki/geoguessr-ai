@@ -10,7 +10,7 @@ from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
 
-from defaults import DEFAULT_LOAD_DATASET_IN_RAM
+from config import DEFAULT_LOAD_DATASET_IN_RAM
 from utils_dataset import DatasetSplitType, get_dataset_dirs_uuid_paths
 from utils_functions import flatten, get_dirs_only, one_hot_encode
 

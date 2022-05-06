@@ -16,18 +16,19 @@ from torchvision import transforms
 from calculate_norm_std import calculate_norm_std
 from callback_backbone_last_layers import BackboneFinetuningLastLayers
 from datamodule_geoguesser import GeoguesserDataModule
-from defaults import (DEFAULT_EARLY_STOPPING_EPOCH_FREQ, DEFAULT_IMAGE_MEAN,
-                      DEFAULT_IMAGE_STD)
-from model_callbacks import (BackboneFinetuning, BackboneFreezing,
-                             LogMetricsAsHyperparams,
-                             OnTrainEpochStartLogCallback,
-                             OverrideEpochMetricCallback)
+from config import DEFAULT_EARLY_STOPPING_EPOCH_FREQ, DEFAULT_IMAGE_MEAN, DEFAULT_IMAGE_STD
+from model_callbacks import (
+    BackboneFinetuning,
+    BackboneFreezing,
+    LogMetricsAsHyperparams,
+    OnTrainEpochStartLogCallback,
+    OverrideEpochMetricCallback,
+)
 from model_classification import LitModelClassification, LitSingleModel
 from model_regression import LitModelRegression
 from src.utils_dataset import DatasetSplitType, get_dataset_dirs_uuid_paths
 from train_args import parse_args_train
-from utils_functions import (add_prefix_to_keys, get_timestamp,
-                             random_codeword, stdout_to_file)
+from utils_functions import add_prefix_to_keys, get_timestamp, random_codeword, stdout_to_file
 from utils_paths import PATH_REPORT_QUICK
 from utils_train import SchedulerType
 

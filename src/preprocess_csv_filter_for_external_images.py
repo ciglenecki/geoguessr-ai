@@ -65,7 +65,7 @@ def main(args):
     df = pd.read_csv(args.base_csv)
     df = df.loc[df["uuid"].isin(uuids), :]
     print("Saving dataframe with {} rows to {}".format(len(df), args.out))
-    df.to_csv(args.out)
+    df.to_csv(args.out, index=False)
 
 
 if __name__ == "__main__":

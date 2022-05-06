@@ -12,7 +12,7 @@ from torch.utils.data import Dataset
 from torchvision import transforms
 from tqdm import tqdm
 
-from defaults import DEFAULT_IMAGE_SIZE
+from config import DEFAULT_IMAGE_SIZE
 from utils_dataset import DatasetSplitType
 from utils_functions import flatten
 from utils_paths import PATH_DATA, PATH_DATA_EXTERNAL, PATH_DATA_RAW

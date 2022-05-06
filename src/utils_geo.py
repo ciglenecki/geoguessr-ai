@@ -14,7 +14,7 @@ from shapely.ops import nearest_points
 from sklearn.metrics.pairwise import haversine_distances
 from tqdm import tqdm
 
-from defaults import DEFAULT_CROATIA_CRS, DEFAULT_GLOBAL_CRS
+from config import DEFAULT_CROATIA_CRS, DEFAULT_GLOBAL_CRS
 
 
 class ClippedCentroid:

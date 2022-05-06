@@ -14,7 +14,7 @@ from pathlib import Path
 import numpy as np
 from tqdm import tqdm
 
-from defaults import DEFAULT_TEST_FRAC, DEFAULT_TRAIN_FRAC, DEFAULT_VAL_FRAC
+from config import DEFAULT_TEST_FRAC, DEFAULT_TRAIN_FRAC, DEFAULT_VAL_FRAC
 from utils_functions import is_valid_dir, is_valid_fractions_array, split_by_ratio
 
 

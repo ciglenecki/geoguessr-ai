@@ -25,7 +25,7 @@ import preprocess_csv_concat
 import preprocess_csv_create_polygons
 from calculate_norm_std import calculate_norm_std
 from dataset_geoguesser import GeoguesserDataset, GeoguesserDatasetPredict
-from defaults import (
+from config import (
     DEAFULT_DROP_LAST,
     DEAFULT_NUM_WORKERS,
     DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING,

@@ -7,8 +7,18 @@ import pandas as pd
 
 def parse_args(args):
     parser = argparse.ArgumentParser()
-    parser.add_argument("--csv", nargs="+", metavar="file_a.csv file_b.csv")
-    parser.add_argument("--out", metavar="csv", help="Path of the csv output")
+    parser.add_argument(
+        "--csv",
+        nargs="+",
+        metavar="file_a.csv file_b.csv",
+        required=True,
+    )
+    parser.add_argument(
+        "--out",
+        metavar="csv",
+        help="Path of the csv output",
+        required=True,
+    )
     parser.add_argument(
         "--no-out",
         action="store_true",
@@ -28,7 +38,7 @@ def main(args):
         return df
 
     print("Saving df ({}) to {}".format(len(df), args.out))
-    df.to_csv(args.out)
+    df.to_csv(args.out, index=False)
     return df
 
 
