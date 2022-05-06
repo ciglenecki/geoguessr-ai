@@ -129,6 +129,7 @@ Setup virtual environment:
 pip install -r requirements.txt
 ```
 
+
 ## 📁 Directory structure
 
 | Directory                   | Description                    |
@@ -139,22 +140,6 @@ pip install -r requirements.txt
 | [reports](./reports/)       | model stat's, figures          |
 | [src](./src/)               | python source code             |
 
-## Notes
-
-### CSV dataframe
-
-uuid, lat, lng, class(polygon_index)
-
-### Lightning
-
-[Multiple Datasets
-](https://pytorch-lightning.readthedocs.io/en/stable/guides/data.html#multiple-datasets)
-
-There are a few ways to pass multiple Datasets to Lightning:
-
-- Create a DataLoader that iterates over multiple Datasets under the hood.
-- In the training loop you can pass multiple DataLoaders as a dict or list/tuple and Lightning will automatically combine the batches from different DataLoaders.
-- In the validation and test loop you have the option to return multiple DataLoaders, which Lightning will call sequentially.
 
 ## 🏆 Team members
 

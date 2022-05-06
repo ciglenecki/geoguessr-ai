@@ -10,7 +10,7 @@ from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from pytorch_lightning.callbacks.model_summary import ModelSummary
 from pytorch_lightning.callbacks.progress.tqdm_progress import TQDMProgressBar
-from torchvision import transforms, utils
+from torchvision import transforms
 from torchvision.transforms import AutoAugmentPolicy
 import matplotlib.pyplot as plt
 
@@ -36,8 +36,8 @@ from visualisation import (
 )
 from utils_model import plot_weights
 from train_args import parse_args_train
-from utils_functions import add_prefix_to_keys, get_timestamp, is_primitive, random_codeword, stdout_to_file
-from utils_paths import PATH_REPORT, PATH_REPORT_QUICK
+from utils_functions import add_prefix_to_keys, get_timestamp, random_codeword, stdout_to_file
+from utils_paths import PATH_REPORT_QUICK
 from utils_train import SchedulerType
 
 if __name__ == "__main__":

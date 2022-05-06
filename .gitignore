@@ -6,22 +6,28 @@
 
 .directory
 
-.vscode/
-.idea/
+docs/tmp.md
+
 *.ckpt
 *ignoreme*
+
 reports-quick/
 reports/
 old_reports/
+
 nohup*.out
+
+
+
+
+.vscode/
+.idea/
+
 __pycache__/
 *.py[cod]
-*$py.class
-nohup.out
-
 # C extensions
 *.so
-
+*$py.class
 # Distribution / packaging
 .Python
 build/
