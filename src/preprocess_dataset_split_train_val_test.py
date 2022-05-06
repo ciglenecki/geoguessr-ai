@@ -53,6 +53,7 @@ def create_train_val_test_dirs(out_dir: Path):
 
 def main(args):
     args = parse_args(args)
+    print(args)
 
     dataset_dir = args.dataset_dir
     out_dir = args.dataset_dir if args.out is None else args.out

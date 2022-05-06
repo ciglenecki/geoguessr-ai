@@ -12,6 +12,7 @@ from sklearn.preprocessing import MinMaxScaler
 from torch import nn
 
 from defaults import DEFAULT_EARLY_STOPPING_EPOCH_FREQ, DEFAULT_TORCHVISION_VERSION
+from model_classification import get_haversine_from_predictions
 from utils_geo import crs_coords_to_degree
 from utils_model import crs_coords_weighed_mean, model_remove_fc
 from utils_train import OptimizerType, SchedulerType
@@ -34,6 +35,7 @@ class LitModelRegression(pl.LightningModule):
         scheduler_type: str,
         epochs: int,
         class_to_crs_centroid_map: torch.Tensor,
+        class_to_crs_weighted_map: torch.Tensor,
         crs_scaler: MinMaxScaler,
         train_dataloader_size: int,
         optimizer_type: str,
@@ -51,7 +53,6 @@ class LitModelRegression(pl.LightningModule):
         self.scheduler_type = scheduler_type
         self.epochs = epochs
         self.train_dataloader_size = train_dataloader_size
-        self.class_to_crs_centroid_map = class_to_crs_centroid_map
         self.optimizer_type = optimizer_type
         self.unfreeze_at_epoch = unfreeze_at_epoch
         self.epoch = 0
@@ -128,7 +129,6 @@ class LitModelRegression(pl.LightningModule):
         log_dict = data_dict.copy()
         log_dict.pop("loss", None)
         self.log_dict(log_dict, on_step=True, on_epoch=True, logger=True, prog_bar=True)
-
         return data_dict
 
     def test_step(self, batch, batch_idx):
@@ -150,9 +150,8 @@ class LitModelRegression(pl.LightningModule):
 
     def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> Any:
         image_list, uuid = batch
-        y_pred = self(image_list)
+        pred_crs_coord = self(image_list)
 
-        pred_crs_coord = crs_coords_weighed_mean(y_pred, self.class_to_crs_centroid_map, top_k=5)
         pred_crs_coord = pred_crs_coord.cpu()
         pred_crs_coord_transformed = self.crs_scaler.inverse_transform(pred_crs_coord)
         pred_degree_coords = crs_coords_to_degree(pred_crs_coord_transformed)
@@ -161,14 +160,16 @@ class LitModelRegression(pl.LightningModule):
         return data_dict
 
     def configure_optimizers(self):
-        if not self.trainer:
-            return
+        print("\n", self.__class__.__name__, "Configure optimizers\n")
 
         if self.optimizer_type == OptimizerType.ADAMW.value:
             optimizer = torch.optim.AdamW(self.parameters(), lr=float(self.learning_rate), weight_decay=5e-3)
         else:
             optimizer = torch.optim.Adam(
-                self.parameters(), lr=float(self.learning_rate), weight_decay=self.weight_decay
+                self.parameters(),
+                lr=float(self.learning_rate),
+                weight_decay=self.weight_decay,
+                betas=(0.85, 0.95),
             )
 
         if self.scheduler_type is SchedulerType.AUTO_LR.value:
@@ -178,7 +179,7 @@ class LitModelRegression(pl.LightningModule):
         config_dict = {
             "optimizer": optimizer,
             "lr_scheduler": {
-                "monitor": "val/loss",
+                "monitor": "val/loss_epoch",
                 # How many epochs/steps should pass between calls to `scheduler.step()`.1 corresponds to updating the learning  rate after every epoch/step.
                 # If "monitor" references validation metrics, then "frequency" should be set to a multiple of "trainer.check_val_every_n_epoch".
                 "frequency": 1,
@@ -195,61 +196,35 @@ class LitModelRegression(pl.LightningModule):
                 max_lr=best_onecycle_initial_lr,  # TOOD:self.learning_rate,
                 final_div_factor=best_onecycle_initial_lr / best_onecycle_min_lr,
                 total_steps=self.trainer.estimated_stepping_batches,
+                verbose=False,
             )
             interval = "step"
             reduce_on_plateau = False
         else:  # SchedulerType.PLATEAU
             scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                optimizer, "min", factor=0.5, patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ // 2) - 1
+                optimizer,
+                "min",
+                factor=0.66,
+                patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ // 3) - 1,
+                verbose=True,
             )
             interval = "epoch"
-            reduce_on_plateau = True
 
         config_dict["lr_scheduler"].update(
             {
                 "scheduler": scheduler,
                 "interval": interval,
-                "reduce_on_plateau": reduce_on_plateau,
             }
         )
         return config_dict
 
     def lr_scheduler_step(self, scheduler, optimizer_idx, metric):
-        print("self.current_epoch < self.unfreeze_at_epoc", self.current_epoch, self.unfreeze_at_epoch)
         if self.current_epoch < self.unfreeze_at_epoch:
             return
         if metric is None:
-            scheduler.step()
+            scheduler.step()  # type: ignore
         else:
             scheduler.step(metric)
-
-    def optimizer_step(
-        self,
-        epoch: int,
-        batch_idx: int,
-        optimizer,
-        optimizer_idx: int,
-        optimizer_closure,
-        on_tpu: bool = False,
-        using_native_amp: bool = False,
-        using_lbfgs: bool = False,
-    ) -> None:
-
-        num_of_steps_to_skip = int(self.train_dataloader_size * self.unfreeze_at_epoch)
-
-        if self.trainer.global_step < num_of_steps_to_skip:
-            # if self.trainer.current_epoch < self.unfreeze_at_epoch:
-            upper_limit = min(self.lr_finetune, 1 - (float(self.trainer.global_step + 1) / num_of_steps_to_skip))
-            lr_scale = max(1e-6, upper_limit)
-            for pg in optimizer.param_groups:
-                pg["lr"] = lr_scale
-        elif (
-            self.trainer.current_epoch == self.unfreeze_at_epoch and self.scheduler_type == SchedulerType.PLATEAU.value
-        ):
-            for pg in optimizer.param_groups:
-                pg["lr"] = self.learning_rate
-
-        optimizer.step(closure=optimizer_closure)
 
 
 if __name__ == "__main__":

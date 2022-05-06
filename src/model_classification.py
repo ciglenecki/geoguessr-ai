@@ -286,7 +286,7 @@ class LitModelClassification(pl.LightningModule):
         if self.current_epoch < self.unfreeze_at_epoch:
             return
         if metric is None:
-            scheduler.step()
+            scheduler.step()  # type: ignore
         else:
             scheduler.step(metric)
 

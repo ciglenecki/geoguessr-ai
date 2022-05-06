@@ -1,6 +1,6 @@
-"""CSV"""
 from utils_train import OptimizerType, SchedulerType
 
+"""CSV"""
 DEFAULT_SPACING = 0.5
 
 """IMAGE"""
@@ -40,6 +40,7 @@ DEFAULT_OPTIMIZER = OptimizerType.ADAMW.value
 
 DEFAULT_CROATIA_CRS = 3766
 DEFAULT_GLOBAL_CRS = 4326
+DEFAULT_COUNTRY_ISO2 = "HR"
 
 DEFAULT_TORCHVISION_VERSION = "pytorch/vision:v0.12.0"
 
