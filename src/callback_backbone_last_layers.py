@@ -1,9 +1,10 @@
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Iterable, List, Optional, Tuple, Union
 
+import pytorch_lightning as pl
 from pytorch_lightning.callbacks import BackboneFinetuning, BaseFinetuning
 from torch.nn import Module
 from torch.optim.optimizer import Optimizer
-import pytorch_lightning as pl
+
 from utils_model import get_last_layer, get_model_blocks
 
 
@@ -12,35 +13,19 @@ class InvalidArgument(Exception):
 
 
 class BackboneFinetuningLastLayers(BackboneFinetuning):
-    r"""Finetune a backbone model based on a learning rate user-defined scheduling.
-
-    When the backbone learning rate reaches the current model learning rate
-    and ``should_align`` is set to True, it will align with it for the rest of the training.
+    """
+    BackboneFinetuning (base class) callback performs finetuning procedure where only the last layer is trainable. After unfreeze_backbone_at_epoch number of epochs it makes the whole model trainable.
+    BackboneFinetuningLastLayers does the same thing but it makes only last N blocks trainable instead of the whole model (all blocks).
+    https://pytorch-lightning.readthedocs.io/en/stable/api/pytorch_lightning.callbacks.BackboneFinetuning.html
 
     Args:
-        unfreeze_backbone_at_epoch: Epoch at which the backbone will be unfreezed.
-        lambda_func: Scheduling function for increasing backbone learning rate.
-        backbone_initial_ratio_lr:
-            Used to scale down the backbone learning rate compared to rest of model
-        backbone_initial_lr: Optional, Initial learning rate for the backbone.
-            By default, we will use ``current_learning /  backbone_initial_ratio_lr``
-        should_align: Whether to align with current learning rate when backbone learning
-            reaches it.
-        initial_denom_lr: When unfreezing the backbone, the initial learning rate will
-            ``current_learning_rate /  initial_denom_lr``.
-        train_bn: Whether to make Batch Normalization trainable.
-        verbose: Display current learning rate for model and backbone
-        rounding: Precision for displaying learning rate
+        unfreeze_blocks_num - number of blocks that will be trainable after the finetuning procedure. Argument 'all' will reduce this class to BackboneFinetuning because the whole model will become trainable.
 
-    Example::
-
-        >>> from pytorch_lightning import Trainer
-        >>> from pytorch_lightning.callbacks import BackboneFinetuning
-        >>> multiplicative = lambda epoch: 1.5
-        >>> backbone_finetuning = BackboneFinetuning(200, multiplicative)
-        >>> trainer = Trainer(callbacks=[backbone_finetuning])
-
+        unfreeze_at_epoch - at which epoch to unfreeze the rest of model
+        lr_finetuning_range - two ranges that define the starting and the ending learning rate during the finetuning phase
+        lr_after_finetune - sets learning rate to this value after finetuning is finished
     """
+
     unfreeze_backbone_at_epoch: int
     backbone_initial_lr: float
     verbose: bool
@@ -55,17 +40,15 @@ class BackboneFinetuningLastLayers(BackboneFinetuning):
         unfreeze_at_epoch: int,
         lr_finetuning_range: Tuple[float, float],
         lr_after_finetune: float,
-        train_dataloader_size: int,
         verbose: bool = True,
     ):
-        print("BackboneFinetuningLastLayers")
         self.unfreeze_blocks_num = unfreeze_blocks_num
         self.unfreeze_at_epoch = unfreeze_at_epoch
         self.lr_finetuning_min, self.lr_finetuning_max = lr_finetuning_range
         self.lr_total_diff = self.lr_finetuning_max - self.lr_finetuning_min
         self.lr_after_finetune = lr_after_finetune
 
-        """ Useless arguments but we send them anyway"""
+        """ Useless arguments but we send them anyway as a sanity check"""
         lambda_func = lambda x: x
         backbone_initial_ratio_lr = 1
         initial_denom_lr = 1
@@ -90,7 +73,7 @@ class BackboneFinetuningLastLayers(BackboneFinetuning):
             blocks = get_model_blocks(modules)
             return blocks[len(blocks) - unfreeze_blocks_num :]
 
-        elif type(unfreeze_blocks_num) is str and "layer" in unfreeze_blocks_num:
+        elif type(unfreeze_blocks_num) is str:
             """Add all modules that continue after unfreeze_blocks_num module (e.g. layer3.2)"""
 
             found_layer = False
@@ -98,13 +81,16 @@ class BackboneFinetuningLastLayers(BackboneFinetuning):
 
             for name, module in modules.named_modules():
                 if found_layer:
-                    print("Adding layer", name)
+                    if self.verbose:
+                        print("Adding layer", name)
                     modules_list.append(module)
                 if unfreeze_blocks_num in name:
                     found_layer = True
 
             if not found_layer:
-                raise InvalidArgument("unfreeze_blocks_num {} should be a a named module".format(unfreeze_blocks_num))
+                raise InvalidArgument(
+                    "unfreeze_blocks_num {} should be a a named module (e.g. layer3.2)".format(unfreeze_blocks_num)
+                )
             return modules_list
 
         elif unfreeze_blocks_num != "all":
@@ -117,10 +103,9 @@ class BackboneFinetuningLastLayers(BackboneFinetuning):
         modules: Union[Module, Iterable[Union[Module, Iterable]]],
         optimizer: Optimizer,
         lr: Optional[float] = None,
-        initial_denom_lr: float = 1,
         train_bn: bool = True,
     ) -> None:
-        # TODO: DONT DO THIS PLS add support for multiple modules, current version suports only one module
+        # TODO: current version suports only one module
 
         trainable_blocks: List[Module] = self._return_trainable_modules(modules, self.unfreeze_blocks_num)
 
@@ -137,8 +122,8 @@ class BackboneFinetuningLastLayers(BackboneFinetuning):
     def finetune_function(
         self, pl_module: "pl.LightningModule", epoch: int, optimizer: Optimizer, opt_idx: int
     ) -> None:
+        
         """Called when the epoch begins."""
-
         if epoch == self.unfreeze_backbone_at_epoch:
             self.unfreeze_and_add_param_group(
                 modules=pl_module.backbone,
@@ -148,7 +133,7 @@ class BackboneFinetuningLastLayers(BackboneFinetuning):
                 initial_denom_lr=self.initial_denom_lr,
             )
             if self.verbose:
-                print("\nSetting learning rate back to:", self.lr_after_finetune)
+                print("\nBackboneFinetuningLastLayers is setting the learning rate to:", self.lr_after_finetune)
 
 
 if __name__ == "__main__":

@@ -34,10 +34,6 @@ def tensor_sum_of_elements_to_one(ten: torch.Tensor, dim):
     return ten / torch.sum(ten, dim=dim, keepdim=True)
 
 
-def name_without_extension(filename: Union[Path, str]):
-    return Path(filename).stem
-
-
 def split_by_ratio(array: np.ndarray, *ratios, use_whole_array=False) -> List[np.ndarray]:
     """
     Splits the ndarray for given ratios

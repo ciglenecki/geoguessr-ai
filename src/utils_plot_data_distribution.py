@@ -8,10 +8,12 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from tqdm import tqdm
 
-from defaults import DEFAULT_COUNTRY_ISO2, DEFAULT_CROATIA_CRS, DEFAULT_GLOBAL_CRS, DEFAULT_SPACING
+from defaults import (DEFAULT_COUNTRY_ISO2, DEFAULT_CROATIA_CRS,
+                      DEFAULT_GLOBAL_CRS, DEFAULT_SPACING)
 from preprocess_sample_coords import reproject_dataframe
 from utils_functions import is_valid_dir
-from utils_geo import ClippedCentroid, get_clipped_centroids, get_country_shape, get_grid, get_intersecting_polygons
+from utils_geo import (ClippedCentroid, get_clipped_centroids,
+                       get_country_shape, get_grid, get_intersecting_polygons)
 from utils_paths import PATH_FIGURE, PATH_WORLD_BORDERS
 
 

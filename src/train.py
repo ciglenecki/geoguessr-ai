@@ -3,6 +3,7 @@ from __future__ import annotations, division, print_function
 from pathlib import Path
 from pprint import pprint
 
+import matplotlib.pyplot as plt
 import pytorch_lightning as pl
 from pytorch_lightning import loggers as pl_loggers
 from pytorch_lightning.callbacks import LearningRateMonitor
@@ -11,24 +12,22 @@ from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from pytorch_lightning.callbacks.model_summary import ModelSummary
 from pytorch_lightning.callbacks.progress.tqdm_progress import TQDMProgressBar
 from torchvision import transforms
-from torchvision.transforms import AutoAugmentPolicy
-import matplotlib.pyplot as plt
 
 from calculate_norm_std import calculate_norm_std
+from callback_backbone_last_layers import BackboneFinetuningLastLayers
 from datamodule_geoguesser import GeoguesserDataModule
-from defaults import DEFAULT_EARLY_STOPPING_EPOCH_FREQ, DEFAULT_IMAGE_MEAN, DEFAULT_IMAGE_STD
+from defaults import (DEFAULT_EARLY_STOPPING_EPOCH_FREQ, DEFAULT_IMAGE_MEAN,
+                      DEFAULT_IMAGE_STD)
+from model_callbacks import (BackboneFinetuning, BackboneFreezing,
+                             LogMetricsAsHyperparams,
+                             OnTrainEpochStartLogCallback,
+                             OverrideEpochMetricCallback)
 from model_classification import LitModelClassification, LitSingleModel
 from model_regression import LitModelRegression
-from callback_backbone_last_layers import BackboneFinetuningLastLayers
-from model_callbacks import (
-    BackboneFreezing,
-    LogMetricsAsHyperparams,
-    OnTrainEpochStartLogCallback,
-    OverrideEpochMetricCallback,
-    BackboneFinetuning,
-)
+from src.utils_dataset import DatasetSplitType, get_dataset_dirs_uuid_paths
 from train_args import parse_args_train
-from utils_functions import add_prefix_to_keys, get_timestamp, random_codeword, stdout_to_file
+from utils_functions import (add_prefix_to_keys, get_timestamp,
+                             random_codeword, stdout_to_file)
 from utils_paths import PATH_REPORT_QUICK
 from utils_train import SchedulerType
 
@@ -71,16 +70,7 @@ if __name__ == "__main__":
     print(str(filename_report))
     pprint([vars(args), vars(pl_args)])
 
-    mean, std = calculate_norm_std(dataset_dirs) if recaculate_norm else DEFAULT_IMAGE_MEAN, DEFAULT_IMAGE_STD
-
-    image_transform_train = transforms.Compose(
-        [
-            transforms.Resize(image_size),
-            transforms.AutoAugment(policy=AutoAugmentPolicy.IMAGENET),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=mean, std=std),
-        ]
-    )
+    mean, std = DEFAULT_IMAGE_MEAN, DEFAULT_IMAGE_STD
 
     datamodule = GeoguesserDataModule(
         cached_df=cached_df,
@@ -90,17 +80,18 @@ if __name__ == "__main__":
         val_frac=val_frac,
         test_frac=test_frac,
         dataset_frac=dataset_frac,
-        image_transform=image_transform_train,
+        image_size=image_size,
         num_workers=num_workers,
         shuffle_before_splitting=shuffle_before_splitting,
         load_dataset_in_ram=load_dataset_in_ram,
+        train_mean_std=(mean, std),
     )
     datamodule.setup()
     num_classes = datamodule.num_classes
     experiment_directory_name = "{}__{}__{}".format(
         experiment_codeword, "regression" if is_regression else "num_classes_" + str(num_classes), timestamp
     )
-    datamodule.store_df_to_report(Path(output_report, experiment_directory_name, "data.csv"))
+    datamodule.store_df_to_report(Path(output_report, experiment_directory_name, "data_runtime.csv"))
 
     train_dataloader_size = len(datamodule.train_dataloader())
     log_dictionary = {
@@ -179,7 +170,6 @@ if __name__ == "__main__":
                 unfreeze_at_epoch=unfreeze_at_epoch,
                 lr_finetuning_range=[learning_rate, learning_rate],
                 lr_after_finetune=learning_rate,
-                train_dataloader_size=train_dataloader_size,
             ),
         )
 

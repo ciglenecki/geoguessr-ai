@@ -12,7 +12,6 @@ from datamodule_geoguesser import GeoguesserDataModulePredict
 from defaults import DEFAULT_IMAGE_MEAN, DEFAULT_IMAGE_STD
 from model_classification import LitModelClassification, LitSingleModel
 from model_regression import LitModelRegression
-
 from utils_paths import PATH_DATA_RAW
 
 

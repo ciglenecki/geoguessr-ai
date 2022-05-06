@@ -9,14 +9,14 @@ import traceback
 from pathlib import Path
 
 import uvicorn
+from descriptions import api_description, predict_desc
 from fastapi import FastAPI, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
+from logger import logger
 
 from app.config import config
 from app.routers import router
-from logger import logger
-from descriptions import predict_desc, api_description
 
 
 def catch_exceptions_middleware(request, call_next):

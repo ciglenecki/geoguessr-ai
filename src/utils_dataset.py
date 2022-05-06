@@ -3,11 +3,10 @@ from glob import glob
 from itertools import product
 from pathlib import Path
 from typing import List, Union
-from utils_functions import flatten, get_dirs_only
 
 import pandas as pd
 
-from utils_functions import flatten
+from utils_functions import flatten, get_dirs_only
 
 
 class DatasetSplitType(Enum):

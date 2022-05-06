@@ -1,11 +1,7 @@
 from __future__ import annotations, division, print_function
 
-from glob import glob
 from pathlib import Path
 from typing import Callable, List, Tuple
-from os import walk
-import time
-import sys
 
 import numpy as np
 import pandas as pd
@@ -61,6 +57,7 @@ class GeoguesserDataset(Dataset):
 
     def _get_image_cache(self):
         """Cache image paths or images itself so that the __getitem__ function doesn't perform this job"""
+
         image_cache = {}
         for uuid, uuid_dir_path in zip(self.uuids, self.uuid_dir_paths):
             image_filepaths = [Path(uuid_dir_path, "{}.jpg".format(degree)) for degree in self.degrees]
@@ -71,9 +68,6 @@ class GeoguesserDataset(Dataset):
             )
             image_cache[uuid] = cache_item
         return image_cache
-
-    def name_without_extension(self, filename: Path | str):
-        return Path(filename).stem
 
     def append_column_y(self, df: pd.DataFrame):
         """
@@ -126,14 +120,12 @@ class GeoguesserDatasetPredict(Dataset):
         num_classes: int,
         image_transform: transforms.Compose = transforms.Compose([transforms.ToTensor()]),
     ) -> None:
-        print("GeoguesserDataset init")
+        print("GeoguesserDatasetPredict init")
         super().__init__()
         self.num_classes = num_classes
         self.degrees = ["0", "90", "180", "270"]
         self.image_transform = image_transform
-
         self.uuid_dir_paths = flatten([get_dirs_only(images_dir) for images_dir in images_dirs])
-
         self.uuids = [Path(uuid_dir_path).stem for uuid_dir_path in self.uuid_dir_paths]
 
         """ Build image cache """
@@ -146,9 +138,6 @@ class GeoguesserDatasetPredict(Dataset):
             cache_item = image_filepaths
             image_cache[uuid] = cache_item
         return image_cache
-
-    def name_without_extension(self, filename: Path | str):
-        return Path(filename).stem
 
     def __len__(self):
         return len(self.uuids)

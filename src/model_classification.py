@@ -1,6 +1,8 @@
 from __future__ import annotations, division, print_function
 
 import random
+import sys
+import time
 from time import time
 from typing import Any, List
 
@@ -10,12 +12,12 @@ import torch.nn.functional as F
 from pytorch_lightning.loggers import TensorBoardLogger
 from sklearn.preprocessing import MinMaxScaler
 from torch import nn
-from defaults import DEFAULT_EARLY_STOPPING_EPOCH_FREQ, DEFAULT_TORCHVISION_VERSION
+
+from defaults import (DEFAULT_EARLY_STOPPING_EPOCH_FREQ,
+                      DEFAULT_TORCHVISION_VERSION)
 from utils_geo import crs_coords_to_degree, haversine_from_degs
 from utils_model import crs_coords_weighed_mean, model_remove_fc
 from utils_train import OptimizerType, SchedulerType, multi_acc
-import time
-import sys
 
 
 def get_haversine_from_predictions(

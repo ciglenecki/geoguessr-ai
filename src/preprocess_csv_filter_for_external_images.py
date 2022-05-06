@@ -52,7 +52,7 @@ def parse_args(args):
         "--out",
         metavar="csv",
         help="Path of the csv output",
-        default=Path(PATH_DATA_EXTERNAL, "data_external.csv"),
+        required=True,
     )
     args = parser.parse_args(args)
     return args
