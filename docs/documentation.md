@@ -115,7 +115,7 @@ The `uuid` column is filled with IDs that represent the previously stated direct
 
 Another thing that was of interest to us was the visual inspection of the distribution of the locations. Understanding the distribution of the data can give us insight into things we might not be aware of.
 
-![Distribution of the dataset. It's visible that the mountainous part of Croatia contains the least amount of locations in the dataset.](img/croatia_data.png)
+![Distribution of the dataset. It's visible that the mountainous part of Croatia contains the least amount of locations in the dataset.](img/croatia_data.png){width=50%}
 
 ## Data Representation
 
@@ -127,68 +127,58 @@ Splendid! Now we simply need to find the maximum and minimum coordinates of the 
 
 ## Classification Approach
 
-The problem of predicting the coordinate given four Google Street view images can be approached from two different angles. Fearing encroaching on any originality, we will call them the **Classification approach** and the **Regression approach**.
+The problem of predicting coordinatess given four Google Street View images can be approached from two different angles. Fearing encroaching on any originality, we will call them the **Classification approach** and the **Regression approach**.
 
 In the Classification approach, we classify images into a fixed set of regions of Croatia in the form of a grid on the map (notice: we lose the information about the image's exact location here), while in the regression approach we try regressing the image coordinates to a continuous output from the model that will be restricted by the minimum and maximum possible coordinates (bounds of Croatia).
 
-The set of regions of Croatia we mentioned above can be represented in the form of square regions on a map. Each region corresponds to a single class and each region also has a centroid that represents the coordinates assigned to the class. The idea is that, instead of predicting the _exact_ coordinates of an image, the model classifies the images into regions from the previously described set of regions (you can also see them on the figure below). Notice that we  we don’t predict coordinates for each set of four images, rather we predict the class (region). Model will classify four images into a single region. Later however, we do have to provide a concrete value for the latitude and longitude coordinates. How will we decide what's the final coordinate, given that our model classifed an image to some region? We declare the predicted coordinates to be the **centroid of the predicted region**. Centroid of the region will be used to calculate our error in regards to that centroid. Notice that the image's true coordinates might be relatively distant from the centroid of the region into which the image was classified. This error shrinks as the number of specified regions (classes) grows.
+The set of regions of Croatia we mentioned above can be represented in the form of square regions on a map. Each region corresponds to a single class and each region also has a centroid that represents the coordinates assigned to the class. The idea is that, instead of predicting the _exact_ coordinates of an image, the model classifies the images into regions from the previously described set of regions (Figure 6). Notice that we don’t directly predict the coordinates for each set of four images, rather, we predict the class (region) of Croatia the images belong in. However, due to the way the competition is set up, at some point we do have to provide a concrete value for the latitude and longitude coordinates. How will we decide on these coordinates? We declare the predicted coordinates to be the **centroid of the predicted region**. This centroid will be used to calculate our error in regards to the true coordinates. Notice that the image's true coordinates might be relatively distant from the centroid of the region into which the image was classified. This error shrinks as the number of specified regions (classes) grows.
 
-![Croatia divided into region (square) regions. In this case, there are 115 regions that intersect with Croatia.](img/croata_n_115_grid.png){width=50%}
+![A map of Croatia divided into square regions. In this case, there are 115 regions that intersect with Croatia.](img/croata_n_115_grid.png){width=50%}
 
 
 ### Class Creation
 
-How is this grid-like set of regions created? First, we create a generic grid that is located fully inside the bounds of Croatia. It contains numerous regions (squares) which are adjacent to each other. Although we are working with a fixed number of regions, not every region is created equal. This is because, unfortunately, some of them aren’t located in Croatia at all, as they don’t really intersect Croatian territory. Therefore, they shouldn’t be taken into consideration further on and are filtered out. After this is done, we proceed to the task of finding the centroids of these regions. Using the [`geopandas`](https://geopandas.org/en/stable/) library, this problem can be reduced to a single simple Python property: `region.centroid`. Great! Now we have a set of classes for our model. But before we continue the journey let us double-check what we did so far...
-
-\begin{figure}[!h]
-\caption{Examples of maps of Croatia divided into distinct regions that represent classes. Red dots represent the centroids of the regions, or otherwise, the point on land closest to the centroid if the centroid is at sea. The image on the right has a denser grid than the image on the left, meaning that it contains more classes.}
-\end{figure}
-
-
+How is this grid-like set of regions created? First, we create a generic grid that is located fully inside the bounds of Croatia. It contains numerous regions (squares) which are adjacent to each other. Although we are working with a fixed number of regions, not every region is created equal. This is because, unfortunately, some of them aren’t located in Croatia at all, as they don’t really intersect Croatian territory. Therefore, they shouldn’t be taken into consideration further on and are filtered out. After this is done, we proceed to the task of finding the centroids of these regions. Using the [`geopandas`](https://geopandas.org/en/stable/) library, this problem can be reduced to a single simple Python property: `region.centroid`. Great! Now we have a set of classes for our model. But before we continue the journey let us double-check what we did so far ...
 
 ### Problems That Arise
 
 Let us observe the following example. Even though the centroids of the regions were calculated correctly (they’re in the center of the squares), some of them decided to go sailing and ended up in the middle of the sea. This doesn’t make sense for our prediction, as we know for a fact that the dataset contains images only taken on land. This has to change. Therefore, we introduce _clipped centroids_. Clipped centroids are a modification of regular centroids that fix the previously stated issue by clipping the undesirable centroid to the closest possible point on land. By doing this, we reduce the error rate of the model by moving seaborne centroids closer to the image’s true coordinates, which are on land.
 
-![Clipped centroid (red dot). The true centroid isn't located at the center of the region so the centroid is relocated (clipped) to the nearest point on the land.](img/clipping_example.png){width=50%}
-
+![Figure of a clipped centroid represented with a red dot. The true centroid isn't located at the center of the region so the centroid is relocated (clipped) to the nearest point on the land.](img/clipping_example.png){width=50%}
 
 We have previously mentioned that it's possible to specify the number of classes we desire before creating the grid and thereby make it more or less dense. By choosing a dense grid, we can essentially simulate something akin to regression. This is because, as the number of classes increases and the size of each class decreases, more regions and centroid values are available as potential classes. A smaller class means that the theoretical maximum distance between a class’ centroid and the true image coordinates is also smaller, and therefore has the potential of decreasing the total prediction error. Note that, at the end of the day, this is what matters, not the accuracy of our class predictions, because we calculate the final error by measuring the distance between an image’s coordinates (here the class centroid) and its true coordinates. Even if we classify all images correctly, we will still have a potentially large average haversine distance because we never actually predict the true image coordinates, only the class centroids. If we take this to the extreme, which is an infinite number of classes, we can come quite close to regression, but there is a caveat. In classification models, each class needs a certain number of images to effectively train. If this number is too low, the model simply can’t extract enough meaningful information from the images of a class to learn the features of that class.
 
-![](img/croata_n_20_grid.png){width=30%}
-![](img/croata_n_55_grid.png){width=30%}
-![](img/croata_n_115_grid.png){width=30%}
+![](img/croata_n_20_grid.png){width=33%}
+![](img/croata_n_55_grid.png){width=33%}
+![](img/croata_n_115_grid.png){width=33%}
 \begin{figure}[!h]
-\caption{Grids for different number of regions (20, 55, 115).}
+\caption{Example of maps of Croatia divided into distinct regions that represent classes. Red dots represent the centroids of the regions, or otherwise, the point on land closest to the centroid if the centroid is at sea. The number of regions are, from left to right, 20, 55 and 115}
 \end{figure}
-
-
 
 Another problem arises because of Croatia’s unique shape, only matched by that of Chile and The Gambia. For some regions, the intersection area with Croatia's territory is only a few tiny spots, meaning that the majority of the region's area ends up in a neighboring country. If this was anywhere before 1991., this wouldn’t be a problem, but it isn’t. The usage of clipped centroids we previously defined somewhat alleviates this issue, but another problem arises because there simply might not exist any images in the dataset that are located in that tiny area of the region, that is, within Croatia. And in fact, we did end up in such a situation. We solved this by discarding these regions and pretending like they didn't exist in the list of classes we could classify the images into. Fortunately, this doesn’t happen too often as the dataset is fairly large and the image’s locations are uniformly distributed.
 
+In the later stages of this project, we had an Eureka mome. Why do we have to declare a centroid (clipped or not) as the final coordinate of the region? What if the geography of a class is hostile to cars, for instance a a mountain, or even worse, Split? However well prepared, the little Street View car would have issues traversing some of these areas. Just look at an area such as [Lika](https://www.google.com/maps/@44.7471723,15.2368329,9.25z/data=!5m1!1e4). Due to this, we expect more Google Street View images to come from a more car friendly part of the region. To take this into account, we created **weighted centroids** for each region. Weighted centroids are calculated as the average location of all images in a specific region. Worth of note is that only the images from the train set were used in this process (remember the number one enemy of every well reproducible deep learning model: data leakage).
 
-
-In the late stage of the project, someone got a light bulb above his head. Why do we declare a centroid (clipped or not) as the final coordinate of the region? What if the region inside of the region is a mountainous terrain? However technologically advanced, Google's car would have issues climbing in some parts of [Lika](https://www.google.com/maps/@44.7471723,15.2368329,9.25z/data=!5m1!1e4). Naturally, more Google Street View images would come from a subpart of the region. To take this into account, we created **weighted centroids** for each region. Weighted centroid is calculated as a mean location of all images in a specific region. Note: only the images from the train set were used in this process (drip, drip, remember the data leakage!).
-
-
-![Image on the depicts a class which doesn’t contain any images from the train set due to being mostly made up of sea. This class will be ignored during training and prediction.](img/no_images_in_class.png){width=50%}
+![Here in red, we depict a class which doesn’t contain any images from the train set due to being mostly made up of sea. This class will be ignored during training and prediction.](img/no_images_in_class.png){width=50%}
 
 ### Loss Function
 
-Lastly, as with most classification approaches, we use [cross entropy loss](https://www.youtube.com/watch?v=6ArSys5qHAU) on the predicted and true classes. If you don't know what cross entropy loss is we won't bother to explain the details but will try to pass you the intuition behind it. Essentially, the dialog between the cross entropy loss and the model would look something like this:
+Lastly, as with most classification approaches, we use [cross entropy loss](https://www.youtube.com/watch?v=6ArSys5qHAU) on the predicted and true classes. We will try to explain this concept using the following text extracted from the Deep Learning Holy Book:
 
-> Cross entropy loss to the model: "I will make sure that you classify the image in the true region!" 
+> Thus spoke the Cross Entropy Loss to the Model: "Thou shalt classify the Images of God into a region worthy of The Creator!"
 >
-> Model: "Okay, can I classify the image so that it belongs to all regions at once? Then I surely classified the image in the true region! At least on some level..."
+> And the Model responded in abandon: "Alas, is the Image not only a part of many, as the flock of our Lord is plentiful? Only by measuring its membership to all before God, shall the true nature of Class be shown in full light ..."
 >
-> Cross entropy: "No. Your classification can't be indecisive. I will punish your indecisiveness for the true region! But I don't care how indecisiveness you are about _other_ regions."
+> Cross Entropy, with fire in its eyes: "No! It is not in the name of our Lord to be indecisive. Thus, you shall be punished for your Sins! But, you shall only account for the Sins of the Class you truly belong to."
 >
-> Model: "So if the true region is region 0, you will punish me the same for these two predicted probabilities: [0.6, 0.3, 0.1], [0.6, 0.2, 0.2] ?
+> And the Model understood his part: "Alas, if what you say is not in vain, then these two Sins shall be punished equally before God: [0.6, 0.3, 0.1], [0.6, 0.2, 0.2], am I not right?
 >
-> Cross entropy: "That's right. The only thing I care about is that the next time I see you, the number 0.6 rises as close to 1.0 as possible." 
+> Cross entropy, joyous to have led another sheep to the flock: "You speak the truth, my friend. But heed my word! Do not take these gifts of God as given. Only one who is truly without Sin and turns a 0.6 into a 1 shall win in the Grand LUMEN Tournament and be granted eternal glory before God."
 
-The true classes are represented with a one-hot encoded vector ([1, 0, 0]), while the predicted classes are represented with a vector of probabilities for the likelihood of each class ([0.6, 0.3, 0.1]). Now that we have probabilities for each class/region, how do we obtain the final coordinates? Firstly, we extract the centroid from all classes. Secondly, we multiply locations with corresponding probabilities. You can think of probabilities as weights in this context. Thirdly, we add everything up and end up with a [weighted arithmetic mean
-](https://en.wikipedia.org/wiki/Weighted_arithmetic_mean). Notice that our final predicted image coordinate is not necessarily within our predicted class, but as our model becomes more sure in its predictions, so do these averaged coordinates come closer to the class. We have noticed that this averaging approach improves performance.
+- Letters to the Computer Scientists, 0:9
+
+The true classes are represented with a one-hot encoded vector ([1, 0, 0]), while the predicted classes are represented with a vector of probabilities for the likelihood of each class ([0.6, 0.3, 0.1]). Now that we have probabilities for each class/region, how do we obtain the final coordinates? Firstly, we extract the centroid from all classes. Then, we multiply the centroids with the corresponding probabilities. You can think of the probabilities as weights in this context. Finally, we add everything up and end up with a [weighted arithmetic mean
+](https://en.wikipedia.org/wiki/Weighted_arithmetic_mean). Notice that our final predicted image coordinate is not necessarily within our predicted class, but as our model becomes more sure in its predictions, so do these averaged coordinates come closer to their true class. We have noticed that this averaging approach improves performance.
 
 ## Regression Approach
 
@@ -197,8 +187,6 @@ This approach is a bit more obvious. Each set of images has its target coordinat
 ### Loss Function
 
 For the loss function, we use mean squared error loss and we predict the coordinates directly. After we obtained predicted coordinates we re-project them back into global space and calculate the haversine distance for the purposes of logging and statistics. It is worth noting that these two approaches, classification and regression, can only be compared using the haversine distance metric, as their loss functions work in very different ways and output vastly different values. Therefore, they can’t be compared during training, but only during validation and testing, because we calculate the haversine distance value only then.
-
-
 
 ## Technology Stack
 
@@ -225,7 +213,6 @@ Some of the Python packages we used:
 - `tabulate` - easy and pretty Python tables
 - `tensorboard` - library used for fetching and visualizing machine learning model training data in a browser
 - `tqdm` - easy Python progress bars
-
 
 ## Solution architecture - [PyTorch Lightning](https://pytorch-lightning.readthedocs.io/en/latest/starter/introduction.html)
 
@@ -304,26 +291,22 @@ Our solution is composed of four main modules, as well as numerous utility funct
 
 ## Pretrained networks
 
-Because deep learning progresses at such a breakneck pace, there are numerous approaches that are considered state-of-the-art at the moment, all using vastly different architectures. As readily available high performance models that were pretrained on large datasets are the norm and us being extremely lazy, we chose to use one of these models instead of creating our own from scratch. The pretrained model is usually trained on large dataset (e.g. [ImageNet](https://www.image-net.org/)) which include many different types of images and classes. 
+Because deep learning progresses at such a breakneck pace, there are numerous approaches that are considered state-of-the-art at the moment, all using vastly different architectures. Because readily available high performance models that were pretrained on large datasets are the norm and us being extremely lazy, we chose to use one of these models instead of creating our own from scratch. The pretrained models are usually trained on large datasets (e.g. [ImageNet](https://www.image-net.org/)) which include many different types of images and classes. 
 
-![Sample of images from the ImageNet dataset used for creating pretrained models.](img/imagenet.jpg){width=30%}
+![A random sample of images from the ImageNet dataset used for creating pretrained models.](img/imagenet.jpg){width=30%}
 
-\begin{figure}[!h]
-\end{figure}[!h]
+Although solving a problem in which the content of images can be essentially anything seems extremely hard, a model that learns to generalize on these datasets can usually be _tuned_ to solve other problems that were originally outside of its domain (like predicting the location of images). This method of using the pretrained model to solve another problem is called [_transfer learning_](https://www.youtube.com/watch?v=yofjFQddwHE). The main advantages of fine-tuning when solving computer vision tasks are as follows:
 
-Although solving a problem, where the content of images come in many different shapes, seems extremely hard, the model that learns to generalize on these datasets can usually be _tuned_ to solve some another problem (like predicting the location of images). This method of using the pretrained model to solve another problem is called [_transferred learning_](https://www.youtube.com/watch?v=yofjFQddwHE). The main advantages of fine-tuning when solving computer vision tasks are the following:
-
-1. the pretrained model already learned to generalize on key features of images (general shapes). Our model doesn't have to learn this again
-2. robustness to small dataset - although this isn't a problem in our case since we have a fairly large dataset, we appreciate that transferred learning allows for training the model on smaller datasets 
-
+1. the pretrained model already learned to generalize on key features of a very generic set of images, that is to say, general shapes that can be applied almost anywhere. Our model doesn't have to learn this again.
+2. although this isn't a problem in our case since we have a fairly large dataset, using pretrained models is very robust on small datasets. Due to the model we use having much more parameters then there is data in our model, we can still appreciate this.
 
 ## ResNeXt
 
-Originally, we chose the EfficientNet architecture due to it showing both good performance and having lower system requirements when compared to other approaches. However, for reason we didn't explore enough, we had worse results and slower convergence compared to the model we settled for. After some experimenting, we ended up using a version of ResNet called ResNeXt instead, as it simply proved more effective. It can easily be loaded in PyTorch with the following expression `torch.hub.load("pytorch/vision", "resnext101_32x8d")`. 
+Originally, we chose the EfficientNet architecture due to it showing both good performance and having lower system requirements when compared to other approaches. However, for reasons we didn't bother to explore any more than we needed to, we consistently observed worse results and slower convergence of EfficientNet compared to the model we finally settled for. After some experimenting, we ended up using a version of ResNet called ResNeXt instead, as it simply proved more effective. It can easily be loaded into PyTorch with the following expression: `torch.hub.load("pytorch/vision", "resnext101_32x8d")`. 
 
 ResNeXt is a highly modular architecture that revolves around repeating powerful building blocks that aggregate sets of transformations. It first processes the images with a simple convolution layer. It then feeds this into a sequential layer composed of multiple bottleneck layers. A bottleneck layer has the function of reducing the data dimensionality, thereby forcing the network to learn the data representations instead of just memorizing them. Each bottleneck layer is again composed of multiple convolution layers for information extraction. After the sequential layer is done, the network is fed into another sequential layer. This process is repeated multiple times. Finally, after all the sequential layers have processed their outputs, the data is fed into a fully connected layer for classification or regression. Of course, all of the mentioned layers also use numerous normalization techniques, such as batch normalization. This process is visualized in the figure below. Due to this modularity of the layers, ResNeXt includes few hyperparameters that have to be tuned for the architecture to be effective. Aside from the described architecture, we had to do some modifications to the network ourselves in order to make them work with our dataset. There were two modifications we made.
 
-![Single ResNext block](img/resnext_block.png){width=30%}
+![An illustration of the architecture of a single ResNext block](img/resnext_block.png){width=50%}
 
 ## Modifications
 
@@ -331,12 +314,9 @@ Firstly, we removed the last layer of the network and replaced it with our own c
 
 ![](img/model_arh.png){width=50%}
 ![](img/model_arh_high.png){width=50%}
-
 \begin{figure}[!h]
 \caption{On the image on the left, we can see an overview of the model we used for training. Inputs are fed into the ResNeXt layer with four images being processed in parallel. The output is then fed into a linear layer which can either classify the results into distinct classes or predict coordinates directly as output. On the image on the right, a closeup of the ResNeXt backbone is shown. We can see that it is composed of an early convolution layer, followed by multiple sequential layers who all contain their own convolutions and transformations.}
 \end{figure}
-
-
 
 | Name | Type               | Params            | In sizes | Out sizes        |
 | ---- | ------------------ | ----------------- | -------- | ---------------- | ---------------- |
@@ -409,3 +389,17 @@ Aside from image size and batch size, another important parameter to be adjusted
 ## Inference
 
 Inference is performed after the entire training phase of our model is over. It is the process of testing our best performing model on never before seen images and can be described as the training phase in reverse: instead of seeing an image’s coordinates and training our model on them, we now have to look only at the image itself and predict it’s coordinates. The true image coordinates are hidden from us and are compared against our answers without us overseeing any part of the process. This is how our model will finally be tested and compared against other models in the end to assess its final performance. More about how this is done can be found in our Technical Documentation (TM).
+
+# Results
+
+In this chapter, we will describe the results of our model. We tested both numerous regression and classification models with a diverse set of hyperparameters, but we will mostly focus on the most successful of these. There are three evaluation metrics we used for classification and two for regression. We will also try to use as much visuals as possible to make this section less boring. Here we go.
+
+## Training
+
+The bulk of the model learning process is contained in the training process. Here, models would often reach near perfect classification and loss results which would translate to overfitting during validation. An example of these graphs is shown in Figure 13.
+
+![](img/model_arh.png){width=50%}
+![](img/model_arh_high.png){width=50%}
+\begin{figure}[!h]
+\caption{On the image on the left, we can see an overview of the model we used for training. Inputs are fed into the ResNeXt layer with four images being processed in parallel. The output is then fed into a linear layer which can either classify the results into distinct classes or predict coordinates directly as output. On the image on the right, a closeup of the ResNeXt backbone is shown. We can see that it is composed of an early convolution layer, followed by multiple sequential layers who all contain their own convolutions and transformations.}
+\end{figure}

@@ -115,7 +115,7 @@ The `uuid` column is filled with IDs that represent the previously stated direct
 
 Another thing that was of interest to us was the visual inspection of the distribution of the locations. Understanding the distribution of the data can give us insight into things we might not be aware of.
 
-![Distribution of the dataset. It's visible that the mountainous part of Croatia contains the least amount of locations in the dataset.](img/croatia_data.png)
+![Distribution of the dataset. It's visible that the mountainous part of Croatia contains the least amount of locations in the dataset.](img/croatia_data.png){width=50%}
 
 ## Data Representation
 
@@ -127,65 +127,56 @@ Splendid! Now we simply need to find the maximum and minimum coordinates of the 
 
 ## Classification Approach
 
-The problem of predicting the coordinate given four Google Street view images can be approached from two different angles. Fearing encroaching on any originality, we will call them the **Classification approach** and the **Regression approach**.
+The problem of predicting coordinatess given four Google Street View images can be approached from two different angles. Fearing encroaching on any originality, we will call them the **Classification approach** and the **Regression approach**.
 
 In the Classification approach, we classify images into a fixed set of regions of Croatia in the form of a grid on the map (notice: we lose the information about the image's exact location here), while in the regression approach we try regressing the image coordinates to a continuous output from the model that will be restricted by the minimum and maximum possible coordinates (bounds of Croatia).
 
-The set of regions of Croatia we mentioned above can be represented in the form of square regions on a map. Each region corresponds to a single class and each region also has a centroid that represents the coordinates assigned to the class. The idea is that, instead of predicting the _exact_ coordinates of an image, the model classifies the images into regions from the previously described set of regions (you can also see them on the figure below). Notice that we  we don’t predict coordinates for each set of four images, rather we predict the class (region). Model will classify four images into a single region. Later however, we do have to provide a concrete value for the latitude and longitude coordinates. How will we decide what's the final coordinate, given that our model classifed an image to some region? We declare the predicted coordinates to be the **centroid of the predicted region**. Centroid of the region will be used to calculate our error in regards to that centroid. Notice that the image's true coordinates might be relatively distant from the centroid of the region into which the image was classified. This error shrinks as the number of specified regions (classes) grows.
+The set of regions of Croatia we mentioned above can be represented in the form of square regions on a map. Each region corresponds to a single class and each region also has a centroid that represents the coordinates assigned to the class. The idea is that, instead of predicting the _exact_ coordinates of an image, the model classifies the images into regions from the previously described set of regions (Figure 6). Notice that we don’t directly predict the coordinates for each set of four images, rather, we predict the class (region) of Croatia the images belong in. However, due to the way the competition is set up, at some point we do have to provide a concrete value for the latitude and longitude coordinates. How will we decide on these coordinates? We declare the predicted coordinates to be the **centroid of the predicted region**. This centroid will be used to calculate our error in regards to the true coordinates. Notice that the image's true coordinates might be relatively distant from the centroid of the region into which the image was classified. This error shrinks as the number of specified regions (classes) grows.
 
-![Croatia divided into region (square) regions. In this case, there are 115 regions that intersect with Croatia.](img/croata_n_115_grid.png){width=50%}
+![A map of Croatia divided into square regions. In this case, there are 115 regions that intersect with Croatia.](img/croata_n_115_grid.png){width=50%}
 
 
 ### Class Creation
 
-How is this grid-like set of regions created? First, we create a generic grid that is located fully inside the bounds of Croatia. It contains numerous regions (squares) which are adjacent to each other. Although we are working with a fixed number of regions, not every region is created equal. This is because, unfortunately, some of them aren’t located in Croatia at all, as they don’t really intersect Croatian territory. Therefore, they shouldn’t be taken into consideration further on and are filtered out. After this is done, we proceed to the task of finding the centroids of these regions. Using the [`geopandas`](https://geopandas.org/en/stable/) library, this problem can be reduced to a single simple Python property: `region.centroid`. Great! Now we have a set of classes for our model. But before we continue the journey let us double-check what we did so far...
-
-\begin{figure}[!h]
-\caption{Examples of maps of Croatia divided into distinct regions that represent classes. Red dots represent the centroids of the regions, or otherwise, the point on land closest to the centroid if the centroid is at sea. The image on the right has a denser grid than the image on the left, meaning that it contains more classes.}
-\end{figure}
-
-
+How is this grid-like set of regions created? First, we create a generic grid that is located fully inside the bounds of Croatia. It contains numerous regions (squares) which are adjacent to each other. Although we are working with a fixed number of regions, not every region is created equal. This is because, unfortunately, some of them aren’t located in Croatia at all, as they don’t really intersect Croatian territory. Therefore, they shouldn’t be taken into consideration further on and are filtered out. After this is done, we proceed to the task of finding the centroids of these regions. Using the [`geopandas`](https://geopandas.org/en/stable/) library, this problem can be reduced to a single simple Python property: `region.centroid`. Great! Now we have a set of classes for our model. But before we continue the journey let us double-check what we did so far ...
 
 ### Problems That Arise
 
 Let us observe the following example. Even though the centroids of the regions were calculated correctly (they’re in the center of the squares), some of them decided to go sailing and ended up in the middle of the sea. This doesn’t make sense for our prediction, as we know for a fact that the dataset contains images only taken on land. This has to change. Therefore, we introduce _clipped centroids_. Clipped centroids are a modification of regular centroids that fix the previously stated issue by clipping the undesirable centroid to the closest possible point on land. By doing this, we reduce the error rate of the model by moving seaborne centroids closer to the image’s true coordinates, which are on land.
 
-![Clipped centroid (red dot). The true centroid isn't located at the center of the region so the centroid is relocated (clipped) to the nearest point on the land.](img/clipping_example.png){width=50%}
-
+![Figure of a clipped centroid represented with a red dot. The true centroid isn't located at the center of the region so the centroid is relocated (clipped) to the nearest point on the land.](img/clipping_example.png){width=50%}
 
 We have previously mentioned that it's possible to specify the number of classes we desire before creating the grid and thereby make it more or less dense. By choosing a dense grid, we can essentially simulate something akin to regression. This is because, as the number of classes increases and the size of each class decreases, more regions and centroid values are available as potential classes. A smaller class means that the theoretical maximum distance between a class’ centroid and the true image coordinates is also smaller, and therefore has the potential of decreasing the total prediction error. Note that, at the end of the day, this is what matters, not the accuracy of our class predictions, because we calculate the final error by measuring the distance between an image’s coordinates (here the class centroid) and its true coordinates. Even if we classify all images correctly, we will still have a potentially large average haversine distance because we never actually predict the true image coordinates, only the class centroids. If we take this to the extreme, which is an infinite number of classes, we can come quite close to regression, but there is a caveat. In classification models, each class needs a certain number of images to effectively train. If this number is too low, the model simply can’t extract enough meaningful information from the images of a class to learn the features of that class.
 
-![](img/croata_n_20_grid.png){width=30%}
-![](img/croata_n_55_grid.png){width=30%}
-![](img/croata_n_115_grid.png){width=30%}
+![](img/croata_n_20_grid.png){width=33%}
+![](img/croata_n_55_grid.png){width=33%}
+![](img/croata_n_115_grid.png){width=33%}
 \begin{figure}[!h]
-\caption{Grids for different number of regions (20, 55, 115).}
+\caption{Example of maps of Croatia divided into distinct regions that represent classes. Red dots represent the centroids of the regions, or otherwise, the point on land closest to the centroid if the centroid is at sea. The number of regions are, from left to right, 20, 55 and 115}
 \end{figure}
-
-
 
 Another problem arises because of Croatia’s unique shape, only matched by that of Chile and The Gambia. For some regions, the intersection area with Croatia's territory is only a few tiny spots, meaning that the majority of the region's area ends up in a neighboring country. If this was anywhere before 1991., this wouldn’t be a problem, but it isn’t. The usage of clipped centroids we previously defined somewhat alleviates this issue, but another problem arises because there simply might not exist any images in the dataset that are located in that tiny area of the region, that is, within Croatia. And in fact, we did end up in such a situation. We solved this by discarding these regions and pretending like they didn't exist in the list of classes we could classify the images into. Fortunately, this doesn’t happen too often as the dataset is fairly large and the image’s locations are uniformly distributed.
 
+In the later stages of this project, we had an Eureka mome. Why do we have to declare a centroid (clipped or not) as the final coordinate of the region? What if the geography of a class is hostile to cars, for instance a a mountain, or even worse, Split? However well prepared, the little Street View car would have issues traversing some of these areas. Just look at an area such as [Lika](https://www.google.com/maps/@44.7471723,15.2368329,9.25z/data=!5m1!1e4). Due to this, we expect more Google Street View images to come from a more car friendly part of the region. To take this into account, we created **weighted centroids** for each region. Weighted centroids are calculated as the average location of all images in a specific region. Worth of note is that only the images from the train set were used in this process (remember the number one enemy of every well reproducible deep learning model: data leakage).
 
 
-In the late stage of the project, someone got a light bulb above his head. Why do we declare a centroid (clipped or not) as the final coordinate of the region? What if the region inside of the region is a mountainous terrain? However technologically advanced, Google's car would have issues climbing in some parts of [Lika](https://www.google.com/maps/@44.7471723,15.2368329,9.25z/data=!5m1!1e4). Naturally, more Google Street View images would come from a subpart of the region. To take this into account, we created **weighted centroids** for each region. Weighted centroid is calculated as a mean location of all images in a specific region. Note: only the images from the train set were used in this process (drip, drip, remember the data leakage!).
-
-
-![Image on the depicts a class which doesn’t contain any images from the train set due to being mostly made up of sea. This class will be ignored during training and prediction.](img/no_images_in_class.png){width=50%}
+![Here in red, we depict a class which doesn’t contain any images from the train set due to being mostly made up of sea. This class will be ignored during training and prediction.](img/no_images_in_class.png){width=50%}
 
 ### Loss Function
 
-Lastly, as with most classification approaches, we use [cross entropy loss](https://www.youtube.com/watch?v=6ArSys5qHAU) on the predicted and true classes. If you don't know what cross entropy loss is we won't bother to explain the details but will try to pass you the intuition behind it. Essentially, the dialog between the cross entropy loss and the model would look something like this:
+Lastly, as with most classification approaches, we use [cross entropy loss](https://www.youtube.com/watch?v=6ArSys5qHAU) on the predicted and true classes. We will try to explain this concept using the following text extracted from the Deep Learning Holy Book:
 
-> Cross entropy loss to the model: "I will make sure that you classify the image in the true region!" 
+> Thus spoke the Cross Entropy Loss to the Model: "Thou shalt classify the Images of God into a region worthy of The Creator!"
 >
-> Model: "Okay, can I classify the image so that it belongs to all regions at once? Then I surely classified the image in the true region! At least on some level..."
+> And the Model responded in abandon: "Alas, is the Image not only a part of many, as the flock of our Lord is plentiful? Only by measuring its membership to all before God, shall the true nature of Class be shown in full light ..."
 >
-> Cross entropy: "No. Your classification can't be indecisive. I will punish your indecisiveness for the true region! But I don't care how indecisiveness you are about _other_ regions."
+> Cross Entropy, with fire in its eyes: "No! It is not in the name of our Lord to be indecisive. Thus, you shall be punished for your Sins! But, you shall only account for the Sins of the Class you truly belong to."
 >
-> Model: "So if the true region is region 0, you will punish me the same for these two predicted probabilities: [0.6, 0.3, 0.1], [0.6, 0.2, 0.2] ?
+> And the Model understood his part: "Alas, if what you say is not in vain, then these two Sins shall be punished equally before God: [0.6, 0.3, 0.1], [0.6, 0.2, 0.2], am I not right?
 >
-> Cross entropy: "That's right. The only thing I care about is that the next time I see you, the number 0.6 rises as close to 1.0 as possible." 
+> Cross entropy, joyous to have led another sheep to the flock: "You speak the truth, my friend. But heed my word! Do not take these gifts of God as given. Only one who is truly without Sin and turns a 0.6 into a 1 shall win in the Grand LUMEN Tournament and be granted eternal glory before God."
+
+- Letters to the Computer Scientists, 0:9
 
 The true classes are represented with a one-hot encoded vector ([1, 0, 0]), while the predicted classes are represented with a vector of probabilities for the likelihood of each class ([0.6, 0.3, 0.1]). Now that we have probabilities for each class/region, how do we obtain the final coordinates? Firstly, we extract the centroid from all classes. Secondly, we multiply locations with corresponding probabilities. You can think of probabilities as weights in this context. Thirdly, we add everything up and end up with a [weighted arithmetic mean
 ](https://en.wikipedia.org/wiki/Weighted_arithmetic_mean). Notice that our final predicted image coordinate is not necessarily within our predicted class, but as our model becomes more sure in its predictions, so do these averaged coordinates come closer to the class. We have noticed that this averaging approach improves performance.
