@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from tqdm import tqdm
 
-from defaults import DEFAULT_CROATIA_CRS, DEFAULT_GLOBAL_CRS, DEFAULT_SPACING
+from defaults import DEFAULT_COUNTRY_ISO2, DEFAULT_CROATIA_CRS, DEFAULT_GLOBAL_CRS, DEFAULT_SPACING
 from preprocess_sample_coords import reproject_dataframe
 from utils_functions import is_valid_dir
 from utils_geo import ClippedCentroid, get_clipped_centroids, get_country_shape, get_grid, get_intersecting_polygons
@@ -134,7 +134,7 @@ def main(args, df_object=None):
     df.drop("geometry", axis=1, inplace=True)  # info: GeoDataFrame somehow adds "geometry" column onto df
 
     world_shape: gpd.GeoDataFrame = gpd.read_file(str(PATH_WORLD_BORDERS))
-    country_shape = get_country_shape(world_shape, "HR")
+    country_shape = get_country_shape(world_shape, DEFAULT_COUNTRY_ISO2)
     country_shape.set_crs(default_crs)
     x_min, y_min, x_max, y_max = country_shape.total_bounds
     grid_polygons = get_grid(x_min, y_min, x_max, y_max, spacing=spacing)

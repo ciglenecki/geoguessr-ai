@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
+from defaults import DEFAULT_COUNTRY_ISO2, DEFAULT_CROATIA_CRS, DEFAULT_GLOBAL_CRS
 
 from utils_functions import is_valid_dir
 from utils_geo import get_country_shape
@@ -78,13 +79,13 @@ def main(args):
     num_of_coords = args.n
     fig_format = args.fig_format
 
-    croatia_crs = 3766
-    default_crs = 4326
+    croatia_crs = DEFAULT_CROATIA_CRS
+    default_crs = DEFAULT_GLOBAL_CRS
 
     batch_size = num_of_coords // 5
 
     world_shape: gpd.GeoDataFrame = gpd.read_file(str(PATH_WORLD_BORDERS))
-    country_shape = get_country_shape(world_shape, "HR")
+    country_shape = get_country_shape(world_shape, DEFAULT_COUNTRY_ISO2)
     country_shape.set_crs(default_crs)
     country_shape = country_shape.to_crs(crs=croatia_crs)
     if country_shape is None:

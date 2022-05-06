@@ -36,7 +36,7 @@ PATH_WORLD_BORDERS = Path(PATH_DATA, "world-borders", "world_no_croatia_islands.
 PATH_REPORT = Path(WORK_DIR, "reports")
 PATH_REPORT_QUICK = Path(WORK_DIR, "reports-quick")
 PATH_FIGURE = Path(PATH_REPORT, "figures")
-PATH_MODEL = Path(WORK_DIR, "models")
+PATH_MODEL = Path(WORK_DIR, "figures")
 
 if __name__ == "__main__":
     pass

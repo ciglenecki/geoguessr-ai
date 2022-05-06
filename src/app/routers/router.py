@@ -39,5 +39,5 @@ async def predict_cardinal_images(model_name: str, images: List[UploadFile]):
     response_model=List[models.PredictDirectoryReponse],
     description=predict_directory_desc,
 )
-def read_model(model_name: str, body: models.PostPredictDatasetRequest):
-    return controller.read_model(model_name, body)
+def predict_dataset(model_name: str, body: models.PostPredictDatasetRequest):
+    return controller.predict_dataset(model_name, body)

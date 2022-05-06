@@ -220,7 +220,7 @@ class LitModelClassification(pl.LightningModule):
         pred_crs_coord_transformed = self.crs_scaler.inverse_transform(pred_crs_coord)
         pred_degree_coords = crs_coords_to_degree(pred_crs_coord_transformed)
 
-        data_dict = {"latitude": pred_degree_coords[:, 0], "longitude": pred_degree_coords[:, 1], "uuid": uuid}
+        data_dict = {"uuid": uuid, "latitude": pred_degree_coords[:, 0], "longitude": pred_degree_coords[:, 1]}
         return data_dict
 
     def configure_optimizers(self):

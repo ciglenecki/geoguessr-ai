@@ -60,6 +60,12 @@ def coords_transform(lat: pd.Series, lng: pd.Series):
     return [min_max_lat, min_max_lng]
 
 
+def minimal_distance_from_point_to_geodataframe(point: Point, gpd2: gpd.GeoDataFrame):
+    gpd2["temporary_column"] = gpd2.apply(lambda row: point.distance(row.geometry), axis=1)
+    geoseries = gpd2.iloc[gpd2["temporary_column"].argmin()]
+    return geoseries.geometry
+
+
 def lat_lng_bounds(lat, lng):
     return lat.min(), lat.max(), lng.min(), lng.max()
 
