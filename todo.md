@@ -1,5 +1,12 @@
 ## 🧠 Brainstorming
 
+
+[ ] pull all data into external/
+[ ] send it to the server
+rsync -chavzP --dry-run data/external2   fwolf@karla.zesoi.fer.hr:/home/fwolf/lumen-geoguesser/reports/Mike_41__num_classes_70__05-05-11-17-46 .
+[ ] check that the validation happens multiple times during training
+[ ] for issue of backwards compatibility when loading the model, you can provide additional arguments like train_mean_std
+
 - best inital lr for onecycle 0.13182567385564073, best minimum is 0.00025
 
 - Create a grid for Croatia. Each square of a grid represents a class. Instead of regression, try classification where these squares will be different classes. Classification should have a probabilistic interpretation. Multiply probabilities (the certainty of each block) to get the final coordinate. Size of the square is a hyperparameter.

@@ -2,6 +2,7 @@ from __future__ import annotations, division, print_function
 
 from itertools import product
 from typing import List, Union
+import warnings
 
 import geopandas as gpd
 import numpy as np
@@ -14,7 +15,7 @@ from shapely.ops import nearest_points
 from sklearn.metrics.pairwise import haversine_distances
 from tqdm import tqdm
 
-from defaults import DEFAULT_CROATIA_CRS, DEFAULT_GLOBAL_CRS
+from config import DEFAULT_CROATIA_CRS, DEFAULT_GLOBAL_CRS
 
 
 class ClippedCentroid:
@@ -40,7 +41,7 @@ def crs_coords_to_degree(xy: Union[pd.Series, np.ndarray, torch.Tensor]) -> np.n
     transformer = Transformer.from_crs(DEFAULT_CROATIA_CRS, DEFAULT_GLOBAL_CRS)
     x = xy[:, 0]
     y = xy[:, 1]
-    lng, lat = transformer.transform(x, y)
+    lat, lng = transformer.transform(x, y)
     return np.stack([lat, lng], axis=-1)
 
 
@@ -80,9 +81,9 @@ def get_grid(x_min, y_min, x_max, y_max, spacing):
         list of polygons that form a grid
     """
     polygons: List[Polygon] = []
-    for y in np.arange(y_min, y_max + spacing, spacing):
-        for x in np.arange(x_min, x_max + spacing, spacing):
-            polygon = box(x, y, x + spacing, y + spacing)
+    for y in list(np.arange(y_min, y_max + spacing, spacing))[::-1]:
+        for x in list(np.arange(x_min, x_max + spacing, spacing))[::-1]:
+            polygon = box(x, y, x + spacing, y - spacing)
             polygons.append(polygon)
     return polygons
 
@@ -93,7 +94,9 @@ def get_country_shape(world_shape: gpd.GeoDataFrame, iso2: str) -> gpd.GeoDataFr
     """
 
     country_shape = world_shape[world_shape["ISO2"] == iso2]
-    country_shape = country_shape.explode(ignore_index=False)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        country_shape = country_shape.explode(ignore_index=False)  # type: ignore
     country_shape = country_shape.droplevel(0)  # we don't need country index on level 0, we work with a single country
     return country_shape  # type: ignore #[can't recognize type because of modifications]
 
@@ -114,7 +117,7 @@ def get_intersecting_polygons(
     """
 
     intersecting_polygons: List[Polygon] = []
-    for polygon_grid, polygon_base in tqdm(product(grid, base_shape), desc="Finding polygons that intersect"):
+    for polygon_grid, polygon_base in tqdm(product(grid, base_shape), desc="Finding polygons that intersect:"):
         is_area_valid = (
             polygon_grid.intersection(polygon_base).area / polygon_grid.area
         ) > percentage_of_intersection_threshold
@@ -137,14 +140,16 @@ def get_clipped_centroids(polygons: List[Polygon], clipping_shape: gpd.GeoDataFr
     """
 
     polygon_clipped_centroids: List[ClippedCentroid] = []
-    for polygon in tqdm(polygons, desc="Finding clipped centroids of polygons"):
+    for polygon in tqdm(polygons, desc="Finding clipped centroids of polygons:"):
         clipped_centroid = ClippedCentroid()
         centroid = polygon.centroid
         if clipping_shape.contains(centroid).any():
             clipped_centroid.point = centroid
             clipped_centroid.is_true_centroid = True
         else:
-            distances = clipping_shape.distance(centroid)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                distances = clipping_shape.distance(centroid)
             country_polygon_index = distances.sort_values().index[0]
             country_polygon = clipping_shape.loc[country_polygon_index, :]
             nearest_point = nearest_points(centroid, country_polygon.geometry)[

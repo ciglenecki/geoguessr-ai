@@ -9,7 +9,7 @@ from typing import Dict, Tuple
 import pytorch_lightning as pl
 from torchvision.models.resnet import model_urls as resnet_model_urls
 
-from defaults import (
+from config import (
     DEAFULT_NUM_WORKERS,
     DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING,
     DEFAULT_BATCH_SIZE,
@@ -17,7 +17,6 @@ from defaults import (
     DEFAULT_EPOCHS,
     DEFAULT_FINETUNING_EPOCH_PERIOD,
     DEFAULT_IMAGE_SIZE,
-    DEFAULT_LOAD_DATASET_IN_RAM,
     DEFAULT_LR,
     DEFAULT_LR_FINETUNE,
     DEFAULT_MODEL,
@@ -30,6 +29,7 @@ from defaults import (
     DEFAULT_WEIGHT_DECAY,
     LOG_EVERY_N,
 )
+from config import DEFAULT_OPTIMIZER
 from utils_functions import (
     is_between_0_1,
     is_positive_int,
@@ -38,7 +38,7 @@ from utils_functions import (
     is_valid_image_size,
     is_valid_unfreeze_arg,
 )
-from utils_paths import PATH_DATA_EXTERNAL, PATH_DATA_RAW, PATH_REPORT
+from utils_paths import PATH_DATA_EXTERNAL, PATH_DATA_ORIGINAL, PATH_REPORT
 from utils_train import OptimizerType, SchedulerType
 
 ARGS_GROUP_NAME = "General arguments"
@@ -114,15 +114,15 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
         "--dataset-dirs",
         metavar="dir",
         nargs="+",
-        type=is_valid_dir,
+        type=str,
         help="Dataset root directories that will be used for training",
-        default=[PATH_DATA_RAW, PATH_DATA_EXTERNAL],
+        default=[PATH_DATA_ORIGINAL, PATH_DATA_EXTERNAL],
     )
 
     user_group.add_argument(
-        "--cached-df",
+        "--csv-rich-static",
         type=str,
-        help="e.g. ata/raw.ignore/data__num_class_259__spacing_0.2.csv => Filepath to cached dataframe",
+        help="e.g. data/original/data__num_class_259__spacing_0.2.csv => Filepath to cached dataframe",
     )
 
     user_group.add_argument(
@@ -204,13 +204,6 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
     )
 
     user_group.add_argument(
-        "--load-in-ram",
-        action="store_true",
-        help="Load the dataset in RAM ~ 20GB",
-        default=DEFAULT_LOAD_DATASET_IN_RAM,
-    )
-
-    user_group.add_argument(
         "--use-single-images",
         action="store_true",
         help="Use single image as an input to the model",
@@ -225,7 +218,7 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
 
     user_group.add_argument(
         "--optimizer",
-        default=DEFAULT_SCHEDULER,
+        default=DEFAULT_OPTIMIZER,
         type=str,
         choices=[optimizer_type.value for optimizer_type in OptimizerType],
     )

@@ -1,5 +1,11 @@
-# Byte-compiled / optimized / DLL files
-/data/**/*.png
+/data/external/images
+/data/external2/images
+/data/
+/data/raw/images
+/data/test_lumen/images
+/data/external0.95
+/data/raw0.95
+
 /data/**/*.jpg
 /data/**/*.zip
 !data/example/**

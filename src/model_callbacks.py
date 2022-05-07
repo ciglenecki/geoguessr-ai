@@ -58,7 +58,7 @@ class OnTrainEpochStartLogCallback(pl.Callback):
             "step": trainer.current_epoch,
         }
         pl_module.log_dict(data_dict)
-        # # TODO: remove this when loading from legacy
+        # # TODO: maybe, put this in val_start ? and start with --val check = 1 !!!remove this when loading from legacy
         # pl_module.log("val/loss_epoch", 100000)
         # pl_module.log("val/haversine_distance_epoch", 100000)
 

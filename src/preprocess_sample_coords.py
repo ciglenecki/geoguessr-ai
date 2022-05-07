@@ -7,8 +7,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-from defaults import DEFAULT_COUNTRY_ISO2, DEFAULT_CROATIA_CRS, DEFAULT_GLOBAL_CRS
 
+from config import DEFAULT_COUNTRY_ISO2, DEFAULT_CROATIA_CRS, DEFAULT_GLOBAL_CRS
 from utils_functions import is_valid_dir
 from utils_geo import get_country_shape
 from utils_paths import PATH_DATA_SAMPLER, PATH_WORLD_BORDERS
