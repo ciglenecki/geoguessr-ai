@@ -75,6 +75,7 @@ pip install -r requirements.txt
 
 The original dataset strucutre has a directory `data` with images and `data.csv` at the top level:
 ```
+dataset_original_subset/
 ├── data
 │   ├── 6bde8efe-a565-4f05-8c60-ae2ffb32ee9b
 │   │   ├── 0.jpg
@@ -117,23 +118,9 @@ python3 src/preprocess_setup_datasets.py --dataset-dirs data/dataset_original_su
 To run scripts later, you must transform this structure to the following structure:
 
 ```
-├── images
-│   ├── test
-│   │   ├── e75a769c-4193-491f-9062-c074d8cb80ab
-│   │   │   ├── 0.jpg
-│   │   │   ├── 180.jpg
-│   │   │   ├── 270.jpg
-│   │   │   └── 90.jpg
-│   │   ├── e75b992b-5606-498b-ade5-0ac7f72b492e
-│   │   │   ├── 0.jpg
-│   │   │   ├── 180.jpg
-│   │   │   ...
-│   ├── val
-│   │   ...
-│   ├── test
-│   │   ...
-├── data_rich_static__spacing_0.5_classes_55.csv
-└── data.csv
+complete_subset/
+├── data.csv
+└── data_rich_static__spacing_0.5_classes_55.csv
 ```
 
 1. The dataset is split into train, val and test directories

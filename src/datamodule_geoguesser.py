@@ -48,7 +48,7 @@ class InvalidSizes(Exception):
 class GeoguesserDataModule(pl.LightningDataModule):
     def __init__(
         self,
-        cached_df: Path,
+        csv_rich_static: Path,
         dataset_dirs: List[Path],
         image_size: int,
         batch_size: int = DEFAULT_BATCH_SIZE,
@@ -82,7 +82,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
         self.shuffle_before_splitting = shuffle_before_splitting
 
         """ Dataframe loading, numclasses handling and min max scaling"""
-        df = self._load_dataframe(cached_df)
+        df = self._load_dataframe(csv_rich_static)
         df = self._dataframe_create_classes(df)
         df = self._adding_centroids_weighted(df)
         self.crs_scaler = self._get_and_fit_min_max_scaler_for_train_data(df)
@@ -145,15 +145,15 @@ class GeoguesserDataModule(pl.LightningDataModule):
             dataset_type=DatasetSplitType.TEST,
         )
 
-    def _load_dataframe(self, cached_df: Union[Path, None]) -> pd.DataFrame:
+    def _load_dataframe(self, csv_rich_static: Union[Path, None]) -> pd.DataFrame:
         """
         Returns the cached dataframe if the path file is given. If not, dataframe is created in the runtime (taking --dataset-dirs and --spacing into account) and returned either way.
 
         Args:
-            cached_df: e.g. data/csv_decorated/data__spacing_0.2__num_class_231.csv
+            csv_rich_static: e.g. data/csv_decorated/data__spacing_0.2__num_class_231.csv
         """
-        if cached_df:
-            df = pd.read_csv(Path(cached_df))
+        if csv_rich_static:
+            df = pd.read_csv(Path(csv_rich_static))
         else:
             df_paths = [str(Path(dataset_dir, "data.csv")) for dataset_dir in self.dataset_dirs]
             df_merged = preprocess_csv_concat.main(["--csv", *df_paths, "--no-out"])
@@ -417,7 +417,7 @@ class GeoguesserDataModulePredict(pl.LightningDataModule):
 
 if __name__ == "__main__":
     # dm = GeoguesserDataModule(
-    #     cached_df=Path(PATH_DATA_COMPLETE, "data__spacing_0.5__num_class_55.csv"),
+    #     csv_rich_static=Path(PATH_DATA_COMPLETE, "data__spacing_0.5__num_class_55.csv"),
     #     dataset_dirs=[PATH_DATA_ORIGINAL],
     # )
     # dm.setup()
