@@ -91,6 +91,7 @@ def main(args):
         parent_dir = dataset_dirs[0].parent
         out_dir = Path(parent_dir, "complete_subset")
 
+    os.makedirs(out_dir, exist_ok=True)
     out_dir = concat_datasets(dataset_dirs, out_dir, should_copy_images=False)
     path_csv_out = preprocess_csv_create_rich_static.main(
         [
