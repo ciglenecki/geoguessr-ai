@@ -34,14 +34,36 @@ title: |
 	<img src="readme-pics/geoguesser-logo.png"></img>
 </p>
 
-Although you might be reading this documentation in the form of the PDF file, we highly recommand that you  
-
 ## Notices:
-We assume you are located at the `.lumen-geoguesser` directory when running the scripts.
-All global variables are defined in [`src/config.py`](src/config.py) and [`src/paths.py`](src/utils_paths.py)
+Although you might be reading this documentation in the form of a PDF file, **we highly recommand that you open the [README.md](README.md) file in a markdown editor** (GitHub, VSCode, PyCharm, IDE...).
+
+As for the API documentation, after setting up the environment, we recommand you run the server with the [`python3 src/app/main.py`](src/app/main.py) command after which you can inspect API endpoints in browser (and execute them too!)
+
+Essentialy, the techincal documentation PDF is rendered from the [README.md](README.md) markdown file and export of the in-browser API documentation. 
+
+Few more notes:
+- the documentation assumes you are located at the `.lumen-geoguesser` directory when running Python scripts
+- all global variables are defined in [`src/config.py`](src/config.py) and [`src/paths.py`](src/utils_paths.py)
+- other directories have their own `README.md` files which are hopefully
+- you can run most python files with the `python3 program.py -h` to the sense of which arguments you can/must send and what the script actually does
+
+
+## 📁 Directory structure
+
+| Directory                   | Description                    |
+| --------------------------- | ------------------------------ |
+| [data](./data/)             | dataset, csvs, country shapefiles                        |
+| [models](./models/)         | model checkpoints, model metadata       |
+| [references](./references/) | research papers and competition guidelines |
+| [reports](./reports/)       | model stat's, figures          |
+| [src](./src/)               | python source code             |
+
 
 ##  Setup
+
+### Virtual environment
 Create and populate the [virtual environment](https://docs.python.org/3/library/venv.html#:~:text=A%20virtual%20environment%20is%20a,part%20of%20your%20operating%20system). Simply put, the virtual environment allows you to install Python packages only for this project (which you can easily delete later). This way, we won't clutter your global Python packages.
+
 
 ```bash
 [ ! -d "venv" ] && (echo "Creating python3 virtual environment"; python3 -m venv venv)
@@ -49,8 +71,7 @@ Create and populate the [virtual environment](https://docs.python.org/3/library/
 pip install -r requirements.txt
 ```
 
-
-## Dataset setup
+### Dataset setup
 
 The original dataset strucutre has a directory `data` with images and `data.csv` at the top level:
 ```
@@ -90,7 +111,7 @@ optional arguments:
 Example:
 
 ```sh
-python3 src/preprocess_setup_datasets.py --dataset-dirs data/original_subset data/external_subset --out-dir data/complete_subset
+python3 src/preprocess_setup_datasets.py --dataset-dirs data/dataset_original_subset data/dataset_external_subset --out-dir data/dataset_complete_subset
 ```
 
 To run scripts later, you must transform this structure to the following structure:
@@ -140,15 +161,6 @@ Stats:
 
 
 
-## 📁 Directory structure
-
-| Directory                   | Description                    |
-| --------------------------- | ------------------------------ |
-| [data](./data/)             | dataset                        |
-| [models](./models/)         | saved and trained models       |
-| [references](./references/) | research papers and guidelines |
-| [reports](./reports/)       | model stat's, figures          |
-| [src](./src/)               | python source code             |
 
 
 ### Developer notes:

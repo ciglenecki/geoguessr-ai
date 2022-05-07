@@ -74,8 +74,9 @@ def save_new_csv(dataset_dirs: List[Path], out_dir: Path) -> str:
     return path_new_csv
 
 
-def concat_datasets(dataset_dirs: List[Path], out_dir: Path, copy_images: bool):
-    # copy_images(dataset_dirs, out_dir)
+def concat_datasets(dataset_dirs: List[Path], out_dir: Path, should_copy_images: bool):
+    if should_copy_images:
+        copy_images(dataset_dirs, out_dir)
     save_new_csv(dataset_dirs, out_dir)
     return out_dir
 
@@ -83,13 +84,14 @@ def concat_datasets(dataset_dirs: List[Path], out_dir: Path, copy_images: bool):
 def main(args):
     args = parse_args(args)
     dataset_dirs = args.dataset_dirs
+    should_copy_images = args.copy_images
     if args.out_dir:
         out_dir = args.out_dir
     else:
         parent_dir = dataset_dirs[0].parent
         out_dir = Path(parent_dir, "complete_subset")
 
-    out_dir = concat_datasets(dataset_dirs, out_dir, copy_images=False)
+    out_dir = concat_datasets(dataset_dirs, out_dir, should_copy_images=False)
     path_csv_out = preprocess_csv_create_rich_static.main(
         [
             "--csv",
