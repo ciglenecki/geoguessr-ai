@@ -153,11 +153,11 @@ if __name__ == "__main__":
     callbacks = [
         callback_checkpoint,
         callback_checkpoint_val,
-        callback_early_stopping,
+        # callback_early_stopping,
         TQDMProgressBar(refresh_rate=bar_refresh_rate),
         ModelSummary(max_depth=3),
         LogMetricsAsHyperparams(),
-        OverrideEpochMetricCallback(),
+        # OverrideEpochMetricCallback(),
         OnTrainEpochStartLogCallback(),
         LearningRateMonitor(log_momentum=True),
     ]
