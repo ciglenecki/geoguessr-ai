@@ -1,7 +1,7 @@
 from utils_train import OptimizerType, SchedulerType
 
 """CSV"""
-DEFAULT_SPACING = 0.5
+DEFAULT_SPACING = 0.7
 
 """IMAGE"""
 DEFAULT_IMAGE_SIZE = 224

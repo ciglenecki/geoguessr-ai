@@ -22,7 +22,7 @@ from torchvision import transforms
 from torchvision.transforms import AutoAugmentPolicy
 
 import preprocess_csv_concat
-import preprocess_csv_create_polygons
+import preprocess_csv_create_rich_static
 from calculate_norm_std import calculate_norm_std
 from dataset_geoguesser import GeoguesserDataset, GeoguesserDatasetPredict
 from config import (
@@ -38,7 +38,7 @@ from config import (
 )
 from utils_dataset import DatasetSplitType, filter_df_by_dataset_split
 from utils_functions import print_df_sample
-from utils_paths import PATH_DATA_COMPLETE, PATH_DATA_RAW
+from utils_paths import PATH_DATA_COMPLETE, PATH_DATA_ORIGINAL
 
 
 class InvalidSizes(Exception):
@@ -157,9 +157,8 @@ class GeoguesserDataModule(pl.LightningDataModule):
         else:
             df_paths = [str(Path(dataset_dir, "data.csv")) for dataset_dir in self.dataset_dirs]
             df_merged = preprocess_csv_concat.main(["--csv", *df_paths, "--no-out"])
-            df = preprocess_csv_create_polygons.main(["--spacing", str(DEFAULT_SPACING), "--no-out"], df_merged)
-
-        # df.set_index("uuid", inplace=True, drop=False)
+            df = preprocess_csv_create_rich_static.main(["--spacing", str(DEFAULT_SPACING), "--no-out"], df_merged)
+            assert type(df) is pd.DataFrame, "preprocess_csv_create_rich_static.py didn't return a dataframe object."
         return df
 
     def _dataframe_create_classes(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -419,7 +418,7 @@ class GeoguesserDataModulePredict(pl.LightningDataModule):
 if __name__ == "__main__":
     # dm = GeoguesserDataModule(
     #     cached_df=Path(PATH_DATA_COMPLETE, "data__spacing_0.5__num_class_55.csv"),
-    #     dataset_dirs=[PATH_DATA_RAW],
+    #     dataset_dirs=[PATH_DATA_ORIGINAL],
     # )
     # dm.setup()
     pass

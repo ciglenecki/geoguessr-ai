@@ -1,19 +1,22 @@
 import argparse
 import math
+import os
 import sys
 from pathlib import Path
+from typing import Any, Dict, Union
 
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import pandas as pd
 from tqdm import tqdm
 from shapely.geometry.point import Point
-
+from shapely.geometry.polygon import Polygon
 
 from config import DEFAULT_COUNTRY_ISO2, DEFAULT_CROATIA_CRS, DEFAULT_GLOBAL_CRS, DEFAULT_SPACING
 from utils_functions import is_valid_dir
 from utils_geo import ClippedCentroid, get_clipped_centroids, get_country_shape, get_grid, get_intersecting_polygons
 from utils_paths import PATH_FIGURE, PATH_WORLD_BORDERS
+import matplotlib.patheffects as path_effects
 
 
 def parse_args(args):
@@ -33,12 +36,17 @@ def parse_args(args):
     parser.add_argument(
         "--spacing",
         type=float,
-        help="Spacing that will be used to create a grid of polygons.",
+        help="""Spacing that will be used to create a grid of polygons
+        0.7 spacing => ~31 classes
+        0.5 spacing => ~55 classes
+        0.4 spacing => ~75 classes
+        0.3 spacing => ~115 classes
+        """,
         default=DEFAULT_SPACING,
     )
 
     parser.add_argument(
-        "--out-fig",
+        "--out-dir-fig",
         metavar="dir",
         type=is_valid_dir,
         help="Directory where the figure will be saved",
@@ -63,12 +71,29 @@ def parse_args(args):
     return args
 
 
-def append_polygons_without_data(df: pd.DataFrame, df_label_polygon_map: pd.DataFrame):
-    """To the dataframe, append polygons for which the data (images) doesn't exist. Image related properties will be set to null"""
-    df_labels_with_images = df["polygon_index"].dropna().unique()
+def save_fig(path: Union[str, Path]):
+    plt.savefig(path, dpi=300)
+    print("Saved figure: {}".format(path))
 
-    df_polygons_without_images = df_label_polygon_map.drop(df_labels_with_images)
-    df = pd.concat([df, df_polygons_without_images])
+
+def plot_country(country_shape: gpd.GeoDataFrame):
+
+    country_shape = get_country_shape(gpd.read_file(str(PATH_WORLD_BORDERS)), DEFAULT_COUNTRY_ISO2)
+    ax = country_shape.plot(color="green")
+    ax.set_xlabel("Longitude")
+    ax.set_ylabel("Latitude")
+    plt.axis("scaled")
+    return ax
+
+
+def append_polygons_without_images(df: pd.DataFrame, polygon_dict: Dict[str, Dict[str, Any]]):
+    """To the dataframe, append polygons for which the data (images) doesn't exist. Image related properties will be set to null"""
+
+    new_dict = [{"polygon_index": key, **value} for key, value in polygon_dict.items() if not value["has_image"]]
+    df_tmp = pd.DataFrame.from_records(new_dict)
+    df_tmp = df_tmp.loc[df_tmp["has_image"] == False]
+    df_tmp = df_tmp.drop("has_image", axis=1)
+    df = pd.concat([df, df_tmp])
     return df
 
 
@@ -130,15 +155,20 @@ def generate_src_coords(lat: pd.Series, lng: pd.Series):
 
 def replace_values_with_na_invalid_locations(df: pd.DataFrame):
     mask_rows_with_invalid_projected_coords = df.isnull().any(axis=1)
-    print("Rows with invalid projections (will be excluded):", df[mask_rows_with_invalid_projected_coords])
+
+    print(
+        "\nThe following locations with invalid projections will be excluded:",
+        df.loc[mask_rows_with_invalid_projected_coords, "uuid"].to_list(),
+    )
+
     df.loc[mask_rows_with_invalid_projected_coords, ~df.columns.isin(["uuid", "latitude", "longitude"])] = None
     return df
 
 
-def main(args, df_object=None):
+def main(args, df_object=None) -> Union[str, pd.DataFrame]:
     args = parse_args(args)
     input_csv, no_out, out_dir_csv = _handle_arguments(args, df_object)
-    spacing, out_dir_fig, fig_format = args.spacing, args.out_fig, args.fig_format
+    spacing, out_dir_fig, fig_format = args.spacing, args.out_dir_fig, args.fig_format
     fig_format = "." + fig_format
 
     default_crs = DEFAULT_GLOBAL_CRS
@@ -158,13 +188,9 @@ def main(args, df_object=None):
     clipped_centroid = get_clipped_centroids(intersecting_polygons, country_shape)
     num_of_polygons = len(clipped_centroid)
 
-    polygon_dict = {
-        "polygon_index": [],
-        "centroid_lat": [],
-        "centroid_lng": [],
-        "is_true_centroid": [],
-    }
-    polys_with_data = []
+    polys_all_dict: Dict[str, Dict[str, Any]] = {}
+    polys_with_images: Dict[str, Polygon] = {}
+    polys_without_images: Dict[str, Polygon] = {}
 
     for polygon_idx, (polygon, centroid) in tqdm(
         enumerate(zip(intersecting_polygons, clipped_centroid)),
@@ -174,19 +200,25 @@ def main(args, df_object=None):
         centroid: ClippedCentroid
         row_mask = df_geo_csv.within(polygon)
 
-        if row_mask.any():  # image existis inside this polygon
+        poly_has_images = row_mask.any()
+
+        if poly_has_images:  # image existis inside this polygon
             df.loc[row_mask, "polygon_index"] = polygon_idx
             df.loc[row_mask, "centroid_lng"] = centroid.point.x
             df.loc[row_mask, "centroid_lat"] = centroid.point.y
             df.loc[row_mask, "is_true_centroid"] = centroid.is_true_centroid
-            polys_with_data.append(polygon)
+            polys_with_images[polygon_idx] = polygon
+        else:
+            polys_without_images[polygon_idx] = polygon
 
-        polygon_dict["polygon_index"].append(polygon_idx)
-        polygon_dict["centroid_lng"].append(centroid.point.x)
-        polygon_dict["centroid_lat"].append(centroid.point.y)
-        polygon_dict["is_true_centroid"].append(centroid.is_true_centroid)
+        if polygon_idx not in polys_all_dict:
+            polys_all_dict[polygon_idx] = {}
+        polys_all_dict[polygon_idx]["centroid_lng"] = centroid.point.x
+        polys_all_dict[polygon_idx]["centroid_lat"] = centroid.point.y
+        polys_all_dict[polygon_idx]["is_true_centroid"] = centroid.is_true_centroid
+        polys_all_dict[polygon_idx]["has_image"] = poly_has_images
 
-    df_label_polygon_map = pd.DataFrame.from_dict(polygon_dict)
+    # df_label_polygon_map = pd.DataFrame.from_dict(polys_all_dict)
 
     df["crs_y"], df["crs_x"] = generate_src_coords(df.loc[:, "latitude"], df.loc[:, "longitude"])
     df["crs_centroid_y"], df["crs_centroid_x"] = generate_src_coords(
@@ -194,63 +226,88 @@ def main(args, df_object=None):
     )
 
     df = replace_values_with_na_invalid_locations(df)
-    df = append_polygons_without_data(df, df_label_polygon_map)
+    df = append_polygons_without_images(df, polys_all_dict)
     num_polygons_without_images = len(df.loc[df["uuid"].isna(), :])
-    polys_without_data = [poly for poly in intersecting_polygons if poly not in polys_with_data]
 
-    print("{}/{} locations got marked by a polygon label (class)".format(df["polygon_index"].notnull().sum(), len(df)))
     print(
-        "{}/{} polygons have at least one image assigned to them".format(
+        "\n{}/{} locations got have region assigned to them. Locations that do not belong to any region will later be excluded.".format(
+            df["polygon_index"].notnull().sum(), len(df)
+        )
+    )
+    print(
+        "\n{}/{} regions have at least one image assigned to them".format(
             num_of_polygons - num_polygons_without_images, num_of_polygons
         )
     )
     num_valid_polys = len(intersecting_polygons)
-    print(num_valid_polys, "- number of classes (polygons)")
 
     if no_out:
         return df
 
-    fileinput_csv = Path(
-        out_dir_csv,
-        "{}_spacing_{}_num_class_{}.csv".format(Path(input_csv).stem, spacing, num_valid_polys),
+    path_csv_out = str(
+        Path(
+            out_dir_csv,
+            "{}_rich_static__spacing_{}_classes_{}.csv".format(Path(input_csv).stem, spacing, num_valid_polys),
+        )
     )
 
-    print(df.groupby(["polygon_index"]).size())
-    print("Median:", df.groupby(["polygon_index"]).size().median())
-    df.to_csv(fileinput_csv, index=False)
-    print("Saved file:", fileinput_csv)
+    pd.set_option("display.max_rows", 1000)
+    print("\nNumber of images for each region\n", df.groupby(["polygon_index"]).size())
+    pd.set_option("display.max_rows", None)
 
-    fileinput_csv_map = Path(
-        out_dir_csv,
-        "label_map_spacing_{}_num_class_{}.csv".format(spacing, num_valid_polys),
-    )
-    df_label_polygon_map.to_csv(fileinput_csv_map, index=False)
+    print("Mean of number of images in regions :\n", df.groupby(["polygon_index"]).size().mean())
+    df.to_csv(path_csv_out, index=False)
 
-    df_polys_with_data = gpd.GeoDataFrame({"geometry": polys_with_data})
-    df_polys_without_data = gpd.GeoDataFrame({"geometry": polys_without_data})
+    df_grid = gpd.GeoDataFrame({"geometry": grid_polygons})
+    df_intersect_grid = gpd.GeoDataFrame({"geometry": intersecting_polygons})
+    df_polys_with_images = gpd.GeoDataFrame({"geometry": polys_with_images})
+    df_polys_without_images = gpd.GeoDataFrame({"geometry": polys_without_images})
     intersecting_points_df = gpd.GeoDataFrame({"geometry": [c.point for c in clipped_centroid]})
-
     basename = "data_fig__spacing_{}__num_class_{}".format(spacing, num_valid_polys)
+    os.makedirs(out_dir_fig, exist_ok=True)
 
-    ax = country_shape.plot(color="green")
-    ax.set_xlabel("Longitude")
-    ax.set_ylabel("Latitude")
+    ax = plot_country(country_shape)
+    save_fig(Path(out_dir_fig, "country_{}_1.png".format(DEFAULT_COUNTRY_ISO2)))
 
-    plt.savefig(Path(out_dir_fig, "croatia.png"), dpi=300)
+    df_grid.plot(ax=ax, alpha=1, facecolor="none", linewidth=0.6, edgecolor="black")
+    save_fig(Path(out_dir_fig, "country_{}_grid_2.png".format(DEFAULT_COUNTRY_ISO2)))
 
-    df_polys_with_data.plot(ax=ax, alpha=1, facecolor="none", linewidth=0.6, edgecolor="black")
-    plt.savefig(Path(out_dir_fig, basename + "__polygons" + fig_format), dpi=300)
+    plt.close()
+    ax = plot_country(country_shape)
 
-    df_polys_without_data.plot(ax=ax, alpha=1, facecolor="none", linewidth=0.6, edgecolor="red")
-    plt.savefig(Path(out_dir_fig, basename + "__polygons_nodata" + fig_format), dpi=300)
+    df_intersect_grid.plot(ax=ax, alpha=1, facecolor="none", linewidth=0.6, edgecolor="black")
+    save_fig(Path(out_dir_fig, "country_{}_grid_intersection_3.png".format(DEFAULT_COUNTRY_ISO2)))
 
-    intersecting_points_df.plot(ax=ax, alpha=1, linewidth=0.2, markersize=2, edgecolor="white", color="red")
-    plt.savefig(Path(out_dir_fig, basename + "__centroid" + fig_format), dpi=300)
+    """ Plotting polygon index"""
+    df_polys_with_images["coords"] = df_polys_with_images["geometry"].apply(
+        lambda poly: (poly.centroid.x, poly.centroid.y)
+    )
+    df_polys_with_images.loc[:, "polygon_index"] = polys_with_images.keys()  # type: ignore
+    for idx, row in df_polys_with_images.iterrows():
+        ann = plt.annotate(
+            text=row["polygon_index"],
+            xy=row["coords"],
+            xytext=(-24 * spacing, 24 * spacing),
+            textcoords="offset points",
+            horizontalalignment="left",
+            verticalalignment="top",
+            fontsize=5,
+            color="white",
+        )  # type: ignore
+        ann.set_path_effects([path_effects.Stroke(linewidth=0.5, foreground="black"), path_effects.Normal()])
 
-    path_final_figure = Path(out_dir_fig, basename + fig_format)
-    plt.savefig(path_final_figure, dpi=300)
-    print("Saved file:", str(path_final_figure))
-    return df
+    df_polys_without_images.plot(ax=ax, alpha=1, facecolor="none", linewidth=0.6, edgecolor="red")
+    df_polys_with_images.plot(
+        ax=ax, alpha=1, facecolor="none", linewidth=0.6, edgecolor="black"
+    )  # replot black squares
+    save_fig(Path(out_dir_fig, basename + "_regions_colored_4" + fig_format))
+
+    intersecting_points_df.plot(ax=ax, alpha=1, linewidth=0.3, markersize=5, edgecolor="white", color="red")
+    save_fig(Path(out_dir_fig, basename + "centroid_5" + fig_format))
+
+    print("\nRich static CSV saved: '{}'".format(path_csv_out))
+
+    return path_csv_out
 
 
 if __name__ == "__main__":

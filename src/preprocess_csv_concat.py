@@ -37,7 +37,7 @@ def main(args):
     if args.no_out:
         return df
 
-    print("Saving df ({}) to {}".format(len(df), args.out))
+    print("Saving df ({}) to '{}'".format(len(df), args.out))
     df.to_csv(args.out, index=False)
     return df
 

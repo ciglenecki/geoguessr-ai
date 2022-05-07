@@ -18,9 +18,9 @@ PATH_DATA = Path(WORK_DIR, "data")
 
 PATH_DATA_COMPLETE = Path(PATH_DATA, "complete")
 
-"""DATA/RAW"""
-PATH_DATA_RAW = Path(PATH_DATA, "raw")
-PATH_DATA_RAW_IMAGES = Path(PATH_DATA_RAW, "images")
+"""DATA/ORIGINAL"""
+PATH_DATA_ORIGINAL = Path(PATH_DATA, "original")
+PATH_DATA_ORIGINAL_IMAGES = Path(PATH_DATA_ORIGINAL, "images")
 
 """DATA/EXTERNAL"""
 PATH_DATA_EXTERNAL = Path(PATH_DATA, "external")
@@ -30,13 +30,18 @@ PATH_DATA_EXTERNAL_IMAGES = Path(PATH_DATA_EXTERNAL, "images")
 PATH_DATA_EXAMPLE = Path(PATH_DATA, "example")
 PATH_DATA_EXAMPLE_IMAGES = Path(PATH_DATA_EXTERNAL, "images")
 
+
+"""SUBSETS"""
+PATH_DATA_SUBSET_EXTERNAL = Path(PATH_DATA, "external_subset")
+PATH_DATA_SUBSET_ORIGINAL = Path(PATH_DATA, "original_subset")
+
 PATH_DATA_SAMPLER = Path(PATH_DATA, "coord_sampler")
 PATH_WORLD_BORDERS = Path(PATH_DATA, "world-borders", "world_no_croatia_islands.shp")
 
 PATH_REPORT = Path(WORK_DIR, "reports")
 PATH_REPORT_QUICK = Path(WORK_DIR, "reports-quick")
-PATH_FIGURE = Path(PATH_REPORT, "figures")
-PATH_MODEL = Path(WORK_DIR, "figures")
+PATH_FIGURE = Path(WORK_DIR, "figures")
+PATH_MODEL = Path(WORK_DIR, "models")
 
 if __name__ == "__main__":
     pass

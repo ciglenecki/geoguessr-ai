@@ -12,7 +12,7 @@ from datamodule_geoguesser import GeoguesserDataModulePredict
 from config import DEFAULT_IMAGE_MEAN, DEFAULT_IMAGE_STD
 from model_classification import LitModelClassification, LitSingleModel
 from model_regression import LitModelRegression
-from utils_paths import PATH_DATA_RAW
+from utils_paths import PATH_DATA_ORIGINAL
 
 
 class InferenceWriter(Callback):
@@ -60,7 +60,7 @@ if __name__ == "__main__":
     )
 
     predict_datamodule = GeoguesserDataModulePredict(
-        [Path(PATH_DATA_RAW, "images", "test")], num_classes=model.num_classes
+        [Path(PATH_DATA_ORIGINAL, "images", "test")], num_classes=model.num_classes
     )
 
     trainer = pl.Trainer(

@@ -38,7 +38,7 @@ from utils_functions import (
     is_valid_image_size,
     is_valid_unfreeze_arg,
 )
-from utils_paths import PATH_DATA_EXTERNAL, PATH_DATA_RAW, PATH_REPORT
+from utils_paths import PATH_DATA_EXTERNAL, PATH_DATA_ORIGINAL, PATH_REPORT
 from utils_train import OptimizerType, SchedulerType
 
 ARGS_GROUP_NAME = "General arguments"
@@ -116,13 +116,13 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
         nargs="+",
         type=str,
         help="Dataset root directories that will be used for training",
-        default=[PATH_DATA_RAW, PATH_DATA_EXTERNAL],
+        default=[PATH_DATA_ORIGINAL, PATH_DATA_EXTERNAL],
     )
 
     user_group.add_argument(
-        "--cached-df",
+        "--csv-rich-static",
         type=str,
-        help="e.g. ata/raw.ignore/data__num_class_259__spacing_0.2.csv => Filepath to cached dataframe",
+        help="e.g. data/original/data__num_class_259__spacing_0.2.csv => Filepath to cached dataframe",
     )
 
     user_group.add_argument(
