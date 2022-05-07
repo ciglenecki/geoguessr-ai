@@ -23,9 +23,9 @@ def parse_args(args):
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--image-dir",
-        required=True,
         type=is_valid_dir,
         help="Path to the directory that contains UUID subdirectories.",
+        required=True,
     )
     parser.add_argument(
         "--out",

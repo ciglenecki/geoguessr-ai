@@ -11,6 +11,7 @@ from config import DEFAULT_SPACING
 import preprocess_csv_concat
 from utils_paths import PATH_DATA_SUBSET_EXTERNAL, PATH_DATA_SUBSET_ORIGINAL
 import preprocess_csv_create_rich_static
+import preprocess_dataset_split_train_val_test
 
 
 def parse_args(args):
@@ -93,7 +94,7 @@ def main(args):
         out_dir = args.out_dir
     else:
         parent_dir = dataset_dirs[0].parent
-        out_dir = Path(parent_dir, "complete_subset")
+        out_dir = Path(parent_dir, "dataset_complete_subset")
 
     os.makedirs(out_dir, exist_ok=True)
     out_dir = concat_datasets(dataset_dirs, out_dir, should_copy_images=should_copy_images)
@@ -105,6 +106,11 @@ def main(args):
             str(args.spacing),
         ]
     )
+
+    for dataset_dir in dataset_dirs:
+        preprocess_dataset_split_train_val_test.main(["--image-dir", dataset_dir])
+    if should_copy_images:
+        preprocess_dataset_split_train_val_test.main(["--image-dir", out_dir])
 
 
 if __name__ == "__main__":
