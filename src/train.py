@@ -1,4 +1,5 @@
 from __future__ import annotations, division, print_function
+import os
 
 from pathlib import Path
 from pprint import pprint
@@ -61,6 +62,8 @@ if __name__ == "__main__":
 
     timestamp = get_timestamp()
     experiment_codeword = random_codeword()
+
+    os.makedirs(output_report, exist_ok=True)
     filename_report = Path(
         output_report,
         "__".join(["train", experiment_codeword, timestamp]) + ("__quick" if is_quick else "") + ".txt",

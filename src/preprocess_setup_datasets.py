@@ -83,6 +83,10 @@ def concat_datasets(dataset_dirs: List[Path], out_dir: Path, should_copy_images:
 
 def main(args):
     args = parse_args(args)
+
+    for dir_name in ["reports"]:
+        os.makedirs(dir_name)
+
     dataset_dirs = args.dataset_dirs
     should_copy_images = args.copy_images
     if args.out_dir:
@@ -92,7 +96,7 @@ def main(args):
         out_dir = Path(parent_dir, "complete_subset")
 
     os.makedirs(out_dir, exist_ok=True)
-    out_dir = concat_datasets(dataset_dirs, out_dir, should_copy_images=False)
+    out_dir = concat_datasets(dataset_dirs, out_dir, should_copy_images=should_copy_images)
     path_csv_out = preprocess_csv_create_rich_static.main(
         [
             "--csv",
