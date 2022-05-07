@@ -20,7 +20,7 @@ import matplotlib.patheffects as path_effects
 
 
 def parse_args(args):
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
         "--csv",
         help="Dataframe you want to enrich",
@@ -36,7 +36,7 @@ def parse_args(args):
     parser.add_argument(
         "--spacing",
         type=float,
-        help="""Spacing that will be used to create a grid of polygons
+        help="""Spacing that will be used to create a grid of polygons. Different spacings produce different number of classes
         0.7 spacing => ~31 classes
         0.5 spacing => ~55 classes
         0.4 spacing => ~75 classes

@@ -22,12 +22,6 @@ output:
 		toc: yes
 		toc_depth:
 
-# author:
-# 	- Filip Wolf
-# 	- Leonardo Čuljak
-# 	- Borna Katović
-# 	- Matej Ciglenečki
-
 geometry: margin=1.2cm
 numbersections: true
 title: |
