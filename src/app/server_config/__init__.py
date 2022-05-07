@@ -25,4 +25,4 @@ _keys = ["MODEL_DIRECTORY", "MODEL_EXTENSION", "PREDICT_BATCH_SIZE", "HOST", "PO
 if any([key not in _config for key in _keys]):
     raise EnvFileException(_exception_message.format(_keys))
 
-config = _config
+server_config = _config

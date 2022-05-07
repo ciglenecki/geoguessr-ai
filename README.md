@@ -70,3 +70,8 @@ pip install pipreqs
 cp requirements.txt requirements.txt.backup
 pipreqs --force .
 ```
+
+
+```
+run python3 src/train.py --accelerator gpu --devices 1 --num-workers 32 --batch-size 8 --dataset-dir data/raw/ data/external/ --cached-df data/complete/data_huge_spacing_0.21_num_class_211.csv --image-size 224 --lr 0.00002 --unfreeze-at-epoch 1 --scheduler plateau --val_check_interval 0.25 --limit_val_batches 0.4
+```

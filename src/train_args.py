@@ -114,7 +114,7 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
         "--dataset-dirs",
         metavar="dir",
         nargs="+",
-        type=is_valid_dir,
+        type=str,
         help="Dataset root directories that will be used for training",
         default=[PATH_DATA_RAW, PATH_DATA_EXTERNAL],
     )

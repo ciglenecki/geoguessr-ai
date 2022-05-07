@@ -12,10 +12,10 @@ import uvicorn
 from descriptions import api_description, predict_desc
 from fastapi import FastAPI, status
 from fastapi.encoders import jsonable_encoder
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from logger import logger
 
-from app.config import config
+from app.server_config import server_config
 from app.routers import router
 
 
@@ -50,6 +50,11 @@ def shutdown_event():
     logger.info("Application shutdown")
 
 
+@app.get("/", include_in_schema=False)
+async def docs_redirect():
+    return RedirectResponse(url="/docs")
+
+
 app.include_router(router.router)
 
 with open(Path(Path(__file__).parent.resolve(), "openapi_spec.json"), "w+") as file:
@@ -59,8 +64,8 @@ with open(Path(Path(__file__).parent.resolve(), "openapi_spec.json"), "w+") as f
 if __name__ == "__main__":
     uvicorn.run(
         "main:app",
-        host=config["HOST"],
-        port=int(config["PORT"]),
+        host=server_config["HOST"],
+        port=int(server_config["PORT"]),
         loop="asyncio",
-        reload=bool(int(config["HOT_RELOAD"])),
+        reload=bool(int(server_config["HOT_RELOAD"])),
     )
