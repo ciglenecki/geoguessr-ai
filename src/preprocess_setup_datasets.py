@@ -31,6 +31,12 @@ def parse_args(args):
         help="Directory where compelte dataset will be placed",
     )
     parser.add_argument(
+        "--copy-images",
+        action="store_true",
+        help="Copy images from dataset directories to the new directory. You don't need to do this as later on you will be able to pass multiple dataset directories to various scripts.",
+        default=False,
+    )
+    parser.add_argument(
         "--spacing",
         type=float,
         help="""Spacing that will be used to create a grid of polygons. Different spacings produce different number of classes
@@ -68,8 +74,8 @@ def save_new_csv(dataset_dirs: List[Path], out_dir: Path) -> str:
     return path_new_csv
 
 
-def concat_datasets(dataset_dirs: List[Path], out_dir: Path):
-    copy_images(dataset_dirs, out_dir)
+def concat_datasets(dataset_dirs: List[Path], out_dir: Path, copy_images: bool):
+    # copy_images(dataset_dirs, out_dir)
     save_new_csv(dataset_dirs, out_dir)
     return out_dir
 
@@ -83,7 +89,7 @@ def main(args):
         parent_dir = dataset_dirs[0].parent
         out_dir = Path(parent_dir, "complete_subset")
 
-    out_dir = concat_datasets(dataset_dirs, out_dir)
+    out_dir = concat_datasets(dataset_dirs, out_dir, copy_images=False)
     path_csv_out = preprocess_csv_create_rich_static.main(
         [
             "--csv",
