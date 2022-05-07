@@ -392,14 +392,38 @@ Inference is performed after the entire training phase of our model is over. It 
 
 # Results
 
-In this chapter, we will describe the results of our model. We tested both numerous regression and classification models with a diverse set of hyperparameters, but we will mostly focus on the most successful of these. There are three evaluation metrics we used for classification and two for regression. We will also try to use as much visuals as possible to make this section less boring. Here we go.
+In this chapter, we will describe the results of our model, mostly focusing on the different metrics we used. We tested numerous regression and classification models with a diverse set of hyperparameters, but we will mostly focus on the most successful ones. There are three evaluation metrics we used for classification and two for regression. We will also try to use as much visuals as possible to make this section less boring. Here we go.
 
 ## Training
 
-The bulk of the model learning process is contained in the training process. Here, models would often reach near perfect classification and loss results which would translate to overfitting during validation. An example of these graphs is shown in Figure 13.
+The bulk of the model learning process is contained in the training process. Here, models would often reach near perfect classification and loss results which would translate to overfitting during validation. An example of these graphs is shown in Figure 13 and Figure 14.
 
-![](img/model_arh.png){width=50%}
-![](img/model_arh_high.png){width=50%}
-\begin{figure}[!h]
-\caption{On the image on the left, we can see an overview of the model we used for training. Inputs are fed into the ResNeXt layer with four images being processed in parallel. The output is then fed into a linear layer which can either classify the results into distinct classes or predict coordinates directly as output. On the image on the right, a closeup of the ResNeXt backbone is shown. We can see that it is composed of an early convolution layer, followed by multiple sequential layers who all contain their own convolutions and transformations.}
-\end{figure}
+![A graph of train model accuracy over time. A curve that is more to the left and up on the image shows faster training and higher accuracy.](img/train_acc_epoch.png){width=100%}
+
+![A graph of train model loss over time. A curve that is more to the left and down on the image shows quicker training and lower loss.](img/train_loss_epoch.png){width=100%}
+
+We can see that there are three distinct groups in these graphs. The first one is the cluster of four models of similar performance, with quick training and high accuracy. However, the only thing they have in common is that they’re classification models and that they were trained on the same dataset. All their hyperparameters: image size, learning rate and number of classes are all different. However, this being the training part of the dataset, this doesn’t have to tell us much because on the train dataset, most models reach high performance and overfit, regardless of their setup.
+
+The somewhat slower gray model in the middle is unfortunately a mystery to us, as at that time we didn’t quite track hyperparameters. We do however know that it contains 72 classes. But, as we can see, it also reached near perfect classification on the train dataset. Same goes for the orange model to the right in the graph, although that one is really slow.
+
+The drop and subsequent recovery in performance that is observable in the earlier stages of training can be explained by the unfreezing of the remaining layers of the backbone. As we previously explained, we start the training process by fine-tuning the models and then unlocking the rest of the model layers for training. By doing this, we temporarily increase the loss of the model because the model needs some time to adjust the remaining layers correctly. But we can see that the models normally successfully recover from this and that it doesn’t have a large impact in final training performance.
+
+## Validation
+
+Validation is much more interesting to observe than training. It is much harder to reach good performance here and there is a larger difference between the individual models. The champions of generalization show their true colors here. We will examine three graphs here instead of two. They are shown in Figure 15, Figure 16 and Figure 17.
+
+![A graph of validation model accuracy over time. A curve that is more to the left and up on the image shows faster training and higher accuracy.](img/val_acc_epoch.png){width=100%}
+
+![A graph of validation model loss over time. A curve that is more to the left and down on the image shows quicker training and lower loss.](img/val_loss_epoch.png){width=100%}
+	
+![A graph of validation model haversine distance over time. A curve that is more to the left and down on the image shows quicker training and lower loss.](img/val_hav_epoch.png){width=100%}
+
+We can immediately observe a few notable facts about these graphs. For starters, the accuracy graph looks very similar to the train version of the same graph. The dips in performance are still here and the general layout of the models is fairly similar. However, the cluster of graphs on the left side of the graph is now more flashed out, having more diversity between the results. We can see that the red line does stand out in terms of accuracy, showing that train results indeed don’t account for everything and a validation dataset is necessary. What makes this model somewhat stand out is its lack of a dip in performance. This could be explained by the later stage at which the backbone gets unfrozen (at epoch four instead of two for a lot of models), as well as its larger image size of 224x224 pixels. This isn’t the only model with the hyperparameters, but it is the only model with this exact combination, showing that extensive experimentation is necessary for finding optimal parameters and gaining an extra edge in performance.
+
+The validation loss graph is very different from the train loss graph. What immediately grabs one’s attention is the erratic movement of the gray graph. We think that this occurred because of the early stage the model’s backbone was unlocked, coupled with a bad combination of other parameters. The very large dip in performance gives precedence to this, as the model also never really recovers from the dip. This again shows how the training performance can vastly differ from the validation performance.
+
+Another thing we observe is that at a later point in training, most model’s validation loss starts increasing. This is a textbook example of overfitting. Even though the training model’s performance continues to increase, the validation performance starts suffering due to the model starting to memorize all the information from the training dataset.
+
+Finally, we have to talk about maybe the most important graph here, the haversine distance graph. As we previously mentioned, haversine distance is the most accurate indicator of final performance, as it is what is measured on the final testing dataset. So, what can we observe here? In general, the metric behaves quite similarly to loss. When the loss graph starts overfitting, the performance in haversine distance also stagnates or even starts increasing a bit. The dips in performance after backbone unlocking are also here.
+
+In general, we have noticed a few patterns. A larger image size seems to increase models performance, as does a larger number of classes. However, these parameters can greatly slow down training performance. Due to this, careful learning rate scheduling is crucial to both optimal performance and faster training times. Aside from this, we mostly set batch size to the largest one possible for our image size. Unfreezing at a later epoch after carefully fine-tuning the last layer also seems to increase performance, as doing this suboptimally can greatly hinder performance and sometimes even render the whole model unusable.
