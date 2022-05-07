@@ -7,9 +7,10 @@ import geopandas as gpd
 import matplotlib.pyplot as plt
 import pandas as pd
 from tqdm import tqdm
+from shapely.geometry.point import Point
+
 
 from config import DEFAULT_COUNTRY_ISO2, DEFAULT_CROATIA_CRS, DEFAULT_GLOBAL_CRS, DEFAULT_SPACING
-from preprocess_sample_coords import reproject_dataframe
 from utils_functions import is_valid_dir
 from utils_geo import ClippedCentroid, get_clipped_centroids, get_country_shape, get_grid, get_intersecting_polygons
 from utils_paths import PATH_FIGURE, PATH_WORLD_BORDERS
@@ -72,24 +73,24 @@ def append_polygons_without_data(df: pd.DataFrame, df_label_polygon_map: pd.Data
 
 
 def _handle_arguments(args, df_object):
-    path_csv = args.csv
+    input_csv = args.csv
     no_out = args.no_out
     out = args.out
     out_dir_csv = out
 
-    if df_object is None and path_csv is None:
+    if df_object is None and input_csv is None:
         raise argparse.ArgumentTypeError(
             "Provide one of the following: --csv path.csv or df_object via main function",
         )
 
     if not no_out:
         if out is None:
-            if path_csv is None:
+            if input_csv is None:
                 raise argparse.ArgumentTypeError(
                     "You want to save the datarame but you didn't provide the output path",
                 )
-            out_dir_csv = Path(path_csv).parents[0]
-    return path_csv, no_out, out_dir_csv
+            out_dir_csv = Path(input_csv).parents[0]
+    return input_csv, no_out, out_dir_csv
 
 
 def generate_spherical_coords(latitude_column, longitude_column, centroid_lat_columns, centroid_lng_column):
@@ -116,20 +117,33 @@ def generate_src_coords(lat: pd.Series, lng: pd.Series):
     points_geometry = gpd.points_from_xy(lng, lat)  # x is lng y is lat
     df_tmp = gpd.GeoDataFrame(columns=["x", "y"], geometry=points_geometry, crs=DEFAULT_GLOBAL_CRS)  # type: ignore #[geopandas doesnt recognize args]
     df_tmp: gpd.GeoDataFrame = df_tmp.to_crs(DEFAULT_CROATIA_CRS)  # type: ignore, it cant distinguish from geo/pandas
-    df_tmp["x"] = df_tmp.geometry.apply(lambda p: p.x)
-    df_tmp["y"] = df_tmp.geometry.apply(lambda p: p.y)
+
+    def handle_dot(point: Point, x_or_y: str):
+        if point.is_empty:
+            return None
+        return point.x if x_or_y == "x" else point.y
+
+    df_tmp["x"] = df_tmp.geometry.apply(lambda p: handle_dot(p, "x"))
+    df_tmp["y"] = df_tmp.geometry.apply(lambda p: handle_dot(p, "y"))
     return df_tmp["y"], df_tmp["x"]
+
+
+def replace_values_with_na_invalid_locations(df: pd.DataFrame):
+    mask_rows_with_invalid_projected_coords = df.isnull().any(axis=1)
+    print("Rows with invalid projections (will be excluded):", df[mask_rows_with_invalid_projected_coords])
+    df.loc[mask_rows_with_invalid_projected_coords, ~df.columns.isin(["uuid", "latitude", "longitude"])] = None
+    return df
 
 
 def main(args, df_object=None):
     args = parse_args(args)
-    path_csv, no_out, out_dir_csv = _handle_arguments(args, df_object)
+    input_csv, no_out, out_dir_csv = _handle_arguments(args, df_object)
     spacing, out_dir_fig, fig_format = args.spacing, args.out_fig, args.fig_format
     fig_format = "." + fig_format
 
     default_crs = DEFAULT_GLOBAL_CRS
 
-    df = df_object if type(df_object) is pd.DataFrame else pd.read_csv(path_csv, index_col=False)
+    df = df_object if type(df_object) is pd.DataFrame else pd.read_csv(input_csv, index_col=False)
     df_geo_csv = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.loc[:, "longitude"], df.loc[:, "latitude"]))
     df.drop("geometry", axis=1, inplace=True)  # info: GeoDataFrame somehow adds "geometry" column onto df
 
@@ -178,11 +192,13 @@ def main(args, df_object=None):
     df["crs_centroid_y"], df["crs_centroid_x"] = generate_src_coords(
         df.loc[:, "centroid_lat"], df.loc[:, "centroid_lng"]
     )
+
+    df = replace_values_with_na_invalid_locations(df)
     df = append_polygons_without_data(df, df_label_polygon_map)
     num_polygons_without_images = len(df.loc[df["uuid"].isna(), :])
     polys_without_data = [poly for poly in intersecting_polygons if poly not in polys_with_data]
 
-    print("{}/{} images got marked by a polygon label (class)".format(df["polygon_index"].notnull().sum(), len(df)))
+    print("{}/{} locations got marked by a polygon label (class)".format(df["polygon_index"].notnull().sum(), len(df)))
     print(
         "{}/{} polygons have at least one image assigned to them".format(
             num_of_polygons - num_polygons_without_images, num_of_polygons
@@ -194,18 +210,21 @@ def main(args, df_object=None):
     if no_out:
         return df
 
-    filepath_csv = Path(
+    fileinput_csv = Path(
         out_dir_csv,
-        "data__spacing_{}__num_class_{}.csv".format(spacing, num_valid_polys),
+        "{}_spacing_{}_num_class_{}.csv".format(Path(input_csv).stem, spacing, num_valid_polys),
     )
-    df.to_csv(filepath_csv, index=False)
-    print("Saved file:", filepath_csv)
 
-    filepath_csv_map = Path(
+    print(df.groupby(["polygon_index"]).size())
+    print("Median:", df.groupby(["polygon_index"]).size().median())
+    df.to_csv(fileinput_csv, index=False)
+    print("Saved file:", fileinput_csv)
+
+    fileinput_csv_map = Path(
         out_dir_csv,
-        "label_map__spacing_{}__num_class_{}.csv".format(spacing, num_valid_polys),
+        "label_map_spacing_{}_num_class_{}.csv".format(spacing, num_valid_polys),
     )
-    df_label_polygon_map.to_csv(filepath_csv_map, index=False)
+    df_label_polygon_map.to_csv(fileinput_csv_map, index=False)
 
     df_polys_with_data = gpd.GeoDataFrame({"geometry": polys_with_data})
     df_polys_without_data = gpd.GeoDataFrame({"geometry": polys_without_data})
@@ -217,19 +236,19 @@ def main(args, df_object=None):
     ax.set_xlabel("Longitude")
     ax.set_ylabel("Latitude")
 
-    plt.savefig(Path(out_dir_fig, "croatia.png"), dpi=1200)
+    plt.savefig(Path(out_dir_fig, "croatia.png"), dpi=300)
 
     df_polys_with_data.plot(ax=ax, alpha=1, facecolor="none", linewidth=0.6, edgecolor="black")
-    plt.savefig(Path(out_dir_fig, basename + "__polygons" + fig_format), dpi=1200)
+    plt.savefig(Path(out_dir_fig, basename + "__polygons" + fig_format), dpi=300)
 
     df_polys_without_data.plot(ax=ax, alpha=1, facecolor="none", linewidth=0.6, edgecolor="red")
-    plt.savefig(Path(out_dir_fig, basename + "__polygons_nodata" + fig_format), dpi=1200)
+    plt.savefig(Path(out_dir_fig, basename + "__polygons_nodata" + fig_format), dpi=300)
 
     intersecting_points_df.plot(ax=ax, alpha=1, linewidth=0.2, markersize=2, edgecolor="white", color="red")
-    plt.savefig(Path(out_dir_fig, basename + "__centroid" + fig_format), dpi=1200)
+    plt.savefig(Path(out_dir_fig, basename + "__centroid" + fig_format), dpi=300)
 
     path_final_figure = Path(out_dir_fig, basename + fig_format)
-    plt.savefig(path_final_figure, dpi=1200)
+    plt.savefig(path_final_figure, dpi=300)
     print("Saved file:", str(path_final_figure))
     return df
 

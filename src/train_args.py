@@ -17,7 +17,6 @@ from config import (
     DEFAULT_EPOCHS,
     DEFAULT_FINETUNING_EPOCH_PERIOD,
     DEFAULT_IMAGE_SIZE,
-    DEFAULT_LOAD_DATASET_IN_RAM,
     DEFAULT_LR,
     DEFAULT_LR_FINETUNE,
     DEFAULT_MODEL,
@@ -30,7 +29,7 @@ from config import (
     DEFAULT_WEIGHT_DECAY,
     LOG_EVERY_N,
 )
-from src.config import DEFAULT_OPTIMIZER
+from config import DEFAULT_OPTIMIZER
 from utils_functions import (
     is_between_0_1,
     is_positive_int,
@@ -202,13 +201,6 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
         "--lr-finetune",
         type=float,
         default=DEFAULT_LR_FINETUNE,
-    )
-
-    user_group.add_argument(
-        "--load-in-ram",
-        action="store_true",
-        help="Load the dataset in RAM ~ 20GB",
-        default=DEFAULT_LOAD_DATASET_IN_RAM,
     )
 
     user_group.add_argument(

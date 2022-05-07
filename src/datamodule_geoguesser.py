@@ -31,7 +31,6 @@ from config import (
     DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING,
     DEFAULT_BATCH_SIZE,
     DEFAULT_DATASET_FRAC,
-    DEFAULT_LOAD_DATASET_IN_RAM,
     DEFAULT_SPACING,
     DEFAULT_TEST_FRAC,
     DEFAULT_TRAIN_FRAC,
@@ -62,7 +61,6 @@ class GeoguesserDataModule(pl.LightningDataModule):
         num_workers=DEAFULT_NUM_WORKERS,
         drop_last=DEAFULT_DROP_LAST,
         shuffle_before_splitting=DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING,
-        load_dataset_in_ram=DEFAULT_LOAD_DATASET_IN_RAM,
     ) -> None:
         super().__init__()
         print("GeoguesserDataModule init")
@@ -128,7 +126,6 @@ class GeoguesserDataModule(pl.LightningDataModule):
             num_classes=self.num_classes,
             dataset_dirs=self.dataset_dirs,
             image_transform=self.image_transform,
-            load_dataset_in_ram=load_dataset_in_ram,
             dataset_type=DatasetSplitType.TRAIN,
         )
 
@@ -137,7 +134,6 @@ class GeoguesserDataModule(pl.LightningDataModule):
             num_classes=self.num_classes,
             dataset_dirs=self.dataset_dirs,
             image_transform=self.image_transform,
-            load_dataset_in_ram=load_dataset_in_ram,
             dataset_type=DatasetSplitType.VAL,
         )
 
@@ -146,7 +142,6 @@ class GeoguesserDataModule(pl.LightningDataModule):
             num_classes=self.num_classes,
             dataset_dirs=self.dataset_dirs,
             image_transform=self.image_transform,
-            load_dataset_in_ram=load_dataset_in_ram,
             dataset_type=DatasetSplitType.TEST,
         )
 
@@ -164,6 +159,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
             df_merged = preprocess_csv_concat.main(["--csv", *df_paths, "--no-out"])
             df = preprocess_csv_create_polygons.main(["--spacing", str(DEFAULT_SPACING), "--no-out"], df_merged)
 
+        # df.set_index("uuid", inplace=True, drop=False)
         return df
 
     def _dataframe_create_classes(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -305,6 +301,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
 
     def setup(self, stage: Optional[str] = None):
 
+        """self.train_dataset.uuids is already cleaned of bad values"""
         dataset_train_indices = self.df.index[
             self.df["uuid"].isin(self.train_dataset.uuids)
         ].to_numpy()  # type: ignore # [indices can be converted to list]
@@ -334,6 +331,10 @@ class GeoguesserDataModule(pl.LightningDataModule):
         self.train_size = len(dataset_train_indices)
         self.val_size = len(dataset_val_indices)
         self.test_size = len(dataset_test_indices)
+
+        print("Train size", self.train_size, dataset_train_indices[0:5], dataset_train_indices[-5:])
+        print("Val size", self.val_size, dataset_val_indices[0:5], dataset_val_indices[-5:])
+        print("Test size", self.test_size)
 
         self.train_sampler = SubsetRandomSampler(dataset_train_indices)
         self.val_sampler = SubsetRandomSampler(dataset_val_indices)

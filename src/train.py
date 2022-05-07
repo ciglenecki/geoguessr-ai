@@ -26,7 +26,7 @@ from model_callbacks import (
 )
 from model_classification import LitModelClassification, LitSingleModel
 from model_regression import LitModelRegression
-from src.utils_dataset import DatasetSplitType, get_dataset_dirs_uuid_paths
+from utils_dataset import DatasetSplitType, get_dataset_dirs_uuid_paths
 from train_args import parse_args_train
 from utils_functions import add_prefix_to_keys, get_timestamp, random_codeword, stdout_to_file
 from utils_paths import PATH_REPORT_QUICK
@@ -49,7 +49,6 @@ if __name__ == "__main__":
     dataset_dirs = args.dataset_dirs
     batch_size = args.batch_size
     cached_df = args.cached_df
-    load_dataset_in_ram = args.load_in_ram
     use_single_images = args.use_single_images
     is_regression = args.regression
     scheduler_type = args.scheduler
@@ -84,7 +83,6 @@ if __name__ == "__main__":
         image_size=image_size,
         num_workers=num_workers,
         shuffle_before_splitting=shuffle_before_splitting,
-        load_dataset_in_ram=load_dataset_in_ram,
         train_mean_std=(mean, std),
     )
     datamodule.setup()
