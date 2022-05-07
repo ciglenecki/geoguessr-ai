@@ -49,7 +49,7 @@ def main(args, df_object: Optional[pd.DataFrame] = None):
     else:
         path_out = Path(
             Path(args.csv_predictions).parent,
-            "{}_mapped_to_centroids.csv".format(Path(args.csv_predictions).name),
+            "corrected_{}.csv".format(Path(args.csv_predictions).name),
         )
     default_crs = DEFAULT_GLOBAL_CRS
 
