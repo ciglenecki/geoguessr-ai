@@ -40,25 +40,27 @@ header-includes:
 </p>
 
 ## Notices:
-Although you might be reading this documentation in the form of a PDF file, **we highly recommand that you open the [README.md](README.md) file in a markdown editor** (GitHub, VSCode, PyCharm, IDE...). As for the API documentation, after setting up the environment, we recommand you run the server with the [`python3 src/app/main.py`](src/app/main.py) command after which you can inspect API endpoints in browser (and execute them too!). Essentialy, the techincal documentation PDF is rendered from the [README.md](README.md) markdown file and export of the in-browser API documentation. 
+Although you might be reading this documentation in the form of a PDF file, **we highly recommend that you open the [README.md](README.md) file in a markdown editor** (GitHub, VSCode, PyCharm, IDE...). As for the API documentation, after setting up the environment, we recommend you run the server with the [`python3 src/app/main.py`](src/app/main.py) command after which you can inspect API endpoints in browser (and execute them too!). Essentially, the technical documentation PDF is rendered from the [README.md](README.md) markdown file and export of the in-browser API documentation. 
 
 Few more notes:
 
 - the documentation assumes you are located at the `.lumen-geoguesser` directory when running Python scripts
 - all global variables are defined in [`src/config.py`](src/config.py) and [`src/paths.py`](src/utils_paths.py)
-- other directories have their own `README.md` files which are hopefully
+- other directories have their own `README.md` files which hopefully come useful 
 - you can run most python files with the `python3 program.py -h` to the sense of which arguments you can/must send and what the script actually does
 
 
-## 📁 Directory structure
+## Directory structure
 
-| Directory                   | Description                    |
-| --------------------------- | ------------------------------ |
-| [data](data/)             | dataset, csvs, country shapefiles                        |
-| [models](models/)         | model checkpoints, model metadata       |
+| Directory                 | Description                                |
+| ------------------------- | ------------------------------------------ |
+| [data](data/)             | dataset, csvs, country shapefiles          |
+| [docs](docs/)             | documentation                              |
+| [figures](figures/)       | figures                                    |
+| [models](models/)         | model checkpoints, model metadata          |
 | [references](references/) | research papers and competition guidelines |
-| [reports](reports/)       | model stat's, figures          |
-| [src](src/)               | python source code             |
+| [reports](reports/)       | model checkpoints and model metadata       |
+| [src](src/)               | python source code                         |
 
 
 ##  Setup
@@ -70,7 +72,7 @@ Create and populate the [virtual environment](https://docs.python.org/3/library/
   - the command will initialize the `venv` if it doesn't yet exist
 ```bash
 [ ! -d "venv" ] && (echo "Creating python3 virtual environment"; python3 -m venv venv)
-
+. venv/bin/activate
 pip install -r requirements.txt
 ```
 
@@ -78,8 +80,8 @@ pip install -r requirements.txt
 
 This project allows multiple datasets, therefore multiple dataset directories can usually be sent to `*.py` programs 
 
-**Step 1: Rename directory `data` to `images`**
-- The original dataset strucutre has a directory `data` (e.g `dataset_original_subset/data`) which contains subdirectories with uuids of locations (`dataset_original_subset/data/6bde8efe-a565-4f05-8c60-ae2ffb32ee9b`).
+**Step 1: If needed, rename directory `data` (which contains uuid subdirectories) to `images`**
+- The original dataset structure has a directory `data` (e.g `dataset_original_subset/data`) which contains subdirectories with uuids of locations (`dataset_original_subset/data/6bde8efe-a565-4f05-8c60-ae2ffb32ee9b`).
 
 Dataset structure should look like this:
 
@@ -120,7 +122,7 @@ optional arguments:
   -h, --help            show this help message and exit
   --dataset-dirs dir [dir ...]
                         Dataset root directories that will be transformed into a single dataset
-  --out-dir dir         Directory where compelte dataset will be placed
+  --out-dir dir         Directory where the complete dataset will be placed
   --copy-images         Copy images from dataset directories to the new complete directory.
                         You don't need to do this as later on you will be able to pass multiple dataset directories to various scripts.
   --spacing SPACING     
@@ -256,7 +258,15 @@ cp -r reports/<model_name>/version_0/checkpoints/* models/
 **Step 1.1. ensure that the `MODEL_DIRECTORY` variable is set in [`src/app/.env`](src/app/.env) file**:
 ```bash
 cat src/app/.env
+
+  MODEL_DIRECTORY = "models"  # relative to the lumen-geoguesser directory
+  MODEL_EXTENSION = "ckpt"
+  PREDICT_BATCH_SIZE = 16
+  HOST = "localhost"
+  PORT = 8090
+  HOT_RELOAD = 0  # please don't enable hot reloading as it's unstable
 ```
+
 
 **Step 2. run the server**:
 ```bash
