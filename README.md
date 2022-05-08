@@ -36,7 +36,7 @@ header-includes:
 # Lumen Geoguesser
 
 <p align="center">
-	<img src="readme-pics/geoguesser-logo.png"></img>
+	<img src="docs/img/geoguesser-logo.png"></img>
 </p>
 
 ## Notices:
