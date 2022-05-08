@@ -91,13 +91,33 @@ The filter weights can be visualized to depict what each filter detects in an im
 
 ## The Dataset
 
+### Dataset Structure
+
 The dataset is divided into two components. The first one is a collection of folders each containing four images taken in the same location. Each folder is named with a unique identifier. The second component is a CSV table where each row contains one of the previously mentioned folder IDs and the corresponding image’s latitudes and longitudes expressed in degrees. We divided the data by hand into a training, validation and testing subfolder in a 80%/10%/10% split (for some models, it was 90%/5%/5%). This way, the data could be easily loaded during the training process from the appropriate folder depending on if we are in the training, validation or testing phase. Due to the datasets (and image’s) large size, we were unable to load the whole dataset directly into memory (we only had a _measly_ 12 GB of VRAM available on our GPU). We wanted to do this because it had the potential of greatly decreasing training times, but we were forced to figure out other methods of speeding up training, like using only parts of the dataset during experimentation and employing smarter learning rate schedulers.
 
 ![Distribution of the dataset. It's visible that the mountainous parts of Croatia contains the least amount of locations in the dataset.](img/croatia_data.png){width=50%}
 
 Before the training process itself could begin, we needed to first process the data to make it more suitable for training. This entailed modifying the CSV file to include data such as class affiliation, class centroid information and the image’s and centroids latitude and longitude information in CRS format. Aside from this, image information such as the minimum and maximum value of each channel had to be also stored for fetching during the training process, and later, inference.
 
-For the competition, we were provided with a dataset of around 64 000 images (16 000 separate locations of four images each), but we added our own separately procured images from Google Street View numbering around 68 000, and later, around 250 000. In other words, we first doubled the available data for training, and then increased it again by a whopping five times. In common deep learning wisdom, having more training data is the best form of regularization, this being our main guideline for gathering additional images.
+### More data, more data!
+
+In the original dataset we received 16 000 locations (64 000 images). This is more than enough to train a model which solves our problem fairly well. However, since this is a competition after all, we wanted to increase our odds of cussess as much as possible.
+
+We wanted more images. To get them, we used the blessing of Google’s free trial on the [Google Developers platform](https://developers.google.com/) in order to use the [Street View Static API](https://developers.google.com/maps/documentation/streetview/overview) without emptying our wallets.
+
+### Sampling
+
+First, we have to sample the locations before we download the images. We can't just opem https://developers.google.com and type in the search box "download many many street images of Croatia" (maybe in a few decades ...). The script [preprocess_sample_coords.py](preprocess_sample_coords.py) is responsible for sampling new locations. It uniformly samples `n` locations in Croatia which are saved in a `coords_sample__n_1000000.csv` file.
+
+![If you look closely at the red mesh, there are many small red pixels. These red pixels represent newly sampled locations. In this picture, there are 1 000 000 locations, so they’re overlapping](./img/sampling.png)
+
+Now what, do we just try and download the images of the locations we sampled? What if the location is in a mountainous area and there are no images? We have to filter out some locations before we download the actual images. This is using the [`src/google_api/preprocess_api_coords_sample.py`](src/google_api/preprocess_api_coords_sample) script. It calls the `maps/api/streetview/metadata?` endpoint and asks Google: "Hey, does a street view image exist at this location?", to which Google responds:
+1. "Yes it does! Exactly at (45.50, 18.13)" or
+2. "No it doesn't. But you can become a professional Google Maps Driver and shoot these pictures for us!"
+
+Now that we filtered out the locations, we know exactly for which locations the Google Street Maps API will return an image. We finally download the images with [`src/google_api/download_street_images.py`](src/google_api/download_street_images.py){width=200%}
+
+In total, we downloaded 266 488 images (66 622 locations)! This new dataset of images can be recognized by the keyword `external` keyword in our project and it's included each time we perform serious training.
 
 ## Data and Feature Engineering
 
@@ -216,7 +236,15 @@ ResNeXt is a highly modular architecture that revolves around repeating powerful
 
 ### Modifications
 
+![An illustration of the architecture of a single ResNeXt block. The image on the left depicts a single ResNet block. The input is 256-dimensional and the parameters in the block from left to right are: input dimensionality, filter size and output dimensionality. There is a skip connection present between the original input and final output of the block. The image on the right depicts a ResNeXt block of cardinality 32. We can observe its higher complexity.](img/resnext_block2.png){width=50%}
+
 Firstly, we removed the last layer of the network and replaced it with our own classification or regression layer in the form of a simple linear layer that had the appropriate output dimension for our problem. Secondly, because, as we mentioned before, every location contained four images, we modified our network to perform its forward operations for the four images in tandem and then concatenate the outputs before imputing them into the last layer. We did this after doing some research on what was the best way to compute the outputs of separate, but statistically linked images. The following table depicts the general architecture of the ResNeXt layers for a classification network with 53 classes, with some steps skipped:
+
+![](img/model_arh_high.png){width=50%}
+![](img/model_arh.png){width=50%}
+\begin{figure}[!h]
+\caption{On the image on the left, we can see an overview of the model we used for training. Inputs are fed into the ResNeXt layer with four images being processed in parallel. The output is then fed into a linear layer which can either classify the results into distinct classes or predict coordinates directly as output. On the image on the right, a closeup of the ResNeXt backbone is shown. We can see that it is composed of an early convolution layer, followed by multiple sequential layers who all contain their own convolutions and transformations.}
+\end{figure}
 
 | Name | Type               | Params            | In sizes | Out sizes        |
 | ---- | ------------------ | ----------------- | -------- | ---------------- | ---------------- |
@@ -247,14 +275,6 @@ Firstly, we removed the last layer of the network and replaced it with our own c
 | 42   | backbone.avgpool   | AdaptiveAvgPool2d | 0        | [8, 2048, 4, 4]  | [8, 2048, 1, 1]  |
 | 43   | backbone.fc        | Identity          | 0        | [8, 2048]        | [8, 2048]        |
 | 44   | fc                 | Linear            | 434 K    | [8, 8192]        | [8, 53]          |
-
-![An illustration of the architecture of a single ResNeXt block. The image on the left depicts a single ResNet block. The input is 256-dimensional and the parameters in the block from left to right are: input dimensionality, filter size and output dimensionality. There is a skip connection present between the original input and final output of the block. The image on the right depicts a ResNeXt block of cardinality 32. We can observe its higher complexity.](img/resnext_block2.png){width=50%}
-
-![](img/model_arh_high.png){width=50%}
-![](img/model_arh.png){width=50%}
-\begin{figure}[!h]
-\caption{On the image on the left, we can see an overview of the model we used for training. Inputs are fed into the ResNeXt layer with four images being processed in parallel. The output is then fed into a linear layer which can either classify the results into distinct classes or predict coordinates directly as output. On the image on the right, a closeup of the ResNeXt backbone is shown. We can see that it is composed of an early convolution layer, followed by multiple sequential layers who all contain their own convolutions and transformations.}
-\end{figure}
 
 ## Training
 
@@ -440,8 +460,6 @@ Validation is much more interesting to observe than training. It is much harder 
 ![A graph of validation model accuracy over time. A curve that is more to the left and up on the image shows faster training and higher accuracy.](img/val_acc_epoch.png){width=100%}
 
 ![A graph of validation model loss over time. A curve that is more to the left and down on the image shows quicker training and lower loss.](img/val_loss_epoch.png){width=100%}
-	
-![A graph of validation model haversine distance over time. A curve that is more to the left and down on the image shows quicker training and lower loss.](img/val_hav_epoch.png){width=100%}
 
 We can immediately observe a few notable facts about these graphs. For starters, the accuracy graph looks very similar to the train version of the same graph. The dips in performance are still present and the general layout of the models is fairly similar. However, the cluster of graphs on the left side of the graph is now more flashed out, having more diversity between the results. We can see that the red line does stand out in terms of accuracy, showing that train results indeed don’t account for everything and a validation dataset is necessary. What makes this model somewhat stand out is its lack of a dip in performance. This could be explained by the later stage at which the backbone gets unfrozen (at epoch four instead of two for a lot of models), as well as its larger image size of 224x224 pixels. This isn’t the only model with these hyperparameters, but it is the only model with this exact combination, showing that extensive experimentation is necessary for finding optimal parameters and gaining an extra edge in performance.
 
@@ -451,6 +469,10 @@ Another thing we observe is that at a later point in training, most model’s va
 
 Finally, we have to talk about maybe the most important graph here, the haversine distance graph. As we previously mentioned, haversine distance is the most accurate indicator of final performance, as it is what is measured on the final testing dataset. So, what can we observe here? In general, the metric behaves quite similarly to loss. When the loss graph starts overfitting, the performance in haversine distance also stagnates or even starts increasing a bit. The dips in performance after backbone unlocking are also here.
 
+![A graph of validation model haversine distance over time. A curve that is more to the left and down on the image shows quicker training and lower loss.](img/val_hav_epoch.png){width=100%}
+
+![A graph of validation model accuracy over time for our best model.](img/val_acc_epoch_best.png){width=100%}
+
 In general, we have noticed a few patterns. A larger image size seems to increase models performance, as does a larger number of classes. However, these parameters can greatly slow down training performance. Due to this, careful learning rate scheduling is crucial to both optimal performance and faster training times. Aside from this, we mostly set batch size to the largest one possible for our image size. Unfreezing at a later epoch after carefully fine-tuning the last layer also seems to increase performance, as doing this suboptimally can greatly hinder performance and sometimes even render the whole model unusable.
 
 ## Winner Model
@@ -459,30 +481,6 @@ Finally, because of a small screw up we did, we will highlight the best model we
 
 There really isn’t much to say here, other than the graphs are truly beautiful. Due to the large dataset size, this model’s training process was much slower. Also, because the training part of the dataset was so large and it took such a long time to get to the validation, we perform validation four times during training. This way, we can potentially find an even better model that would otherwise be missed during training. Other than that, it also makes the performance graphs smoother. It is also worth noting that we used a much larger class size of 205 for this model, to leverage the extra data and bring the classification closer to regression. The other parameters are similar to previously tested models (224x224 image size, batch size of 8, similar learning rate, etc …).
 
-![A graph of validation model accuracy over time for our best model.](img/val_acc_epoch_best.png){width=100%}
-
 ![A graph of validation model loss over time for our best model.](img/val_loss_epoch_best.png){width=100%}
 	
 ![A graph of validation model haversine distance over time for our best model.](img/val_hav_epoch_best.png){width=100%}
-
-
-## More data, more data!
-
-In the original dataset we received 16 000 locations (64 000 images). This is more than enough to train a model which solves our problem fairy well. However, since this is a competition, we wanted to increase our odds as much as possible :)
-
-We wanted more images. To get them, we used the blessing of Google free trial on the [Google Developers platform](https://developers.google.com/) so we could consume the [Street View Static API](https://developers.google.com/maps/documentation/streetview/overview) without emptying our wallets.
-
-### Sampling
-
-First, we have to sample the locations before we download the images. We can't come at https://developers.google.com and type in the search box "download many many many street images of Croatia" (maybe in a few decades...). The script [preprocess_sample_coords.py](preprocess_sample_coords.py) is responsible for sampling new locations. It uniformly samples `n` locations in the Croatia which are saved in a `coords_sample__n_1000000.csv` file.
-
-![Hmmmm, what's with the dark orange color? Actually, if you look closely, there are many small red pixels. These red pixels represent newly sampled locations. In this picture, there are 1 000 000 locations. The image size we would have to use so that red pixels do not overlap would be way too large!](sampling.png)
-
-
-Now what, do we just try and download the images of locations we sampled? What if the location is in a mountainous and there are no images? We have to filter our some locations before download actual images. This is done by the [`src/google_api/preprocess_api_coords_sample.py`](src/google_api/preprocess_api_coords_sample) script. It calls the `maps/api/streetview/metadata?` endpoint and asks Google: "hey, does a street view image _exists_ at this location?", to which Google responses:
-1. "yes it does! Exactly at (45.50, 18.13)" or
-2. "No it doesn't. But you can become a professional Google Maps Driver and take those pictures for us!"
-
-Now that we filtered locations, we know exactly for which locations the Google Street Maps API will return an image. We finally download the images with [`src/google_api/download_street_images.py`](src/google_api/download_street_images.py)
-
-In total, we downloaded 266 488 images (66 622 locations)! This new dataset of images will can be recognized by the keyword `external` in our project and it's obviously included each time we perform serious training.
