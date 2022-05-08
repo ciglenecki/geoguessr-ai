@@ -29,11 +29,7 @@ class DatasetFlat(Dataset):
     ) -> None:
         self.image_paths = flatten(
             [
-<<<<<<< HEAD
-                glob(str(Path(dataset_dir, "images", dataset_type.value, "**/*.jpg")), recursive=True)
-=======
                 glob(str(Path(dataset_dir, dataset_type.value, "**/*.jpg")), recursive=True)
->>>>>>> matej
                 for dataset_dir in dataset_dirs
             ]
         )
