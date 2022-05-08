@@ -259,10 +259,10 @@ def get_example_params(example_index):
     """
     # Pick one of the examples
     example_list = (
-        ("/home/filip/git/lumen-geoguesser/docs/images/0.jpg", 56),
-        ("/home/filip/git/lumen-geoguesser/docs/images/90.jpg", 56),
-        ("/home/filip/git/lumen-geoguesser/docs/images/180.jpg", 56),
-        ("/home/filip/git/lumen-geoguesser/docs/images/270.jpg", 56),
+        ("/home/testeromega/git/lumen-geoguesser/docs/images/0.jpg", 56),
+        ("/home/testeromega/git/lumen-geoguesser/docs/images/90.jpg", 56),
+        ("/home/testeromega/git/lumen-geoguesser/docs/images/180.jpg", 56),
+        ("/home/testeromega/git/lumen-geoguesser/docs/images/270.jpg", 56),
         ("../input_images/cat_dog.png", 243),
         ("../input_images/spider.png", 72),
     )
@@ -295,7 +295,7 @@ def get_example_params(example_index):
     file_name_to_export_list = [file_name_to_export1, file_name_to_export2, file_name_to_export3, file_name_to_export4]
     # Define model
     pretrained_model = torch.load(
-        "/media/filip/DA2A5AE02A5AB8E93/Dokumenti/LUMEN/Mike_41__haversine_0.0074__val_acc_0.5698__val_loss_1.5426__val__05-05-11-17-46.ckpt"
+        "/media/testeromega/DA2A5AE02A5AB8E93/Dokumenti/LUMEN/Mike_41__haversine_0.0074__val_acc_0.5698__val_loss_1.5426__val__05-05-11-17-46.ckpt"
     )
     return original_image_list, prep_img_list, target_class, file_name_to_export_list, pretrained_model
 
