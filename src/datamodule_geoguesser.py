@@ -6,6 +6,7 @@ It handles the creation/loading of the main dataframe where images metadata is s
 from __future__ import annotations, division
 
 import os
+import random
 from itertools import combinations
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
@@ -14,30 +15,27 @@ import numpy as np
 import pandas as pd
 import pytorch_lightning as pl
 import torch
-from PIL import Image
 from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
 from torchvision import transforms
+from torchvision.transforms import AutoAugmentPolicy
 
 import preprocess_csv_concat
-import preprocess_csv_create_polygons
+import preprocess_csv_create_rich_static
+from calculate_norm_std import calculate_norm_std
 from dataset_geoguesser import GeoguesserDataset, GeoguesserDatasetPredict
-from defaults import (
+from config import (
     DEAFULT_DROP_LAST,
     DEAFULT_NUM_WORKERS,
     DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING,
     DEFAULT_BATCH_SIZE,
     DEFAULT_DATASET_FRAC,
-    DEFAULT_LOAD_DATASET_IN_RAM,
     DEFAULT_SPACING,
-    DEFAULT_TEST_FRAC,
-    DEFAULT_TRAIN_FRAC,
-    DEFAULT_VAL_FRAC,
 )
-from utils_dataset import DatasetSplitType, filter_df_by_dataset_split, get_dataset_dirs_uuid_paths
+from utils_dataset import DatasetSplitType, filter_df_by_dataset_split
 from utils_functions import print_df_sample
-from utils_paths import PATH_DATA_COMPLETE, PATH_DATA_EXTERNAL, PATH_DATA_RAW
+from utils_paths import PATH_DATA_COMPLETE, PATH_DATA_ORIGINAL
 
 
 class InvalidSizes(Exception):
@@ -47,30 +45,24 @@ class InvalidSizes(Exception):
 class GeoguesserDataModule(pl.LightningDataModule):
     def __init__(
         self,
-        cached_df: Path,
+        csv_rich_static: Path,
         dataset_dirs: List[Path],
+        image_size: int,
         batch_size: int = DEFAULT_BATCH_SIZE,
-        train_frac=DEFAULT_TRAIN_FRAC,
-        val_frac=DEFAULT_VAL_FRAC,
-        test_frac=DEFAULT_TEST_FRAC,
+        train_mean_std: Optional[Tuple[List[float], List[float]]] = None,
         dataset_frac=DEFAULT_DATASET_FRAC,
         image_transform: transforms.Compose = transforms.Compose([transforms.ToTensor()]),
         num_workers=DEAFULT_NUM_WORKERS,
         drop_last=DEAFULT_DROP_LAST,
         shuffle_before_splitting=DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING,
-        load_dataset_in_ram=DEFAULT_LOAD_DATASET_IN_RAM,
     ) -> None:
         super().__init__()
         print("GeoguesserDataModule init")
 
-        self._validate_sizes(train_frac, val_frac, test_frac)
-
         self.dataset_dirs = dataset_dirs
         self.batch_size = batch_size
+        self.train_mean_std = train_mean_std
 
-        self.train_frac = train_frac
-        self.val_frac = val_frac
-        self.test_frac = test_frac
         self.dataset_frac = dataset_frac
 
         self.image_transform = image_transform
@@ -79,7 +71,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
         self.shuffle_before_splitting = shuffle_before_splitting
 
         """ Dataframe loading, numclasses handling and min max scaling"""
-        df = self._load_dataframe(cached_df)
+        df = self._load_dataframe(csv_rich_static)
         df = self._dataframe_create_classes(df)
         df = self._adding_centroids_weighted(df)
         self.crs_scaler = self._get_and_fit_min_max_scaler_for_train_data(df)
@@ -100,12 +92,27 @@ class GeoguesserDataModule(pl.LightningDataModule):
             self.class_to_crs_weighted_map,
         ) = self._get_class_to_coords_maps(self.num_classes)
 
+        if not train_mean_std:
+            train_image_dirs = [Path(dataset_dir, DatasetSplitType.TRAIN.value) for dataset_dir in self.dataset_dirs]
+            # TODO: this might take a long time for HUGE datasets. Suggest to user to use predefined values.
+            mean, std = calculate_norm_std(train_image_dirs)
+        else:
+            mean, std = train_mean_std
+
+        self.image_transform = transforms.Compose(
+            [
+                transforms.Resize(image_size),
+                transforms.AutoAugment(policy=AutoAugmentPolicy.IMAGENET),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=mean, std=std),
+            ]
+        )
+
         self.train_dataset = GeoguesserDataset(
             df=self.df,
             num_classes=self.num_classes,
             dataset_dirs=self.dataset_dirs,
             image_transform=self.image_transform,
-            load_dataset_in_ram=load_dataset_in_ram,
             dataset_type=DatasetSplitType.TRAIN,
         )
 
@@ -114,7 +121,6 @@ class GeoguesserDataModule(pl.LightningDataModule):
             num_classes=self.num_classes,
             dataset_dirs=self.dataset_dirs,
             image_transform=self.image_transform,
-            load_dataset_in_ram=load_dataset_in_ram,
             dataset_type=DatasetSplitType.VAL,
         )
 
@@ -123,24 +129,26 @@ class GeoguesserDataModule(pl.LightningDataModule):
             num_classes=self.num_classes,
             dataset_dirs=self.dataset_dirs,
             image_transform=self.image_transform,
-            load_dataset_in_ram=load_dataset_in_ram,
             dataset_type=DatasetSplitType.TEST,
         )
 
-    def _load_dataframe(self, cached_df: Union[Path, None]) -> pd.DataFrame:
+    def _load_dataframe(self, csv_rich_static: Union[Path, None]) -> pd.DataFrame:
         """
-        Returns the cached dataframe if the path file is given. If not, dataframe is created in runtime (taking --dataset-dirs and --spacing into account) and returned either way.
+        Returns the cached dataframe if the path file is given. If not, dataframe is created in the runtime (taking --dataset-dirs and --spacing into account) and returned either way.
 
         Args:
-            cached_df: e.g. data/csv_decorated/data__spacing_0.2__num_class_231.csv
+            csv_rich_static: e.g. data/csv_decorated/data__spacing_0.2__num_class_231.csv
         """
-        if cached_df:
-            df = pd.read_csv(Path(cached_df))
+        if csv_rich_static:
+            df = pd.read_csv(Path(csv_rich_static))
         else:
             df_paths = [str(Path(dataset_dir, "data.csv")) for dataset_dir in self.dataset_dirs]
-            df_merged = preprocess_csv_concat.main(["--csv", *df_paths, "--no-out"])
-            df = preprocess_csv_create_polygons.main(["--spacing", str(DEFAULT_SPACING), "--no-out"], df_merged)
-
+            path_csv_concated = str(Path(PATH_DATA_COMPLETE, "data.csv"))
+            df_concated = preprocess_csv_concat.main(["--csv", *df_paths, "--out", path_csv_concated])
+            df = preprocess_csv_create_rich_static.main(
+                ["--csv", path_csv_concated, "--spacing", str(DEFAULT_SPACING), "--no-out"], df_concated
+            )
+            assert type(df) is pd.DataFrame, "preprocess_csv_create_rich_static.py didn't return a dataframe object."
         return df
 
     def _dataframe_create_classes(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -175,7 +183,6 @@ class GeoguesserDataModule(pl.LightningDataModule):
         df["lng_weighted"] = df["longitude"].groupby(df["y"]).transform("mean")
         df["crs_y_weighted"] = df["crs_y"].groupby(df["y"]).transform("mean")
         df["crs_x_weighted"] = df["crs_x"].groupby(df["y"]).transform("mean")
-
         return df
 
     def _scale_min_max_crs_columns(self, df: pd.DataFrame, scaler: MinMaxScaler) -> pd.DataFrame:
@@ -254,10 +261,6 @@ class GeoguesserDataModule(pl.LightningDataModule):
         os.makedirs(path.parents[0])
         self.df.to_csv(path, mode="w+", index=True, header=True)
 
-    def _validate_sizes(self, train_frac, val_frac, test_frac):
-        if sum([train_frac, val_frac, test_frac]) != 1:
-            raise InvalidSizes("Sum of sizes has to be 1")
-
     def prepare_data(self) -> None:
         pass
 
@@ -283,6 +286,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
 
     def setup(self, stage: Optional[str] = None):
 
+        """self.train_dataset.uuids is already cleaned of bad values"""
         dataset_train_indices = self.df.index[
             self.df["uuid"].isin(self.train_dataset.uuids)
         ].to_numpy()  # type: ignore # [indices can be converted to list]
@@ -312,6 +316,10 @@ class GeoguesserDataModule(pl.LightningDataModule):
         self.train_size = len(dataset_train_indices)
         self.val_size = len(dataset_val_indices)
         self.test_size = len(dataset_test_indices)
+
+        print("Train size", self.train_size, dataset_train_indices[0:5], dataset_train_indices[-5:])
+        print("Val size", self.val_size, dataset_val_indices[0:5], dataset_val_indices[-5:])
+        print("Test size", self.test_size)
 
         self.train_sampler = SubsetRandomSampler(dataset_train_indices)
         self.val_sampler = SubsetRandomSampler(dataset_val_indices)
@@ -370,10 +378,6 @@ class GeoguesserDataModulePredict(pl.LightningDataModule):
         )
         self.dataset_frac = dataset_frac
 
-    def _validate_sizes(self, train_frac, val_frac, test_frac):
-        if sum([train_frac, val_frac, test_frac]) != 1:
-            raise InvalidSizes("Sum of sizes has to be 1")
-
     def prepare_data(self) -> None:
         pass
 
@@ -394,9 +398,9 @@ class GeoguesserDataModulePredict(pl.LightningDataModule):
 
 
 if __name__ == "__main__":
-    dm = GeoguesserDataModule(
-        cached_df=Path(PATH_DATA_COMPLETE, "data__spacing_0.5__num_class_55.csv"),
-        dataset_dirs=[PATH_DATA_RAW],
-    )
-    dm.setup()
+    # dm = GeoguesserDataModule(
+    #     csv_rich_static=Path(PATH_DATA_COMPLETE, "data__spacing_0.5__num_class_55.csv"),
+    #     dataset_dirs=[PATH_DATA_ORIGINAL],
+    # )
+    # dm.setup()
     pass

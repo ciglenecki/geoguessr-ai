@@ -34,10 +34,6 @@ def tensor_sum_of_elements_to_one(ten: torch.Tensor, dim):
     return ten / torch.sum(ten, dim=dim, keepdim=True)
 
 
-def name_without_extension(filename: Union[Path, str]):
-    return Path(filename).stem
-
-
 def split_by_ratio(array: np.ndarray, *ratios, use_whole_array=False) -> List[np.ndarray]:
     """
     Splits the ndarray for given ratios
@@ -93,22 +89,6 @@ def get_train_test_indices(dataset: Dataset, test_size, dataset_frac=1.0, shuffl
 
 def get_timestamp():
     return datetime.today().strftime("%m-%d-%H-%M-%S")
-
-
-def set_train_val_frac(dataset_size: int, train_split_factor, val_split_factor) -> Tuple[int, int]:
-    """Set size for training and validation set
-    Args:
-        train_split_factor [0,1] - percentage of train images
-        val_split_factor [0,1] - percentage of validation images
-    """
-
-    if train_split_factor + val_split_factor != 1.0:
-        sys.exit("Train and split factor should add up to 1")
-
-    train_frac: int = np.rint(train_split_factor * dataset_size)
-    val_frac: int = dataset_size - train_frac
-
-    return train_frac, val_frac
 
 
 def one_hot_encode(index: int, length: int):

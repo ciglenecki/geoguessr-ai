@@ -14,18 +14,17 @@ from pathlib import Path
 import numpy as np
 from tqdm import tqdm
 
-from defaults import DEFAULT_TEST_FRAC, DEFAULT_TRAIN_FRAC, DEFAULT_VAL_FRAC
+from config import DEFAULT_TEST_FRAC, DEFAULT_TRAIN_FRAC, DEFAULT_VAL_FRAC
 from utils_functions import is_valid_dir, is_valid_fractions_array, split_by_ratio
 
 
 def parse_args(args):
-    print(args)
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--dataset-dir",
-        required=True,
+        "--image-dir",
         type=is_valid_dir,
-        help="Path to the original dataset `data` directory.",
+        help="Path to the directory that contains UUID subdirectories.",
+        required=True,
     )
     parser.add_argument(
         "--out",
@@ -53,16 +52,21 @@ def create_train_val_test_dirs(out_dir: Path):
 
 def main(args):
     args = parse_args(args)
-    print(args)
 
-    dataset_dir = args.dataset_dir
-    out_dir = args.dataset_dir if args.out is None else args.out
+    image_dir = args.image_dir
+    out_dir = Path(args.image_dir).parent if args.out is None else args.out
     split_ratios = args.split_ratios
+
+    print(
+        "Spltting the image directory '{}' to a parent directory '{}/{{train,val,test}}'".format(
+            str(image_dir), str(out_dir)
+        )
+    )
 
     if sum(split_ratios) != 1:
         raise argparse.ArgumentError(split_ratios, "There has to be 3 fractions (train, val, test) that sum to 1")
 
-    uuids = sorted(next(os.walk(dataset_dir))[1])
+    uuids = sorted(next(os.walk(image_dir))[1])
     uuid_indices = np.arange(len(uuids))
 
     train_frac, val_frac, test_frac = split_ratios
@@ -83,7 +87,7 @@ def main(args):
             desc="Copying {} images".format(split_name),
         ):
             uuid = uuids[i]
-            path_source_dir = Path(dataset_dir, uuid)
+            path_source_dir = Path(image_dir, uuid)
             path_dest_dir = Path(out_dir, split_name, uuid)
             distutils.dir_util.copy_tree(str(path_source_dir), str(path_dest_dir))
 

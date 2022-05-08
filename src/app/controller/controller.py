@@ -11,7 +11,7 @@ from typing import Dict, List, Literal, Union
 import pytorch_lightning as pl
 import torch
 from datamodule_geoguesser import GeoguesserDataModulePredict
-from defaults import DEFAULT_IMAGE_MEAN, DEFAULT_IMAGE_STD
+from config import DEFAULT_IMAGE_MEAN, DEFAULT_IMAGE_STD
 from fastapi import HTTPException, UploadFile, status
 from model_classification import LitModelClassification
 from PIL import Image
@@ -22,6 +22,7 @@ from torchvision import transforms
 from utils_model import crs_coords_to_degree, crs_coords_weighed_mean
 
 from app.server_store import server_store
+from app.logger import logger
 
 
 def _verify_model_name(model_name: str):
@@ -63,6 +64,7 @@ def _get_lat_lng_predictions(y_pred: torch.Tensor, model: LitModelClassification
 
 
 def _get_image_transform(image_size: int):
+    logger.info("Image size:", image_size)
     mean, std = DEFAULT_IMAGE_MEAN, DEFAULT_IMAGE_STD
     return transforms.Compose(
         [
@@ -113,7 +115,6 @@ async def predict_cardinal_images(model_name: str, images: List[UploadFile]):
     for image in images:
         image_io = await image.read()
         image_pil = Image.open(io.BytesIO(image_io))  # type: ignore
-
         image_tensor = _process_image(image_pil, model.image_size)
         image_tensor = image_tensor.unsqueeze(dim=0)
         image_list.append(image_tensor)
@@ -156,7 +157,7 @@ def get_models():
     return model_names
 
 
-def read_model(model_name: str, body: models.PostPredictDatasetRequest):
+def predict_dataset(model_name: str, body: models.PostPredictDatasetRequest):
 
     _verify_model_name(model_name)
     dataset_directory_path = _verify_dataset_directory_path(body.dataset_directory_path)

@@ -1,151 +1,222 @@
-# 🗺️ Lumen Geoguesser
+---
+# to transform this file to .pdf run the following command: pandoc --standalone --toc  docs/documentation.md --pdf-engine=xelatex --resource-path=docs -o docs/pdf-documentation.pdf
+
+# https://pandoc-discuss.narkive.com/m4QmhNgm/fetch-images-when-creating-pdf
+title: Documentation
+mainfont: DejaVuSerif.ttf
+sansfont: DejaVuSans.ttf
+monofont: DejaVuSansMono.ttf 
+mathfont: texgyredejavu-math.otf
+mainfontoptions:
+- Extension=.ttf
+- UprightFont=*
+- BoldFont=*-Bold
+- ItalicFont=*-Italic
+- BoldItalicFont=*-BoldItalic
+colorlinks: true
+linkcolor: red
+urlcolor: red
+output:
+	pdf_document:
+		toc: yes
+		toc_depth:
+
+geometry: margin=1.2cm
+numbersections: true
+title: |
+	Technical documentation
+
+header-includes:
+ - \usepackage{fvextra}
+ - \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines=true, breakanywhere=true,breaksymbol=,breaksymbol=, breakanywheresymbolpre=,commandchars=\\\{\}}
+
+---
+
+
+# Lumen Geoguesser
 
 <p align="center">
 	<img src="readme-pics/geoguesser-logo.png"></img>
 </p>
 
-## 📝 Tasks
+## Notices:
+Although you might be reading this documentation in the form of a PDF file, **we highly recommand that you open the [README.md](README.md) file in a markdown editor** (GitHub, VSCode, PyCharm, IDE...). As for the API documentation, after setting up the environment, we recommand you run the server with the [`python3 src/app/main.py`](src/app/main.py) command after which you can inspect API endpoints in browser (and execute them too!). Essentialy, the techincal documentation PDF is rendered from the [README.md](README.md) markdown file and export of the in-browser API documentation. 
 
-### **(RULE 1): EXTRACT YOUR CODE INTO FUNCTIONS**
+Few more notes:
 
-### NOTE (1): PLEASE EXTRACT YOUR CODE INTO FUNCTIONS 
-### NOTE (2): PLEASE ADD DESCRIPTIONS OF THOSE FUNCTIONS.
-###       NOTE (2.1) WHAT DOES THE FUNCTION DO?
-###       NOTE (2.2) WHAT ARE THE ARGUMENTS?
-###       NOTE (2.3) WHAT DOES THE FUNCTION RETURN?
-### NOTE (**): IF YOU DON'T DO THIS IN THE MOMENT, YOU ARE JUST LEAVING THE WORK TO SOMEONE IN THE FUTURE.
-
-- [ ] Fix the creation of the grid
-  - current situation: each square in the grid is defined as start_lat, start_lng, end_lat, end_lng. This is bad because spacing between those angles is not linear, but we act like they are because we increase the step linearly.
-  - [ ] you have to project the lat lngs to a 2D plane before applying the spacing
-  - [ ] additionally: replace spacing arg with lenght_of_square_in_meters. Then, via the lenght_of_square_in_meters argument, we will caculate the `spacing` between squares. total number of squares should be approximately lenght_of_square
-  - [ ] Before creating the grid, CRS projection should be made!
-
-### **(RULE 3): IF YOU CAN, DEFINE THE FUNCTION IN utils_functions.py**
-
-## **(!!): IF YOU DON'T DO THIS YOU ARE JUST LEAVING THE WORK TO SOMEONE IN THE FUTURE.**
-
-```py
-def function(arg1, arg2) -> List[arg1, arg2]:
-  """
-  This is a function which adds two elements in the list.
-
-  Args:
-    arg1: python object which can be of any type
-    arg2: python object which can be of any type
-  
-  Returns:
-    list of length 2 which contains both arguments
-  """
-```
-- [ ] Server API:
-  - [ ] add cache as file for uuid/predictions in json file format
-  - [ ] add image uploader and save files to directory 
-
-- [ ] **Create local server that can predict an image**
-  - use FastAPI, it's simple and it can self-document <https://fastapi.tiangolo.com/tutorial/first-steps/>
-  - [ ] make sure that the server is highly configurable and receives multiple paramters: ports, directory path to models...etc.
-  - [ ] add ability to use any existing model, for example, any in `models` directory <https://fastapi.tiangolo.com/tutorial/path-params/#predefined-values> . We can handle all response that come to /predict/</path/to/filename-model-name.ckpt>. Then check if the path and model exist. After validating that the model exist (is .ckpt file) then we load it
-  - [ ] scan default directory `models` and find all `ckpt` files (`models/*ckpt`). List the files in the interactive API like shown in the example here: <https://fastapi.tiangolo.com/tutorial/path-params/#check-the-docs>
-- [ ] **Fix the creation of the grid in `utils_geo.py` (`def get_grid`) and in places where it's used**
-  - current situation: each square in the grid is defined as start_lat, start_lng, end_lat, end_lng. This is bad because spacing between those angles is not linear, but we act like they are because we increase the step linearly.
-  - [ ] project the lat lngs to 3766 CRS 2D plane and then use new values (crs_3766_x and crs_3766_y) before applying the spacing. The function _shouldn't_ take care of the projection. Do the projection beforehand.
-  - [ ] replace `spacing` arg with `lenght_of_square_in_meters`. Then, via the `lenght_of_square_in_meters` argument, caculate the `spacing` between squares. Total number of squares should be approximately `lenght_of_square`
-
-- [ ] **Fix weighted sum classification** @filipwolf is this done?
-  - Once the dataframe contains projected CRS values, fix the weighted sum of classification predictions so those values are used instead of lat lng values.
-
-- [ ] **Set centroids via image distribution, not in the middle**
-  - [ ] This logic should live in `data_module_geoguesser.py`
-  - new centroids should be caculated only from the Train dataset. Check how itteration over the train dataset**s** is done in `calculate_norm_std.py`
-  - this step can't be applied during the creation of the csv dataframe because the dataframe doesn't know which images will be used.
-  - current situation: the centroids are set in the middle of the square (or clipped to the border if they are in another country or sea). We should adjust this so that the centroid is **weighted sum of locations of all images IN THE SQUARE**. Notice that we can't take mean of lat/lng, rather we should take mean of the projected values
-
-- [ ] **Generate images that show weights of the model**
-  - check: <https://pytorch-lightning-bolts.readthedocs.io/en/latest/vision_callbacks.html>
-  - `logging_batch_interval` should be the number of batches in one validation epoch! This can be caculated with `len(val_dataloader)`
-  - How often should be this called? At the end of every val epoch
-
-- [ ] **Generate images that shows batch, predicted and true values**
-  - rules for the task above should apply for this task too
-  - Image:
-    - [ ] shows all images in the batch
-    - [ ] Make sure it looks pleasing even with batch size of 4 or 32
-    - [ ] below the images put text with predicted value and true value for each image
-    - [ ] predicted and true values should be expressed as lat lng
-    - [ ] title - batch number, additional metadata
-  - For this task create a new [pytorch_lightning.callbacks.Callback](https://pytorch-lightning.readthedocs.io/en/stable/api/pytorch_lightning.callbacks.Callback.html#pytorch_lightning.callbacks.Callback) and call it `ImagePredictionSampler`
-  - `ImagePredictionSampler` will override the function `on_validation_batch_end` where you will do the actual logic for saving an image
-  - check what arguments you can receive via `on_validation_batch_end`
-  - The `ImagePredictionSampler` is passed in the callback list to the `Trainer` in `train.py`
-  - The Trainer will execute Callback's `on_validation_batch_end` at the end of the validation batch
-  - Custom callback example in our code: `OnTrainEpochStartLogCallback`
-
-- [ ] **Outside of Croatia bound classification** - prediction gives softmax of values; weighted sum ends up in Bosna, what do we do?
-  - Solution 1: find the closest point on the border
-  - Solution 2: increase the loss
-  - Solution 3: do nothing! model might fit the Croatia borders implicitly
-
-- [x] **Implement the Croatia's CRS projection <https://epsg.io/3766>. This projection will transform lat and lng's to a 2D plane which can be used in linear manner**
-  - [ ] in `preprocess_csv_create_classes.py` you have to save the projected values along with angles in the .csv file
-  - first: SET projection to default crs (4326). To my knowledge, this doesn't change the values yet
-  - second: PROJECT by to a new crs (3766)  
-  - optional: third: REPROJECT to default (4326) if you need lat lng values again. In the gpd.GeoDataFrame You might even access the original lat,lng without reprojecting but i'm not sure.
-
-- [x] **Weighted sum Haversine classification** - Whats the current situation? We are making classifications and calling argmax to hard-classify image to a class. Centroid of this class is then used as a prediction. Why are we not taking the weighted sum (softmax probs and centroids) ?
-
-- [x] WOLF: Angle encoding - we can't use raw angle values in ANY case. We have to transform the angles (both y_true and y_pred) to sensible [0, 1] data. Check this link <https://stats.stackexchange.com/questions/218407/encoding-angle-data-for-neural-network> and try to find more discussions on similar topic. Sin/cos seems super straight forward but check for other options too.
-  - first encode angles via cos/sin
-  - then use min-max [0, 1] to scale encoded values
-  - apply on y_true and y_pred acordingly
-  - decode before caculating the distancec
-
-- [x] Implement the Croatia's CRS projection https://epsg.io/3766
-  - note: this projection will transform lat and lng's to a 2D plane which can be used in linear manner
-  - [x] in `preprocess_csv_create_classes.py` you have to save the projected values along with angles in the .csv file
-  - note:  check `preprocess_sample_coords.py` because there we already used the projection
-    - this projection and reprojection is really tricky and in my opinion you should print the values at every step just as a sanity check to make sure everything is working
-      - first: SET projection to default crs (4326). To my knowledge, this doesn't change the values yet
-      - second: PROJECT by to a new crs (3766)  
-      - optional: third: REPROJECT to default (4326) if you need lat lng values again. In the gpd.GeoDataFrame You might even access the original lat,lng without reprojecting but i'm not sure.
-
-## 🧠 Brainstorming
-
-- best inital lr for onecycle 0.13182567385564073, best minimum is 0.00025
-
-- Create a grid for Croatia. Each square of a grid represents a class. Instead of regression, try classification where these squares will be different classes. Classification should have a probabilistic interpretation. Multiply probabilities (the certainty of each block) to get the final coordinate. Size of the square is a hyperparameter.
-
-- Distance from each coordinate point is not linear. Use the transformation calculates the real world distance between coordinates. The earth is round!
-
-- How do we exploit the fact that the real input is 4 images? We can naively classify all 4 images and then average classifications to get a single coordinate. Is there a better way? Maybe we can concatenate 4 images into a single image (360 view) ? If we can't concatenate images, which model architecture should be taken into account?
-
-## ⬇️ Setup
-
-Setup virtual environment:
-
-```bash
-[ ! -d "venv" ] && (echo "Creating python3 virtual environment"; python3 -m venv venv)
-
-pip install -r requirements.txt
-```
+- the documentation assumes you are located at the `.lumen-geoguesser` directory when running Python scripts
+- all global variables are defined in [`src/config.py`](src/config.py) and [`src/paths.py`](src/utils_paths.py)
+- other directories have their own `README.md` files which are hopefully
+- you can run most python files with the `python3 program.py -h` to the sense of which arguments you can/must send and what the script actually does
 
 
 ## 📁 Directory structure
 
 | Directory                   | Description                    |
 | --------------------------- | ------------------------------ |
-| [data](./data/)             | dataset                        |
-| [models](./models/)         | saved and trained models       |
-| [references](./references/) | research papers and guidelines |
-| [reports](./reports/)       | model stat's, figures          |
-| [src](./src/)               | python source code             |
+| [data](data/)             | dataset, csvs, country shapefiles                        |
+| [models](models/)         | model checkpoints, model metadata       |
+| [references](references/) | research papers and competition guidelines |
+| [reports](reports/)       | model stat's, figures          |
+| [src](src/)               | python source code             |
 
 
-## 🏆 Team members
+##  Setup
 
-<table>
-  <tr>
-    <td align="center"><a href="https://github.com/bkatovic"><img src="https://avatars.githubusercontent.com/u/56589395?v=4" width="100px;" alt=""/><br /><sub><b>Borna Katović</b></sub></a><br /></td>
-    <td align="center"><a href="https://github.com/matejciglenecki"><img src="https://avatars.githubusercontent.com/u/12819849?v=4" width="100px;" alt=""/><br /><sub><b>Matej Ciglenečki</b></sub></a><br /></td>
-    <td align="center"><a href="https://github.com/filipwolf"><img src="https://avatars.githubusercontent.com/u/50752058?v=4" width="100px;" alt=""/><br /><sub><b>Filip Wolf</b></sub></a><br /></td>
-</table>
+### Virtual environment
+Create and populate the [virtual environment](https://docs.python.org/3/library/venv.html#:~:text=A%20virtual%20environment%20is%20a,part%20of%20your%20operating%20system). Simply put, the virtual environment allows you to install Python packages only for this project (which you can easily delete later). This way, we won't clutter your global Python packages.
+
+**Step 1: Execute the following command:**
+  - the command will initialize the `venv` if it doesn't yet exist
+```bash
+[ ! -d "venv" ] && (echo "Creating python3 virtual environment"; python3 -m venv venv)
+
+pip install -r requirements.txt
+```
+
+### Dataset setup
+
+This project allows multiple datasets, therefore multiple dataset directories can usually be sent to `*.py` programs 
+
+**Step 1: Rename directory `data` to `images`**
+- The original dataset strucutre has a directory `data` (e.g `dataset_original_subset/data`) which contains subdirectories with uuids of locations (`dataset_original_subset/data/6bde8efe-a565-4f05-8c60-ae2ffb32ee9b`).
+
+Dataset structure should look like this:
+
+```default
+dataset_original_subset/
+├── images
+│   ├── 6bde8efe-a565-4f05-8c60-ae2ffb32ee9b
+│   │   ├── 0.jpg
+│   │   ├── 180.jpg
+│   │   ├── 270.jpg
+│   │   └── 90.jpg
+│   ├── 6c0ed2ea-b31b-4cfd-9828-4aec22bc0b37
+│   │   ├── 0.jpg
+│   │   ├── 180.jpg
+│   │   ...
+│   ...
+└── data.csv
+
+
+dataset_external_subset/
+├── images
+│   ├── e61b6e5f-db0d-4f57-bbe3-4d31f16c5bc3
+│   │   ├── 0.jpg
+│   │   ├── 180.jpg
+│   │   ...
+│   ...
+└── data.csv
+```
+
+Before running other scripts you have to properly setup new dataset structure using the [`src/preprocess_setup_datasets.py`](src/preprocess_setup_datasets.py) file. It's important to note that this file accepts multiple dataset directories as an argument and it will make sure to merge the datasets correctly. No changes will be done to your original directories.
+
+```default
+python3 src/preprocess_setup_datasets.py -h
+
+usage: preprocess_setup_datasets.py [-h] [--dataset-dirs dir [dir ...]] [--out-dir dir] [--copy-images] [--spacing SPACING]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --dataset-dirs dir [dir ...]
+                        Dataset root directories that will be transformed into a single dataset
+  --out-dir dir         Directory where compelte dataset will be placed
+  --copy-images         Copy images from dataset directories to the new complete directory.
+                        You don't need to do this as later on you will be able to pass multiple dataset directories to various scripts.
+  --spacing SPACING     
+                        Spacing that will be used to create a grid of polygons.
+                        Different spacings produce different number of classes
+                        0.7 spacing => ~31 classes
+                        0.5 spacing => ~55 classes
+                        0.4 spacing => ~75 classes
+                        0.3 spacing => ~115 classes
+```
+
+Example of running the initial setup script:
+
+```sh
+python3 src/preprocess_setup_datasets.py --dataset-dirs data/dataset_original_subset data/dataset_external_subset --out-dir data/dataset_complete_subset
+```
+What this script does on a high level:
+  1. For all data directories, split the dataset into train, val and test directories
+  2. `complete_subset/data.csv` is csv has concaternated rows of all `data.csv`s from data directories 
+  3. _Rich static CSV_ contains region information, which locations (images) are valid etc, centroids...
+  4. You can also copy images from all dataset directories to the `dataset_complete_subset` with `-- have also 
+
+New dataset structure:
+
+```default
+dataset_complete_subset/
+├── data.csv
+└── data_rich_static__spacing_0.5_classes_55.csv
+
+
+dataset_original_subset/
+├── data.csv
+├── images [100 entries exceeds filelimit, not opening dir]
+├── test
+│   ├── c4a74f0d-7f30-4966-9b92-f63279139d68
+│   │   ├── 0.jpg
+│   │   ├── 180.jpg
+│   │   ...
+│   ...
+├── train
+└── val
+
+
+dataset_external_subset/
+├── data.csv
+├── images
+├── test
+├── train
+└── val
+```
+
+
+### Training
+
+After you prepared that new dataset structure you can start the _quick version_ of training
+```sh
+python3 src/train.py --dataset-dirs data/dataset_external_subset/ data/dataset_original_subset/ \
+--csv-rich-static data/dataset_complete_subset/data_rich_static__spacing_0.7_classes_31.csv \
+--quick
+```
+
+### I have the directory `images` that looks like this: Creating enriched dataframe with centroids and regions:
+
+
+
+## Evaluate:
+```sh
+curl -X POST lumen.photomath.net/evaluate \
+-F 'file=@mapped_to_country_pred-Mike_41-2022-05-06-10-01-15.csv' \
+-F "team_code=<INSERT CODE HERE>"
+```
+
+Stats:
+33.37094934360599 - mapped_to_country_pred-Mike_41-2022-05-06-10-01-15.csv 
+
+
+
+
+
+
+### Developer notes:
+
+To create `requirements.txt` use the following steps:
+
+```sh
+pip install pipreqs
+cp requirements.txt requirements.txt.backup
+pipreqs --force .
+```
+
+
+```
+run python3 src/train.py --accelerator gpu --devices 1 --num-workers 32 --batch-size 8 --dataset-dir data/raw/ data/external/ --cached-df data/complete/data_huge_spacing_0.21_num_class_211.csv --image-size 224 --lr 0.00002 --unfreeze-at-epoch 1 --scheduler plateau --val_check_interval 0.25 --limit_val_batches 0.4
+```
+
+Merging PDFs:
+```
+pdfunite in-1.pdf in-2.pdf in-n.pdf out.pdf
+```

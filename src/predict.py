@@ -9,11 +9,10 @@ from pytorch_lightning.callbacks import Callback
 from torchvision import transforms
 
 from datamodule_geoguesser import GeoguesserDataModulePredict
-from defaults import DEFAULT_IMAGE_MEAN, DEFAULT_IMAGE_STD
+from config import DEFAULT_IMAGE_MEAN, DEFAULT_IMAGE_STD
 from model_classification import LitModelClassification, LitSingleModel
 from model_regression import LitModelRegression
-
-from utils_paths import PATH_DATA_RAW
+from utils_paths import PATH_DATA_ORIGINAL
 
 
 class InferenceWriter(Callback):
@@ -60,9 +59,7 @@ if __name__ == "__main__":
         ]
     )
 
-    predict_datamodule = GeoguesserDataModulePredict(
-        [Path(PATH_DATA_RAW, "images", "test")], num_classes=model.num_classes
-    )
+    predict_datamodule = GeoguesserDataModulePredict([Path(PATH_DATA_ORIGINAL, "test")], num_classes=model.num_classes)
 
     trainer = pl.Trainer(
         log_every_n_steps=1, callbacks=[InferenceWriter(Path("./here/df.csv"))], checkpoint_callback=False, logger=False

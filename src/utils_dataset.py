@@ -3,11 +3,10 @@ from glob import glob
 from itertools import product
 from pathlib import Path
 from typing import List, Union
-from utils_functions import flatten, get_dirs_only
 
 import pandas as pd
 
-from utils_functions import flatten
+from utils_functions import flatten, get_dirs_only
 
 
 class DatasetSplitType(Enum):
@@ -43,7 +42,7 @@ def get_dataset_dirs_uuid_paths(
 
     uuid_dir_paths = flatten(
         [
-            get_dirs_only(Path(dataset_dir, "images", dataset_split_type.value))
+            get_dirs_only(Path(dataset_dir, dataset_split_type.value))
             for dataset_dir, dataset_split_type in product(dataset_dirs, dataset_split_types)
         ]
     )

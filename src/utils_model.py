@@ -6,9 +6,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from matplotlib import pyplot as plt
+from sklearn.preprocessing import MinMaxScaler
 from torchvision.models.efficientnet import EfficientNet
 from torchvision.models.resnet import ResNet
-from sklearn.preprocessing import MinMaxScaler
+
 from utils_functions import tensor_sum_of_elements_to_one
 from utils_geo import crs_coords_to_degree, haversine_from_degs
 

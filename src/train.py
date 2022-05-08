@@ -1,8 +1,10 @@
 from __future__ import annotations, division, print_function
+import os
 
 from pathlib import Path
 from pprint import pprint
 
+import matplotlib.pyplot as plt
 import pytorch_lightning as pl
 from pytorch_lightning import loggers as pl_loggers
 from pytorch_lightning.callbacks import LearningRateMonitor
@@ -11,30 +13,21 @@ from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from pytorch_lightning.callbacks.model_summary import ModelSummary
 from pytorch_lightning.callbacks.progress.tqdm_progress import TQDMProgressBar
 from torchvision import transforms
-from torchvision.transforms import AutoAugmentPolicy
-import matplotlib.pyplot as plt
 
 from calculate_norm_std import calculate_norm_std
-from datamodule_geoguesser import GeoguesserDataModule
-from defaults import DEFAULT_EARLY_STOPPING_EPOCH_FREQ, DEFAULT_IMAGE_MEAN, DEFAULT_IMAGE_STD
-from model_classification import LitModelClassification, LitSingleModel
-from model_regression import LitModelRegression
 from callback_backbone_last_layers import BackboneFinetuningLastLayers
+from datamodule_geoguesser import GeoguesserDataModule
+from config import DEFAULT_EARLY_STOPPING_EPOCH_FREQ, DEFAULT_IMAGE_MEAN, DEFAULT_IMAGE_STD
 from model_callbacks import (
+    BackboneFinetuning,
     BackboneFreezing,
     LogMetricsAsHyperparams,
     OnTrainEpochStartLogCallback,
     OverrideEpochMetricCallback,
-    BackboneFinetuning,
 )
-from visualisation import (
-    get_example_params,
-    GuidedBackprop,
-    save_gradient_images,
-    convert_to_grayscale,
-    get_positive_negative_saliency,
-)
-from utils_model import plot_weights
+from model_classification import LitModelClassification, LitSingleModel
+from model_regression import LitModelRegression
+from utils_dataset import DatasetSplitType, get_dataset_dirs_uuid_paths
 from train_args import parse_args_train
 from utils_functions import add_prefix_to_keys, get_timestamp, random_codeword, stdout_to_file
 from utils_paths import PATH_REPORT_QUICK
@@ -52,12 +45,10 @@ if __name__ == "__main__":
     unfreeze_at_epoch = args.unfreeze_at_epoch
     weight_decay = args.weight_decay
     shuffle_before_splitting = args.shuffle_before_splitting
-    train_frac, val_frac, test_frac = args.split_ratios
     dataset_frac = args.dataset_frac
     dataset_dirs = args.dataset_dirs
     batch_size = args.batch_size
-    cached_df = args.cached_df
-    load_dataset_in_ram = args.load_in_ram
+    csv_rich_static = args.csv_rich_static
     use_single_images = args.use_single_images
     is_regression = args.regression
     scheduler_type = args.scheduler
@@ -70,6 +61,8 @@ if __name__ == "__main__":
 
     timestamp = get_timestamp()
     experiment_codeword = random_codeword()
+
+    os.makedirs(output_report, exist_ok=True)
     filename_report = Path(
         output_report,
         "__".join(["train", experiment_codeword, timestamp]) + ("__quick" if is_quick else "") + ".txt",
@@ -79,36 +72,24 @@ if __name__ == "__main__":
     print(str(filename_report))
     pprint([vars(args), vars(pl_args)])
 
-    mean, std = calculate_norm_std(dataset_dirs) if recaculate_norm else DEFAULT_IMAGE_MEAN, DEFAULT_IMAGE_STD
-
-    image_transform_train = transforms.Compose(
-        [
-            transforms.Resize(image_size),
-            transforms.AutoAugment(policy=AutoAugmentPolicy.IMAGENET),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=mean, std=std),
-        ]
-    )
+    mean, std = DEFAULT_IMAGE_MEAN, DEFAULT_IMAGE_STD
 
     datamodule = GeoguesserDataModule(
-        cached_df=cached_df,
+        csv_rich_static=csv_rich_static,
         dataset_dirs=dataset_dirs,
         batch_size=batch_size,
-        train_frac=train_frac,
-        val_frac=val_frac,
-        test_frac=test_frac,
         dataset_frac=dataset_frac,
-        image_transform=image_transform_train,
+        image_size=image_size,
         num_workers=num_workers,
         shuffle_before_splitting=shuffle_before_splitting,
-        load_dataset_in_ram=load_dataset_in_ram,
+        train_mean_std=(mean, std),
     )
     datamodule.setup()
     num_classes = datamodule.num_classes
     experiment_directory_name = "{}__{}__{}".format(
         experiment_codeword, "regression" if is_regression else "num_classes_" + str(num_classes), timestamp
     )
-    datamodule.store_df_to_report(Path(output_report, experiment_directory_name, "data.csv"))
+    datamodule.store_df_to_report(Path(output_report, experiment_directory_name, "data_runtime.csv"))
 
     train_dataloader_size = len(datamodule.train_dataloader())
     log_dictionary = {
@@ -123,13 +104,15 @@ if __name__ == "__main__":
     # The EarlyStopping callback runs at the end of every validation epoch, which, under the default
     # configuration, happen after every training epoch.
 
-    callback_early_stopping = EarlyStopping(
-        monitor="val/haversine_distance_epoch",
-        mode="min",
-        patience=DEFAULT_EARLY_STOPPING_EPOCH_FREQ,
-        check_on_train_epoch_end=False,  # note: this is extremely important for model checkpoint loading
-        verbose=True,
-    )
+    # Early stopping doesnt worth with --val_intreval_check
+
+    # callback_early_stopping = EarlyStopping(
+    #     monitor="val/haversine_distance_epoch",
+    #     mode="min",
+    #     patience=DEFAULT_EARLY_STOPPING_EPOCH_FREQ,
+    #     check_on_train_epoch_end=False,  # note: this is extremely important for model checkpoint loading
+    #     verbose=True,
+    # )
 
     callback_checkpoint = ModelCheckpoint(
         monitor="val/haversine_distance_epoch",
@@ -171,7 +154,7 @@ if __name__ == "__main__":
     callbacks = [
         callback_checkpoint,
         callback_checkpoint_val,
-        callback_early_stopping,
+        # callback_early_stopping,
         TQDMProgressBar(refresh_rate=bar_refresh_rate),
         ModelSummary(max_depth=3),
         LogMetricsAsHyperparams(),
@@ -187,7 +170,6 @@ if __name__ == "__main__":
                 unfreeze_at_epoch=unfreeze_at_epoch,
                 lr_finetuning_range=[learning_rate, learning_rate],
                 lr_after_finetune=learning_rate,
-                train_dataloader_size=train_dataloader_size,
             ),
         )
 
@@ -245,17 +227,5 @@ if __name__ == "__main__":
         print(new_lr)
         exit(1)
 
-    # w = model.fc.weight[0:20].data.reshape(20, 224, 224)
-    # print(w.shape)
-    # grid = utils.make_grid(w, nrow=10, normalize=True, scale_each=True)
-    # print(grid.shape)
-    #
-    # plt.figure(figsize=(10, 10))
-    # plt.imshow(grid.numpy()[0])
-    # plt.show()
-
     trainer.fit(model, datamodule, ckpt_path=trainer_checkpoint)
-
-    plot_weights(model, 0, False, False)
-    # plot_weights(model, 0, True, False)
     trainer.test(model, datamodule)
