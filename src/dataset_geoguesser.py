@@ -42,12 +42,6 @@ class GeoguesserDataset(Dataset):
 
         """Any rows that contain NaN and have uuid will be used to remove the uuid and images from the dataset. These are invalid locations for which the projection couldn't be caculated."""
 
-        self.df_csv = df
-        mask_invalid_rows = self.df_csv.isnull().any(axis=1)
-        invalid_uuids_and_nans = self.df_csv.loc[mask_invalid_rows, "uuid"]
-        invalid_uuids = invalid_uuids_and_nans[invalid_uuids_and_nans.notnull()].to_list()
-        self.df_csv = self.df_csv.loc[~mask_invalid_rows, :]  # clean up the dataset
-
         """ Populate uuid, uuid path and image path variables """
         uuid_dir_paths = get_dataset_dirs_uuid_paths(dataset_dirs=dataset_dirs, dataset_split_types=dataset_type)
 
@@ -57,19 +51,20 @@ class GeoguesserDataset(Dataset):
 
         for uuid_dir_path in uuid_dir_paths:
             uuid = Path(uuid_dir_path).stem
-            if uuid not in invalid_uuids:
-                image_filepaths = [Path(uuid_dir_path, "{}.jpg".format(degree)) for degree in self.degrees]
-                self.image_store[uuid] = image_filepaths
-                self.uuids.append(uuid)
-                self.image_filepaths.append(image_filepaths)
-
+            image_filepaths = [Path(uuid_dir_path, "{}.jpg".format(degree)) for degree in self.degrees]
+            self.image_store[uuid] = image_filepaths
+            self.uuids.append(uuid)
+            self.image_filepaths.append(image_filepaths)
+        self.df_csv = df.loc[df["uuid"].isin(self.uuids), :]
         self._sanity_check_images_dataframe()
 
     def _sanity_check_images_dataframe(self):
         assert not self.df_csv.isnull().any().any(), "Dataframe contains NaN values"
-        set_outer = set(self.df_csv["uuid"].to_list())
-        set_inner = set(self.image_store.keys())
-        assert set_inner.issubset(set_outer), "Image store contains uuids which the dataframe doesn't"
+        set_inner = set(self.df_csv["uuid"].to_list())
+        set_outer = set(self.image_store.keys())
+        assert set_inner.issubset(
+            set_outer
+        ), "Dataframe shoudln't contain uuids which are not in image_store (image directory)"
 
     def append_column_y(self, df: pd.DataFrame):
         """

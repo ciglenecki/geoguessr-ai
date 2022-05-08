@@ -143,6 +143,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
             df = pd.read_csv(Path(csv_rich_static))
         else:
             df_paths = [str(Path(dataset_dir, "data.csv")) for dataset_dir in self.dataset_dirs]
+
             path_csv_concated = str(Path(PATH_DATA_COMPLETE, "data.csv"))
             df_concated = preprocess_csv_concat.main(["--csv", *df_paths, "--out", path_csv_concated])
             df = preprocess_csv_create_rich_static.main(

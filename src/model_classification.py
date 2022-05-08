@@ -172,7 +172,6 @@ class LitModelClassification(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         image_list, y_true, image_true_crs_coords = batch
         y_pred = self(image_list)
-
         pred_crs_coord = crs_coords_weighed_mean(y_pred, self.class_to_crs_weighted_map, top_k=self.num_classes)
         haver_dist = get_haversine_from_predictions(self.crs_scaler, pred_crs_coord, image_true_crs_coords)
 

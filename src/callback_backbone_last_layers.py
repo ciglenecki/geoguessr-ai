@@ -73,7 +73,7 @@ class BackboneFinetuningLastLayers(BackboneFinetuning):
             blocks = get_model_blocks(modules)
             return blocks[len(blocks) - unfreeze_blocks_num :]
 
-        elif type(unfreeze_blocks_num) is str:
+        elif type(unfreeze_blocks_num) is str and "layer" in unfreeze_blocks_num:
             """Add all modules that continue after unfreeze_blocks_num module (e.g. layer3.2)"""
 
             found_layer = False
@@ -122,7 +122,7 @@ class BackboneFinetuningLastLayers(BackboneFinetuning):
     def finetune_function(
         self, pl_module: "pl.LightningModule", epoch: int, optimizer: Optimizer, opt_idx: int
     ) -> None:
-        
+
         """Called when the epoch begins."""
         if epoch == self.unfreeze_backbone_at_epoch:
             self.unfreeze_and_add_param_group(
@@ -130,7 +130,6 @@ class BackboneFinetuningLastLayers(BackboneFinetuning):
                 optimizer=optimizer,
                 lr=self.lr_after_finetune,
                 train_bn=self.train_bn,
-                initial_denom_lr=self.initial_denom_lr,
             )
             if self.verbose:
                 print("\nBackboneFinetuningLastLayers is setting the learning rate to:", self.lr_after_finetune)
