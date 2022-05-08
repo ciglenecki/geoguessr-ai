@@ -143,20 +143,13 @@ class GeoguesserDataModule(pl.LightningDataModule):
             df = pd.read_csv(Path(csv_rich_static))
         else:
             df_paths = [str(Path(dataset_dir, "data.csv")) for dataset_dir in self.dataset_dirs]
-<<<<<<< HEAD
-            df_merged = preprocess_csv_concat.main(["--csv", *df_paths, "--no-out"])
-            df = preprocess_csv_create_polygons.main(["--spacing", str(DEFAULT_SPACING), "--no-out"], df_merged)
 
-        mask_invalid_rows = df.isnull().any(axis=1)
-        df = df.loc[~mask_invalid_rows, :]  # clean up the dataset
-=======
             path_csv_concated = str(Path(PATH_DATA_COMPLETE, "data.csv"))
             df_concated = preprocess_csv_concat.main(["--csv", *df_paths, "--out", path_csv_concated])
             df = preprocess_csv_create_rich_static.main(
                 ["--csv", path_csv_concated, "--spacing", str(DEFAULT_SPACING), "--no-out"], df_concated
             )
             assert type(df) is pd.DataFrame, "preprocess_csv_create_rich_static.py didn't return a dataframe object."
->>>>>>> 55bd76ea55a60b7a5af658cec40d71644ecdcf2e
         return df
 
     def _dataframe_create_classes(self, df: pd.DataFrame) -> pd.DataFrame:
