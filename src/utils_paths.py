@@ -16,19 +16,27 @@ parents attribute contains all the parent directories of a given path
 WORK_DIR = Path(os.path.realpath(__file__)).parents[1]
 PATH_DATA = Path(WORK_DIR, "data")
 
-PATH_DATA_COMPLETE = Path(PATH_DATA, "complete")
+PATH_DATA_COMPLETE = Path(PATH_DATA, "dataset_complete")
 
 """DATA/ORIGINAL"""
 PATH_DATA_ORIGINAL = Path(PATH_DATA, "original")
+<<<<<<< HEAD
 PATH_DATA_ORIGINAL_IMAGES = Path(PATH_DATA_ORIGINAL, "images")
+=======
+>>>>>>> matej
 
 """DATA/EXTERNAL"""
 PATH_DATA_EXTERNAL = Path(PATH_DATA, "external")
-PATH_DATA_EXTERNAL_IMAGES = Path(PATH_DATA_EXTERNAL, "images")
 
 """DATA/EXAMPLE"""
 PATH_DATA_EXAMPLE = Path(PATH_DATA, "example")
 PATH_DATA_EXAMPLE_IMAGES = Path(PATH_DATA_EXTERNAL, "images")
+PATH_DATA_EXAMPLE = Path(PATH_DATA, "original")
+
+
+"""SUBSETS"""
+PATH_DATA_SUBSET_EXTERNAL = Path(PATH_DATA, "dataset_external_subset")
+PATH_DATA_SUBSET_ORIGINAL = Path(PATH_DATA, "dataset_original_subset")
 
 
 """SUBSETS"""

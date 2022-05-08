@@ -42,7 +42,7 @@ def get_dataset_dirs_uuid_paths(
 
     uuid_dir_paths = flatten(
         [
-            get_dirs_only(Path(dataset_dir, "images", dataset_split_type.value))
+            get_dirs_only(Path(dataset_dir, dataset_split_type.value))
             for dataset_dir, dataset_split_type in product(dataset_dirs, dataset_split_types)
         ]
     )

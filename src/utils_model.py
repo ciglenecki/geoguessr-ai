@@ -53,7 +53,7 @@ def plot_filters_single_channel(t):
 
     nrows = 1 + nplots // ncols
     # convert tensor to numpy image
-    npimg = np.array(t.numpy(), np.float32)
+    # npimg = np.array(t.numpy(), np.float32)
 
     count = 0
     fig = plt.figure(figsize=(ncols, nrows))
@@ -111,12 +111,12 @@ def plot_filters_multi_channel(t):
 
 def plot_weights(model, layer_num, single_channel=True, collated=False):
     # extracting the model features at the particular layer number
-    layer = model.conv1
+    layer = model.backbone.layer4._modules["2"].conv3
 
     # checking whether the layer is convolution layer or not
     if isinstance(layer, nn.Conv2d):
         # getting the weight tensor data
-        weight_tensor = model.conv1.weight.data
+        weight_tensor = model.backbone.conv1.weights.data
 
         if single_channel:
             if collated:

@@ -8,7 +8,13 @@
 
 /data/**/*.jpg
 /data/**/*.zip
-!data/example/**
+/data/complete
+/data/external
+/data/example
+/data/raw
+/data/original
+
+# !data/example/**
 
 .directory
 

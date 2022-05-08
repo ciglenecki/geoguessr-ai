@@ -32,9 +32,6 @@ from config import (
     DEFAULT_BATCH_SIZE,
     DEFAULT_DATASET_FRAC,
     DEFAULT_SPACING,
-    DEFAULT_TEST_FRAC,
-    DEFAULT_TRAIN_FRAC,
-    DEFAULT_VAL_FRAC,
 )
 from utils_dataset import DatasetSplitType, filter_df_by_dataset_split
 from utils_functions import print_df_sample
@@ -48,14 +45,17 @@ class InvalidSizes(Exception):
 class GeoguesserDataModule(pl.LightningDataModule):
     def __init__(
         self,
-        cached_df: Path,
+        csv_rich_static: Path,
         dataset_dirs: List[Path],
         image_size: int,
         batch_size: int = DEFAULT_BATCH_SIZE,
         train_mean_std: Optional[Tuple[List[float], List[float]]] = None,
+<<<<<<< HEAD
         train_frac=DEFAULT_TRAIN_FRAC,
         val_frac=DEFAULT_VAL_FRAC,
         test_frac=DEFAULT_TEST_FRAC,
+=======
+>>>>>>> matej
         dataset_frac=DEFAULT_DATASET_FRAC,
         image_transform: transforms.Compose = transforms.Compose([transforms.ToTensor()]),
         num_workers=DEAFULT_NUM_WORKERS,
@@ -65,15 +65,10 @@ class GeoguesserDataModule(pl.LightningDataModule):
         super().__init__()
         print("GeoguesserDataModule init")
 
-        self._validate_sizes(train_frac, val_frac, test_frac)
-
         self.dataset_dirs = dataset_dirs
         self.batch_size = batch_size
         self.train_mean_std = train_mean_std
 
-        self.train_frac = train_frac
-        self.val_frac = val_frac
-        self.test_frac = test_frac
         self.dataset_frac = dataset_frac
 
         self.image_transform = image_transform
@@ -82,7 +77,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
         self.shuffle_before_splitting = shuffle_before_splitting
 
         """ Dataframe loading, numclasses handling and min max scaling"""
-        df = self._load_dataframe(cached_df)
+        df = self._load_dataframe(csv_rich_static)
         df = self._dataframe_create_classes(df)
         df = self._adding_centroids_weighted(df)
         self.crs_scaler = self._get_and_fit_min_max_scaler_for_train_data(df)
@@ -104,9 +99,13 @@ class GeoguesserDataModule(pl.LightningDataModule):
         ) = self._get_class_to_coords_maps(self.num_classes)
 
         if not train_mean_std:
+<<<<<<< HEAD
             train_image_dirs = [
                 Path(dataset_dir, "images", DatasetSplitType.TRAIN.value) for dataset_dir in self.dataset_dirs
             ]
+=======
+            train_image_dirs = [Path(dataset_dir, DatasetSplitType.TRAIN.value) for dataset_dir in self.dataset_dirs]
+>>>>>>> matej
             # TODO: this might take a long time for HUGE datasets. Suggest to user to use predefined values.
             mean, std = calculate_norm_std(train_image_dirs)
         else:
@@ -145,19 +144,27 @@ class GeoguesserDataModule(pl.LightningDataModule):
             dataset_type=DatasetSplitType.TEST,
         )
 
-    def _load_dataframe(self, cached_df: Union[Path, None]) -> pd.DataFrame:
+    def _load_dataframe(self, csv_rich_static: Union[Path, None]) -> pd.DataFrame:
         """
         Returns the cached dataframe if the path file is given. If not, dataframe is created in the runtime (taking --dataset-dirs and --spacing into account) and returned either way.
 
         Args:
-            cached_df: e.g. data/csv_decorated/data__spacing_0.2__num_class_231.csv
+            csv_rich_static: e.g. data/csv_decorated/data__spacing_0.2__num_class_231.csv
         """
-        if cached_df:
-            df = pd.read_csv(Path(cached_df))
+        if csv_rich_static:
+            df = pd.read_csv(Path(csv_rich_static))
         else:
             df_paths = [str(Path(dataset_dir, "data.csv")) for dataset_dir in self.dataset_dirs]
+<<<<<<< HEAD
             df_merged = preprocess_csv_concat.main(["--csv", *df_paths, "--no-out"])
             df = preprocess_csv_create_rich_static.main(["--spacing", str(DEFAULT_SPACING), "--no-out"], df_merged)
+=======
+            path_csv_concated = str(Path(PATH_DATA_COMPLETE, "data.csv"))
+            df_concated = preprocess_csv_concat.main(["--csv", *df_paths, "--out", path_csv_concated])
+            df = preprocess_csv_create_rich_static.main(
+                ["--csv", path_csv_concated, "--spacing", str(DEFAULT_SPACING), "--no-out"], df_concated
+            )
+>>>>>>> matej
             assert type(df) is pd.DataFrame, "preprocess_csv_create_rich_static.py didn't return a dataframe object."
         return df
 
@@ -270,10 +277,6 @@ class GeoguesserDataModule(pl.LightningDataModule):
     def store_df_to_report(self, path: Path):
         os.makedirs(path.parents[0])
         self.df.to_csv(path, mode="w+", index=True, header=True)
-
-    def _validate_sizes(self, train_frac, val_frac, test_frac):
-        if sum([train_frac, val_frac, test_frac]) != 1:
-            raise InvalidSizes("Sum of sizes has to be 1")
 
     def prepare_data(self) -> None:
         pass
@@ -392,10 +395,6 @@ class GeoguesserDataModulePredict(pl.LightningDataModule):
         )
         self.dataset_frac = dataset_frac
 
-    def _validate_sizes(self, train_frac, val_frac, test_frac):
-        if sum([train_frac, val_frac, test_frac]) != 1:
-            raise InvalidSizes("Sum of sizes has to be 1")
-
     def prepare_data(self) -> None:
         pass
 
@@ -417,7 +416,11 @@ class GeoguesserDataModulePredict(pl.LightningDataModule):
 
 if __name__ == "__main__":
     # dm = GeoguesserDataModule(
+<<<<<<< HEAD
     #     cached_df=Path(PATH_DATA_COMPLETE, "data__spacing_0.5__num_class_55.csv"),
+=======
+    #     csv_rich_static=Path(PATH_DATA_COMPLETE, "data__spacing_0.5__num_class_55.csv"),
+>>>>>>> matej
     #     dataset_dirs=[PATH_DATA_ORIGINAL],
     # )
     # dm.setup()
