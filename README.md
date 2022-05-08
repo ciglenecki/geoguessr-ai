@@ -175,12 +175,15 @@ dataset_external_subset/
 
 ### Training
 
-After you prepared that new dataset structure you can start the _quick version_ of training
+After you prepared that new dataset structure you can start the _quick version_ of training:
 ```sh
 python3 src/train.py --dataset-dirs data/dataset_external_subset/ data/dataset_original_subset/ \
 --csv-rich-static data/dataset_complete_subset/data_rich_static__spacing_0.7_classes_31.csv \
 --quick
 ```
+
+You can perform the full training by removing the `--quick` flag.
+
 
 ### I have the directory `images` that looks like this: Creating enriched dataframe with centroids and regions:
 

@@ -12,7 +12,6 @@ from torchvision.models.resnet import model_urls as resnet_model_urls
 from config import (
     DEAFULT_NUM_WORKERS,
     DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING,
-    DEFAULT_AUTO_LR,
     DEFAULT_BATCH_SIZE,
     DEFAULT_DATASET_FRAC,
     DEFAULT_EPOCHS,
