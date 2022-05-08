@@ -13,7 +13,7 @@ pandoc --standalone --toc --pdf-engine=xelatex \
 -H docs/head.tex \
 --wrap auto --highlight-style espresso \
 docs/.tmp.md \
--o docs/pdf-documentation.pdf;\
+-o pdf-documentation.pdf;\
 rm docs/.tmp.md
 ```
 
@@ -25,7 +25,7 @@ pandoc --standalone --toc --pdf-engine=xelatex \
 --wrap auto --highlight-style espresso \
 README.md \
 -o docs/pdf-readme-documentation.pdf
-pdfunite docs/pdf-readme-documentation.pdf docs/pdf-api-docs.pdf docs/pdf-technical-documentation.pdf
+pdfunite docs/pdf-readme-documentation.pdf docs/pdf-api-docs.pdf pdf-technical-documentation.pdf
 ```
 
 ```
