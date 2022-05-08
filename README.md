@@ -242,6 +242,27 @@ tensorboard --port 6006 --logdir reports/
 ```
 ![](docs/img/tensorboard_example.png){width=30%}
 
+## Inference
+
+After you trained a model and have the model checkpoint file (`.ckpt`) ready, you can run inference with `predict.py` file. 
+
+```default
+usage: predict.py [-h] --checkpoint CHECKPOINT --images-dir IMAGES_DIR --out OUT
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --checkpoint CHECKPOINT
+                        Path to the model checkpoint (default: None)
+  --images-dir IMAGES_DIR
+                        Path to images directory (default: None)
+  --out OUT             Path to csv output (default: None)
+```
+
+```bash
+python3 src/predict.py --checkpoint <path_to_model.ckpt> \
+--images-dir data/dataset_original_subset/test
+--out data/dataset_original_subset/predictions.csv
+```
 
 ## Local server
 
