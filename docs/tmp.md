@@ -22,6 +22,12 @@ output:
 		toc: yes
 		toc_depth:
 
+# author:
+# 	- Filip Wolf
+# 	- Leonardo Čuljak
+# 	- Borna Katović
+# 	- Matej Ciglenečki
+
 geometry: margin=1.2cm
 numbersections: true
 title: |
@@ -121,7 +127,7 @@ Splendid! Now we simply need to find the maximum and minimum coordinates of the 
 
 ## Classification Approach
 
-The problem of predicting coordinatess given four Google Street View images can be approached from two different angles. Fearing encroaching on any originality, we will call them the **Classification approach** and the **Regression approach**.
+The problem of predicting coordinates given four Google Street View images can be approached from two different angles. Fearing encroaching on any originality, we will call them the **Classification approach** and the **Regression approach**.
 
 In the Classification approach, we classify images into a fixed set of regions of Croatia in the form of a grid on the map (notice: we lose the information about the image's exact location here), while in the regression approach we try regressing the image coordinates to a continuous output from the model that will be restricted by the minimum and maximum possible coordinates (bounds of Croatia).
 
@@ -151,7 +157,7 @@ We have previously mentioned that it's possible to specify the number of classes
 
 Another problem arises because of Croatia’s unique shape, only matched by that of Chile and The Gambia. For some regions, the intersection area with Croatia's territory is only a few tiny spots, meaning that the majority of the region's area ends up in a neighboring country. If this was anywhere before 1991., this wouldn’t be a problem, but it isn’t. The usage of clipped centroids we previously defined somewhat alleviates this issue, but another problem arises because there simply might not exist any images in the dataset that are located in that tiny area of the region, that is, within Croatia. And in fact, we did end up in such a situation. We solved this by discarding these regions and pretending like they didn't exist in the list of classes we could classify the images into. Fortunately, this doesn’t happen too often as the dataset is fairly large and the image’s locations are uniformly distributed.
 
-In the later stages of this project, we had an Eureka mome. Why do we have to declare a centroid (clipped or not) as the final coordinate of the region? What if the geography of a class is hostile to cars, for instance a a mountain, or even worse, Split? However well prepared, the little Street View car would have issues traversing some of these areas. Just look at an area such as [Lika](https://www.google.com/maps/@44.7471723,15.2368329,9.25z/data=!5m1!1e4). Due to this, we expect more Google Street View images to come from a more car friendly part of the region. To take this into account, we created **weighted centroids** for each region. Weighted centroids are calculated as the average location of all images in a specific region. Worth of note is that only the images from the train set were used in this process (remember the number one enemy of every well reproducible deep learning model: data leakage).
+In the later stages of this project, we had an Eureka moment. Why do we have to declare a centroid (clipped or not) as the final coordinate of the region? What if the geography of a class is hostile to cars, for instance a a mountain, or even worse, Split? However well prepared, the little Street View car would have issues traversing some of these areas. Just look at an area such as [Lika](https://www.google.com/maps/@44.7471723,15.2368329,9.25z/data=!5m1!1e4). Due to this, we expect more Google Street View images to come from a more car friendly part of the region. To take this into account, we created **weighted centroids** for each region. Weighted centroids are calculated as the average location of all images in a specific region. Worth of note is that only the images from the train set were used in this process (remember the number one enemy of every well reproducible deep learning model: data leakage).
 
 ![Here in red, we depict a class which doesn’t contain any images from the train set due to being mostly made up of sea. This class will be ignored during training and prediction.](img/no_images_in_class.png){width=50%}
 
@@ -171,23 +177,22 @@ Lastly, as with most classification approaches, we use [cross entropy loss](http
 
 - Letters to the Computer Scientists, 0:9
 
-The true classes are represented with a one-hot encoded vector ([1, 0, 0]), while the predicted classes are represented with a vector of probabilities for the likelihood of each class ([0.6, 0.3, 0.1]). Now that we have probabilities for each class/region, how do we obtain the final coordinates? Firstly, we extract the centroid from all classes. Then, we multiply the centroids with the corresponding probabilities. You can think of the probabilities as weights in this context. Finally, we add everything up and end up with a [weighted arithmetic mean
-](https://en.wikipedia.org/wiki/Weighted_arithmetic_mean). Notice that our final predicted image coordinate is not necessarily within our predicted class, but as our model becomes more sure in its predictions, so do these averaged coordinates come closer to their true class. We have noticed that this averaging approach improves performance.
+The true classes are represented with a one-hot encoded vector ([1, 0, 0]), while the predicted classes are represented with a vector of probabilities for the likelihood of each class ([0.6, 0.3, 0.1]). Now that we have probabilities for each class/region, how do we obtain the final coordinates? Firstly, we extract the centroid from all classes. Then, we multiply the centroids with the corresponding probabilities. You can think of the probabilities as weights in this context. Finally, we add everything up and end up with a [weighted arithmetic mean](https://en.wikipedia.org/wiki/Weighted_arithmetic_mean). Notice that our final predicted image coordinate is not necessarily within our predicted class, but as our model becomes more sure in its predictions, so do these averaged coordinates come closer to their true class. We have noticed that this averaging approach improves performance.
 
 ## Regression Approach
 
-This approach is a bit more obvious. Each set of images has its target coordinate, and we task our model with predicting these coordinates. Therefore, the size of the output of the model is not determined by the number of classes, but is simply 2, accounting for the latitude and longitude (or to be precise, the standardized versions of the x and y coordinates from the Croatia local space). We directly compare these output coordinates to the true image coordinates and calculate the distance (error) using the mean squared error. This distance (error) is almost exactly the same as the haversine between two coordinates in the global space. Unlike in the classification approach, the loss function we use for the model can also tell us an accurate state of our predictions, as we are not bound by an artificial limit like having classes. That being said, in practice, we noticed that this approach often performs worse than the classification approach and is also slower. It appears that the presence of classes does help the model in training somewhat. Regression approach might be perform better if we were patient enough to train the model for more than a few days. 
+This approach is a bit more obvious. Each set of images has its target coordinate, and we task our model with predicting these coordinates. Therefore, the size of the output of the model is not determined by the number of classes, but is simply two, accounting for the latitude and longitude (or to be precise, the standardized versions of the `x` and `y` coordinates from the Croatian local space). We directly compare these output coordinates to the true image coordinates and calculate the distance (error) using mean squared error. This distance is almost exactly the same as the haversine distance between two coordinates in the global space. Unlike in the classification approach, the loss function we use here can also tell us an accurate state of our predictions, as we are not bound by an artificial limit like having classes. That being said, in practice, we noticed that regression often performs worse than the classification approach and is also slower. It appears that the presence of classes does help the model in training somewhat. Regression might perform better if we were patient enough to train the model for more than a few days. 
 
 ### Loss Function
 
-For the loss function, we use mean squared error loss and we predict the coordinates directly. After we obtained predicted coordinates we re-project them back into global space and calculate the haversine distance for the purposes of logging and statistics. It is worth noting that these two approaches, classification and regression, can only be compared using the haversine distance metric, as their loss functions work in very different ways and output vastly different values. Therefore, they can’t be compared during training, but only during validation and testing, because we calculate the haversine distance value only then.
+For the loss function, we use mean squared error loss and we predict the coordinates directly. After we obtain the predicted coordinates we re-project them back into global space and calculate the haversine distance for the purposes of logging and statistics. It is worth noting that these two approaches, classification and regression, can only be compared using the haversine distance metric, as their loss functions work in very different ways and output vastly different values. Therefore, they can’t be compared during training, but only during validation and testing, because we calculate the haversine distance value only then.
 
 ## Technology Stack
 
 Before diving into the architecture of the solution, the technology stack we used will be described briefly.
 
 - [`python3.8`](https://www.python.org/) - the main programming language used for the project, everyone and their mom uses it so no explanation needed here
-- [`git`](https://hr.wikipedia.org/wiki/Git) – the quintessential version control system
+- [`git`](https://hr.wikipedia.org/wiki/Git) - the quintessential version control system
 
 Some of the Python packages we used:
 
@@ -208,11 +213,11 @@ Some of the Python packages we used:
 - `tensorboard` - library used for fetching and visualizing machine learning model training data in a browser
 - `tqdm` - easy Python progress bars
 
-## Solution architecture - [PyTorch Lightning](https://pytorch-lightning.readthedocs.io/en/latest/starter/introduction.html)
+## Solution Architecture - [PyTorch Lightning](https://pytorch-lightning.readthedocs.io/en/latest/starter/introduction.html)
 
-The core library used for this project is PyTorch Lightning (PL) which was started by [William Falcon](https://www.williamfalcon.com/). You should glance through it's [introduction website](https://pytorch-lightning.readthedocs.io/en/stable/starter/introduction.html) to get a sense of what PyTorch Lightning actually does.  PyTorch Lightning (PL) doesn't introduce significant complexity to the _existing_ PyTorch code, in fact, it organizes the _existing_ PyTorch code in intuitive PyTorch Lightning modules. Example of organizing already existing PyTorch code can be seen [here](https://pytorch-lightning.readthedocs.io/en/latest/starter/converting.html). It's important the main component [`LightningModule`](https://pytorch-lightning.readthedocs.io/en/stable/common/lightning_module.html) is a [`torch.nn.Module`](https://pytorch.org/docs/stable/generated/torch.nn.Module.html) but with added functionality. You don't need to know the details of this fact but it's useful to keep it in mind. PyTorch Lightning to note that .PyTorch Lightning library passively forced us to write clean code with smaller overhead (compared to raw PyTorch code) and allowed us to quickly add crucial functionalities like logging, model checkpoints, general prototyping, and more. Kudos to [PyTorch Lightning team](https://www.pytorchlightning.ai/team) for creating, maintaining and improving this great library.
+The core library used for this project is PyTorch Lightning (PL), first developed by [William Falcon](https://www.williamfalcon.com/). You can glance through it's [introductory website](https://pytorch-lightning.readthedocs.io/en/stable/starter/introduction.html) to get a good sense of what PL actually does. PL doesn't introduce significant complexity to existing PyTorch code, isntead, it organizes the it into intuitive PyTorch Lightning modules. Examples of how it does this can be seen [here](https://pytorch-lightning.readthedocs.io/en/latest/starter/converting.html). It's important to note that the main component, the [`LightningModule`](https://pytorch-lightning.readthedocs.io/en/stable/common/lightning_module.html), is inherited from [`torch.nn.Module`](https://pytorch.org/docs/stable/generated/torch.nn.Module.html) but with added functionality, making it entirely compatible with regular PyTorch. It’s also worth noting that PL passively forced us to write clean code with smaller overhead (compared to raw PyTorch code) and allowed us to quickly add crucial functionalities like logging, model checkpoints, general prototyping, and more. Kudos to the [PyTorch Lightning team](https://www.pytorchlightning.ai/team) for creating, maintaining and improving this great library.
 
-To get a sense of how PL organizes the code we will show a _simplified_ version of our `pl.LightningModule`:
+To get a sense of how PL organizes code, we will show a simplified version of our `pl.LightningModule`:
 
 ```py
 class LitModelClassification(pl.LightningModule):
@@ -297,35 +302,33 @@ class LitModelClassification(pl.LightningModule):
 
 ```
 
-(optional) you can quickly glance over Key PyTorch Lightning (`pl`) modules:
+(optional) you can quickly glance over Key PL modules:
 
-1. [`pl.LightningModule`](https://pytorch-lightning.readthedocs.io/en/stable/common/lightning_module.html) - LightningModule organizes your PyTorch code into 6 sections:
+1. [`pl.LightningModule`](https://pytorch-lightning.readthedocs.io/en/stable/common/lightning_module.html) - `LightningModule` organizes PyTorch code into six sections:
    1. Computations (init)
    2. Train Loop (training_step)
    3. Validation Loop (validation_step)
    4. Test Loop (test_step)
    5. Predicti3on Loop (predict_step)
    - this is also where the actual **model** is created
-2. [`pl.DataModule`](https://pytorch-lightning.readthedocs.io/en/latest/data/datamodule.html) - datamodule is a shareable, reusable class that encapsulates all the steps needed to process data:
+2. [`pl.DataModule`](https://pytorch-lightning.readthedocs.io/en/latest/data/datamodule.html) - `DataModule` is a shareable, reusable class that encapsulates all the steps needed to process data:
    1. Download / process the data (for example from a website or CSV file)
    2. Clean and (maybe) save to disk
    3. Load the data into `Dataset`
-   4. Initialize transforms (rotate, resize, etc…) that will be sent to `Dataset`
+   4. Initialize transforms (rotate, resize, etc …) that will be sent to `Dataset`
    5. Wrap `Dataset` inside a `DataLoader`. `DataLoader` will be returned to the `Trainer`.
 
-
-3. [`pl.Trainer`](https://pytorch-lightning.readthedocs.io/en/latest/common/trainer.html) - once you’ve organized your PyTorch code into a `pl.LightningModule`, the `pl.Trainer` automates everything else:
-   1. Automatically enabling/disabling grads
+3. [`pl.Trainer`](https://pytorch-lightning.readthedocs.io/en/latest/common/trainer.html) - once you’ve organized your PyTorch code into a `LightningModule`, the `Trainer` automates everything else:
+   1. Automatic enabling/disabling of gradients
    2. Running the training, validation and test dataloaders
    3. Calling the Callbacks (logging, model checkpoints, learning rate scheduling...) at the appropriate times
    4. Putting batches and computations on the correct devices
 
 ### GeoguesserDataset ([src/dataset_geoguesser.py](../src/dataset_geoguesser.py)) - The Pawn
 
-`GeoguesserDataset` is responsible for lazily fetching images and their coordinates during the training. We initialize `GeoguesserDataset` three times (train, validation and test set). Now, each of the three `GeoguesserDataset`s is responsible only for fetching the data from it's corresponding appropriate set. For example, `GeoguesserDataset` with parameter  `dataset_type = DatasetSplitType.TRAIN` will only return the images from the train set. The most important operation that the `GeoguesserDataset` module performs, aside from defining from which set images are fetched, is lazily fetching and **passing the location and four images** (one for each cardinal side) **to the pl.Trainer** during the training, validation and testing phase. Essentially, this module answers the question **"What data will start coming in batches once I start the training process ?"**
+The `GeoguesserDataset` module is responsible for lazily fetching images and their coordinates during training. We initialize it three times in total (for training, validation and testing). Now, each of the three `GeoguesserDataset`s is responsible only for fetching the data from it's corresponding dataset. For example, the `GeoguesserDataset` with the parameter `dataset_type` set to `DatasetSplitType.TRAIN` will only return the images from the train set. The most important operation that the `GeoguesserDataset` module performs, aside from defining from which dataset the images are fetched, is lazily fetching and passing the location and four images (one for each cardinal direction) to the `Trainer` during the training, validation and testing phase. Essentially, this module answers the following question: "_Which data will I start sending out in batches once the training process is started_?"
 
-It's also worth mentioning that any image or coordinate transformation is generally done in this module. What does this mean?
-> Let's say we want to resize our original image, 640x640 pixels, to a size of 224x224 pixels. Model obviously requires more time to train on large images. Since this competition lasts a few months and not a few years (this would be interesting), we will resize our images to 224x224 pixels. Instead of resizing images on the disk we can do this in runtime (during the training). You might say "yes but it would be faster to resize them in advance so that the program doesn't waste precious resources". That's true, but computation required to resize the image is negligible compared to other actions that occur during the training phase. Okay, so we settled on resizing the images during the runtime. So who is responsible for resizing images during the training phase? That would be exactly `GeoguesserDataset`. Before returning the image and coordinate to the trainer (which sends it further to the model), the `GeoguesserDataset` will apply resize transformation for the image. In fact, any transformation can be specified before we create the `GeoguesserDataset` and that exact transformation will be applied before trainer gets the data. Examples of such image transformations, alongside resizing, include cropping, translation, noise injection, color space transformations, and [more](https://journalofbigdata.springeropen.com/articles/10.1186/s40537-019-0197-0).
+It's also worth mentioning that any image or coordinate transformation is generally done inside of this module. What does this mean? Let's say we want to resize our original image, 640x640 pixels, to a size of 224x224 pixels. The model obviously requires more time to train on large images. Since this competition lasts a few months and not a few years (now THAT would be interesting), we generally resize our images to 224x224 pixels. Instead of resizing images stored on the disk, we can do this during training. And you might say "yes, wouldn’t it be faster to resize them in advance so that the program doesn't waste precious resources during training?". That's true, but the computation required to resize the image is negligible compared to other actions that occur during the training phase. Okay, so we settled on resizing the images during training. Now, who would be responsible for that? Exactly, that would be `GeoguesserDataset`. Before returning the images and their coordinates to the trainer which sends it further into the model, the `GeoguesserDataset` will apply resizing transformation on the images. In fact, any transformation can be specified before we create the `GeoguesserDataset` and that exact transformation will be applied before the trainer fetches the data. Examples of such image transformations, other than resizing, include cropping, translation, noise injection, color space transformations, and [more](https://journalofbigdata.springeropen.com/articles/10.1186/s40537-019-0197-0).
 
 `GeoguesserDataset` inherits the [torch.utils.data.Dataset](https://pytorch.org/tutorials/beginner/data_loading_tutorial.html) class.
 
@@ -333,19 +336,27 @@ It's also worth mentioning that any image or coordinate transformation is genera
 
 The `GeoguesserDataModule` is mainly responsible for two things:
 
-1. preprocessing that can't be done by `GeoguesserDataset`. This preprocessed data is sent to the `GeoguesserDataset`.
+1. preprocessing that can't be done by `GeoguesserDataset`. This preprocessed data is sent to `GeoguesserDataset`.
 2. creating train, val and test [`DataLoader`s](https://pytorch.org/tutorials/beginner/basics/data_tutorial.html#preparing-your-data-for-training-with-dataloaders), each for one `GeoguesserDataset`
 
-We will first describe what kind of preprocessing actually happens here. `GeoguesserDataModule` will receive the CSV file which contains information about image's locations, regions in which they are placed. Then this CSV is enriched with new columns in advance, values which we would need to calculate during the training. For example, we create a new column `crs_x_minmax` which is the x coordinate in Croatia's local system scaled to [0, 1]. We mentioned how we exclude the regions that contain no image data. But how can we know this in advance? What if someone decides to add more images (like we did) in the sets and suddenly some region that was long forgotten becomes a viable option? This is why we create classes in `GeoguesserDataModule`, during the runtime. The weighted mean centroid of each region is also calculated here. We also perform some dataset statistics extraction, as well as data standardization for all CRS features. Finally, we split the data into the train, validation and test dataset and create the dataset instances that will be described in the next paragraph. We also do some sanity checking to make sure everything is in order before continuing. 
-<todo: insert image of croatia, grid and each class and its number>
+We will first describe what kind of preprocessing actually happens here. `GeoguesserDataModule` will receive the CSV file which contains information about the image's locations, i.e. regions in which they are placed. Then, this CSV is enriched with new columns in advance with values which we would otherwise need to calculate during the training. For example, we create a new column `crs_x_minmax` which is the `x` coordinate in Croatia's local system scaled to [0, 1]. We mentioned how we exclude the regions that contain no image data. But how can we know this in advance? What if someone decides to add more images (like we did) to the dataset and suddenly some region that was previously forgotten becomes a viable option? This is why we create classes in `GeoguesserDataModule` during runtime. The weighted mean centroid of each region is also calculated here. We also perform some dataset statistics extraction, as well as data standardization for all CRS features. Finally, we split the data into the train, validation and test dataset and create the dataset instances that will be described in the next paragraph. We also do some sanity checking to make sure everything is in order before continuing. 
 
-Great thing about this module is that it's dynamic in terms of defining the size of the dataset. Parameters that define the fraction each set (`train_frac`,`val_frac`,`test_frac`) or the dataset as a whole (`dataset_frac`) turned out to be quite useful during the prototyping phase of the problem solving. Although you almost always want to use all your available data (`dataset_frac = 1`) it's nice to have options too.
+![](img/Croatia_progression/country_HR_1.png){width=20%}
+![](img/Croatia_progression/country_HR_grid_2.png){width=20%}
+![](img/Croatia_progression/country_HR_grid_intersection_3.png){width=20%}
+![](img/Croatia_progression/data_fig__spacing_0.7__num_class_31_regions_colored_4.png){width=20%}
+![](img/Croatia_progression/data_fig__spacing_0.7__num_class_31centroid_5.png){width=20%}
+\begin{figure}[!h]
+\caption{These figures represent the progression of the grid creation for Croatia. In step 1, a plain map of Croatia can be seen. In step 2, we overlay a square grid over the map. We then in step 3 remove classes (squares) from the grid that our outside the bounds of Croatia. In step 4, we eliminate classes that don’t have any images in them, and finally in step 5, we calculate the centroid for each class, as well as clip the centroids at sea to the closest point on land.}
+\end{figure}
+
+A great thing about this module is that the size of the dataset can be dynamically defined. The parameters that define the fraction for the size of each set (`train_frac`,`val_frac`,`test_frac`) or the dataset as a whole (`dataset_frac`) turned out to be quite useful during the prototyping phase of the problem solving. Although you almost always want to use all of your available data (`dataset_frac = 1`), it's nice to have the option for that.
 
 `GeoguesserDataset` inherits the [`LightningDataModule`](https://pytorch-lightning.readthedocs.io/en/stable/extensions/datamodules.htm) class.
 
 ### LitModelClassification (src/model_classification.py) or LitModelRegression (src/model_regression.py) - The King
 
-The convolutional neural network model that is going to perform the training is defined in the model module. The different models we defined here (classification and regression) all inherit the `LightningModule` class to make things as simple as possible. Each model fetches a pretrained network and changes its last layer to a layer more suitable for the model’s task. We then define each model’s `forward` function, which defines how our data is processed through all the layers of the model, as well as define and all of the training, validation and testing functions. Each function performs an iteration of training through its respective dataset and calculates error, and additionally in the case of validation and testing, the haversine distance function. We then log all the parameters of the model into a file for later fetching and usage.
+The CNN model that is going to perform the training is defined in the model module. The different models we defined here (classification and regression) all inherit the `LightningModule` class to make things as simple as possible. Each model fetches a pretrained network and changes its last layer to a layer more suitable for the model’s task. We then define each model’s `forward` function, which defines how our data is processed through all the layers of the model, as well as define and all of the training, validation and testing functions. Each function performs an iteration of training through its respective dataset and calculates error, and additionally in the case of validation and testing, the haversine distance function. We then log all the parameters of the model into a file for later fetching and usage.
 
 
 #### Forward function - The King 
@@ -358,7 +369,6 @@ Finally, we join everything together in the `train` function. Here, we parse the
 ### Optimizers and LR Schedulers (configure_optimizers) - The Rooks
 
 Our solution is composed of four main modules, as well as numerous utility functions. Utility functions were mainly used for tasks that were separate from the training process itself, such as transforming data into a format appropriate for training, geospatial data manipulation, visualization, report saving and loading, etc. Even though we love our utility functions which are crucial to this project, they are generally responsible for lower level work which isn't the focus of this project. Here, we will promptly ignore them and explain only the higher level components of our solution, namely, the four main modules.
-
 
 # Model
 
@@ -377,9 +387,11 @@ Although solving a problem in which the content of images can be essentially any
 
 Originally, we chose the EfficientNet architecture due to it showing both good performance and having lower system requirements when compared to other approaches. However, for reasons we didn't bother to explore any more than we needed to, we consistently observed worse results and slower convergence of EfficientNet compared to the model we finally settled for. After some experimenting, we ended up using a version of ResNet called ResNeXt instead, as it simply proved more effective. It can easily be loaded into PyTorch with the following expression: `torch.hub.load("pytorch/vision", "resnext101_32x8d")`. 
 
+![An example of the filters of the first convolutional layer learned by the pretrained ResNeXt network. We can recognize simple textures and contours](img/resnext_filters.png){width=50%}
+
 ResNeXt is a highly modular architecture that revolves around repeating powerful building blocks that aggregate sets of transformations. It first processes the images with a simple convolution layer. It then feeds this into a sequential layer composed of multiple bottleneck layers. A bottleneck layer has the function of reducing the data dimensionality, thereby forcing the network to learn the data representations instead of just memorizing them. Each bottleneck layer is again composed of multiple convolution layers for information extraction. After the sequential layer is done, the network is fed into another sequential layer. This process is repeated multiple times. Finally, after all the sequential layers have processed their outputs, the data is fed into a fully connected layer for classification or regression. Of course, all of the mentioned layers also use numerous normalization techniques, such as batch normalization. This process is visualized in the figure below. Due to this modularity of the layers, ResNeXt includes few hyperparameters that have to be tuned for the architecture to be effective. Aside from the described architecture, we had to do some modifications to the network ourselves in order to make them work with our dataset. There were two modifications we made.
 
-![An illustration of the architecture of a single ResNext block](img/resnext_block.png){width=50%}
+![An illustration of the architecture of a single ResNeXt block](img/resnext_block.png){width=50%}
 
 ## Modifications
 
@@ -465,11 +477,11 @@ Inference is performed after the entire training phase of our model is over. It 
 
 # Results
 
-In this chapter, we will describe the results of our model, mostly focusing on the different metrics we used. We tested numerous regression and classification models with a diverse set of hyperparameters, but we will mostly focus on the most successful ones. There are three evaluation metrics we used for classification and two for regression. We will also try to use as much visuals as possible to make this section less boring. Here we go.
+In this chapter, we will describe the results of our model, mostly focusing on the different metrics we used. We tested numerous regression and classification models with a diverse set of hyperparameters, but we will mostly focus on the most successful ones. There are three evaluation metrics we used for classification and two for regression. We will also try to use as many visuals as possible to make this section less boring. Here we go.
 
 ## Training
 
-The bulk of the model learning process is contained in the training process. Here, models would often reach near perfect classification and loss results which would translate to overfitting during validation. An example of these graphs is shown in Figure 13 and Figure 14.
+The bulk of the model learning process is contained in the training phase. Here, models would often reach near perfect classification and loss results which would translate to overfitting during validation. An example of these graphs is shown in Figure 13 and Figure 14.
 
 ![A graph of train model accuracy over time. A curve that is more to the left and up on the image shows faster training and higher accuracy.](img/train_acc_epoch.png){width=100%}
 
@@ -477,7 +489,7 @@ The bulk of the model learning process is contained in the training process. Her
 
 We can see that there are three distinct groups in these graphs. The first one is the cluster of four models of similar performance, with quick training and high accuracy. However, the only thing they have in common is that they’re classification models and that they were trained on the same dataset. All their hyperparameters: image size, learning rate and number of classes are all different. However, this being the training part of the dataset, this doesn’t have to tell us much because on the train dataset, most models reach high performance and overfit, regardless of their setup.
 
-The somewhat slower gray model in the middle is unfortunately a mystery to us, as at that time we didn’t quite track hyperparameters. We do however know that it contains 72 classes. But, as we can see, it also reached near perfect classification on the train dataset. Same goes for the orange model to the right in the graph, although that one is really slow.
+The somewhat slower gray model in the middle is unfortunately a mystery to us, as at that time we didn’t quite track hyperparameters. We do however know that it contains 72 classes. But, as we can see, it also reached near perfect classification on the train dataset. The orange model to the right in the graph is a regression model and we can see that it is quite slow. We have noticed this behaviour in other regression models as well. This leads us to believe that the introduction of classes does indeed aid model performance somewhat. However, it is hard to compare these two distinct approaches do to the inability of comparing their loss and accuracy graphs against each other, as well as their learning rates not having the same impact. We also tested much fewer regression models due to our larger focus (and trust) on the classification approach.
 
 The drop and subsequent recovery in performance that is observable in the earlier stages of training can be explained by the unfreezing of the remaining layers of the backbone. As we previously explained, we start the training process by fine-tuning the models and then unlocking the rest of the model layers for training. By doing this, we temporarily increase the loss of the model because the model needs some time to adjust the remaining layers correctly. But we can see that the models normally successfully recover from this and that it doesn’t have a large impact in final training performance.
 
@@ -491,12 +503,24 @@ Validation is much more interesting to observe than training. It is much harder 
 	
 ![A graph of validation model haversine distance over time. A curve that is more to the left and down on the image shows quicker training and lower loss.](img/val_hav_epoch.png){width=100%}
 
-We can immediately observe a few notable facts about these graphs. For starters, the accuracy graph looks very similar to the train version of the same graph. The dips in performance are still here and the general layout of the models is fairly similar. However, the cluster of graphs on the left side of the graph is now more flashed out, having more diversity between the results. We can see that the red line does stand out in terms of accuracy, showing that train results indeed don’t account for everything and a validation dataset is necessary. What makes this model somewhat stand out is its lack of a dip in performance. This could be explained by the later stage at which the backbone gets unfrozen (at epoch four instead of two for a lot of models), as well as its larger image size of 224x224 pixels. This isn’t the only model with the hyperparameters, but it is the only model with this exact combination, showing that extensive experimentation is necessary for finding optimal parameters and gaining an extra edge in performance.
+We can immediately observe a few notable facts about these graphs. For starters, the accuracy graph looks very similar to the train version of the same graph. The dips in performance are still present and the general layout of the models is fairly similar. However, the cluster of graphs on the left side of the graph is now more flashed out, having more diversity between the results. We can see that the red line does stand out in terms of accuracy, showing that train results indeed don’t account for everything and a validation dataset is necessary. What makes this model somewhat stand out is its lack of a dip in performance. This could be explained by the later stage at which the backbone gets unfrozen (at epoch four instead of two for a lot of models), as well as its larger image size of 224x224 pixels. This isn’t the only model with these hyperparameters, but it is the only model with this exact combination, showing that extensive experimentation is necessary for finding optimal parameters and gaining an extra edge in performance.
 
-The validation loss graph is very different from the train loss graph. What immediately grabs one’s attention is the erratic movement of the gray graph. We think that this occurred because of the early stage the model’s backbone was unlocked, coupled with a bad combination of other parameters. The very large dip in performance gives precedence to this, as the model also never really recovers from the dip. This again shows how the training performance can vastly differ from the validation performance.
+The validation loss graph is very different from the train loss graph. What immediately grabs one’s attention is the erratic movement of the gray graph. We think that this occurred because of the early stages the model’s backbone was unlocked at, coupled with a bad combination of other parameters. The very large dip in performance gives precedence to this, as the model also never really recovers from the dip. This again shows how the training performance can vastly differ from the validation performance.
 
 Another thing we observe is that at a later point in training, most model’s validation loss starts increasing. This is a textbook example of overfitting. Even though the training model’s performance continues to increase, the validation performance starts suffering due to the model starting to memorize all the information from the training dataset.
 
 Finally, we have to talk about maybe the most important graph here, the haversine distance graph. As we previously mentioned, haversine distance is the most accurate indicator of final performance, as it is what is measured on the final testing dataset. So, what can we observe here? In general, the metric behaves quite similarly to loss. When the loss graph starts overfitting, the performance in haversine distance also stagnates or even starts increasing a bit. The dips in performance after backbone unlocking are also here.
 
 In general, we have noticed a few patterns. A larger image size seems to increase models performance, as does a larger number of classes. However, these parameters can greatly slow down training performance. Due to this, careful learning rate scheduling is crucial to both optimal performance and faster training times. Aside from this, we mostly set batch size to the largest one possible for our image size. Unfreezing at a later epoch after carefully fine-tuning the last layer also seems to increase performance, as doing this suboptimally can greatly hinder performance and sometimes even render the whole model unusable.
+
+## Winner Model
+
+Finally, because of a small screw up we did, we will highlight the best model we trained separately. Due to it being trained on a much larger dataset (over 72 000 images) and because of the way we logged our data, the graphs of this model are not comparable to the rest on the time domain, but the shape of the graph is not unlike what we already saw. We will only highlight the validation graphs here because the training graphs are quite similar to what we saw before. This is also a classification model. The graphs are represented in Figure 20, Figure 21 and Figure 22.
+
+There really isn’t much to say here, other than the graphs are truly beautiful. Due to the large dataset size, this model’s training process was much slower. Also, because the training part of the dataset was so large and it took such a long time to get to the validation, we perform validation four times during training. This way, we can potentially find an even better model that would otherwise be missed during training. Other than that, it also makes the performance graphs smoother. It is also worth noting that we used a much larger class size of 205 for this model, to leverage the extra data and bring the classification closer to regression. The other parameters are similar to previously tested models (224x224 image size, batch size of 8, similar learning rate, etc …).
+
+![A graph of validation model accuracy over time for our best model.](img/val_acc_epoch_best.png){width=100%}
+
+![A graph of validation model loss over time for our best model.](img/val_loss_epoch_best.png){width=100%}
+	
+![A graph of validation model haversine distance over time for our best model.](img/val_hav_epoch_best.png){width=100%}

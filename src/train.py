@@ -4,30 +4,24 @@ import os
 from pathlib import Path
 from pprint import pprint
 
-import matplotlib.pyplot as plt
 import pytorch_lightning as pl
 from pytorch_lightning import loggers as pl_loggers
 from pytorch_lightning.callbacks import LearningRateMonitor
-from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from pytorch_lightning.callbacks.model_summary import ModelSummary
 from pytorch_lightning.callbacks.progress.tqdm_progress import TQDMProgressBar
-from torchvision import transforms
 
 from calculate_norm_std import calculate_norm_std
 from callback_backbone_last_layers import BackboneFinetuningLastLayers
 from datamodule_geoguesser import GeoguesserDataModule
-from config import DEFAULT_EARLY_STOPPING_EPOCH_FREQ, DEFAULT_IMAGE_MEAN, DEFAULT_IMAGE_STD
+from config import DEFAULT_IMAGE_MEAN, DEFAULT_IMAGE_STD
 from model_callbacks import (
-    BackboneFinetuning,
-    BackboneFreezing,
     LogMetricsAsHyperparams,
     OnTrainEpochStartLogCallback,
     OverrideEpochMetricCallback,
 )
 from model_classification import LitModelClassification, LitSingleModel
 from model_regression import LitModelRegression
-from utils_dataset import DatasetSplitType, get_dataset_dirs_uuid_paths
 from train_args import parse_args_train
 from utils_functions import add_prefix_to_keys, get_timestamp, random_codeword, stdout_to_file
 from utils_paths import PATH_REPORT_QUICK
