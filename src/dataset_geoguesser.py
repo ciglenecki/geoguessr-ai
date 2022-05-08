@@ -1,6 +1,5 @@
 from __future__ import annotations, division, print_function
 
-from glob import glob
 from pathlib import Path
 from typing import Callable, List, Tuple
 
@@ -11,9 +10,8 @@ from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
 
-from defaults import DEFAULT_LOAD_DATASET_IN_RAM
 from utils_dataset import DatasetSplitType, get_dataset_dirs_uuid_paths
-from utils_functions import flatten, one_hot_encode
+from utils_functions import flatten, get_dirs_only, one_hot_encode
 
 
 class GeoguesserDataset(Dataset):
@@ -32,46 +30,46 @@ class GeoguesserDataset(Dataset):
         dataset_dirs: List[Path],
         crs_coords_transform: Callable = lambda crs_x, crs_y: torch.tensor([crs_x, crs_y]).float(),
         image_transform: transforms.Compose = transforms.Compose([transforms.ToTensor()]),
-        load_dataset_in_ram=DEFAULT_LOAD_DATASET_IN_RAM,
         dataset_type: DatasetSplitType = DatasetSplitType.TRAIN,
     ) -> None:
-        print("GeoguesserDataset init")
+        print("GeoguesserDataset {} init".format(dataset_type.value))
         super().__init__()
+
         self.degrees = ["0", "90", "180", "270"]
         self.image_transform = image_transform
         self.crs_coords_transform = crs_coords_transform
-
-        self.uuid_dir_paths = get_dataset_dirs_uuid_paths(dataset_dirs=dataset_dirs, dataset_split_types=dataset_type)
-        print("self.uuid_dir_paths", len(self.uuid_dir_paths))
-        self.uuids = [Path(uuid_dir_path).stem for uuid_dir_path in self.uuid_dir_paths]
-        self.df_csv = df
         self.num_classes = num_classes
 
-        """ Build image cache """
-        self.load_dataset_in_ram = load_dataset_in_ram
-        self.image_cache = self._get_image_cache()
+        """Any rows that contain NaN and have uuid will be used to remove the uuid and images from the dataset. These are invalid locations for which the projection couldn't be caculated."""
+
+        self.df_csv = df
+        mask_invalid_rows = self.df_csv.isnull().any(axis=1)
+        invalid_uuids_and_nans = self.df_csv.loc[mask_invalid_rows, "uuid"]
+        invalid_uuids = invalid_uuids_and_nans[invalid_uuids_and_nans.notnull()].to_list()
+        self.df_csv = self.df_csv.loc[~mask_invalid_rows, :]  # clean up the dataset
+
+        """ Populate uuid, uuid path and image path variables """
+        uuid_dir_paths = get_dataset_dirs_uuid_paths(dataset_dirs=dataset_dirs, dataset_split_types=dataset_type)
+
+        self.uuids = []
+        self.image_filepaths = []
+        self.image_store = {}
+
+        for uuid_dir_path in uuid_dir_paths:
+            uuid = Path(uuid_dir_path).stem
+            if uuid not in invalid_uuids:
+                image_filepaths = [Path(uuid_dir_path, "{}.jpg".format(degree)) for degree in self.degrees]
+                self.image_store[uuid] = image_filepaths
+                self.uuids.append(uuid)
+                self.image_filepaths.append(image_filepaths)
 
         self._sanity_check_images_dataframe()
 
     def _sanity_check_images_dataframe(self):
-        size_rows_with_images = len(self.df_csv.loc[self.df_csv["uuid"].isin(self.uuids), :])
-        assert size_rows_with_images == len(self.uuids), "Dataframe doesn't contain uuids for all images!"
-
-    def _get_image_cache(self):
-        """Cache image paths or images itself so that the __getitem__ function doesn't perform this job"""
-        image_cache = {}
-        for uuid, uuid_dir_path in zip(self.uuids, self.uuid_dir_paths):
-            image_filepaths = [Path(uuid_dir_path, "{}.jpg".format(degree)) for degree in self.degrees]
-            cache_item = (
-                [Image.open(image_path) for image_path in image_filepaths]
-                if self.load_dataset_in_ram
-                else image_filepaths
-            )
-            image_cache[uuid] = cache_item
-        return image_cache
-
-    def name_without_extension(self, filename: Path | str):
-        return Path(filename).stem
+        assert not self.df_csv.isnull().any().any(), "Dataframe contains NaN values"
+        set_outer = set(self.df_csv["uuid"].to_list())
+        set_inner = set(self.image_store.keys())
+        assert set_inner.issubset(set_outer), "Image store contains uuids which the dataframe doesn't"
 
     def append_column_y(self, df: pd.DataFrame):
         """
@@ -103,18 +101,53 @@ class GeoguesserDataset(Dataset):
         return len(self.uuids)
 
     def __getitem__(self, index: int):
-        row = self.df_csv.iloc[index, :]
+        row = self.df_csv.loc[index, :]
         uuid, crs_x, crs_y, label = self._get_row_attributes(row)
-
-        images = self.image_cache[uuid]
-        if not self.load_dataset_in_ram:
-            images = [Image.open(image_path) for image_path in images]
+        image_paths = self.image_store[uuid]
+        images = [Image.open(image_path) for image_path in image_paths]
 
         label = self.one_hot_encode_label(label)
 
         images = [self.image_transform(image) for image in images]
         crs_coords = self.crs_coords_transform(crs_x, crs_y)
         return images, label, crs_coords
+
+
+class GeoguesserDatasetPredict(Dataset):
+    def __init__(
+        self,
+        images_dirs: List[Path],
+        num_classes: int,
+        image_transform: transforms.Compose = transforms.Compose([transforms.ToTensor()]),
+    ) -> None:
+        print("GeoguesserDatasetPredict init")
+        super().__init__()
+        self.num_classes = num_classes
+        self.degrees = ["0", "90", "180", "270"]
+        self.image_transform = image_transform
+        self.uuid_dir_paths = flatten([get_dirs_only(images_dir) for images_dir in images_dirs])
+        self.uuids = [Path(uuid_dir_path).stem for uuid_dir_path in self.uuid_dir_paths]
+
+        """ Build image cache """
+        self.image_store = self._get_image_store()
+
+    def _get_image_store(self):
+        image_store = {}
+        for uuid, uuid_dir_path in zip(self.uuids, self.uuid_dir_paths):
+            image_filepaths = [Path(uuid_dir_path, "{}.jpg".format(degree)) for degree in self.degrees]
+            cache_item = image_filepaths
+            image_store[uuid] = cache_item
+        return image_store
+
+    def __len__(self):
+        return len(self.uuids)
+
+    def __getitem__(self, index: int):
+
+        uuid = self.uuids[index]
+        images = [Image.open(image_path) for image_path in self.image_store[uuid]]
+        images = [self.image_transform(image) for image in images]
+        return images, uuid
 
 
 if __name__ == "__main__":

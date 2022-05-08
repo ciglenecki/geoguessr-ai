@@ -27,7 +27,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from utils_functions import is_valid_dir
+from utils_functions import flatten, is_valid_dir
 from utils_paths import PATH_DATA_EXTERNAL, PATH_DATA_SAMPLER
 
 
@@ -42,17 +42,18 @@ def parse_args(args):
     )
 
     parser.add_argument(
-        "--data-dir",
+        "--image-dirs",
         metavar="dir",
-        type=is_valid_dir,
-        help="Directory with images from the external source",
-        default=Path(PATH_DATA_EXTERNAL, "data"),
+        type=str,
+        help="Image directories (directories with UUIDs) for which the norm and std will be caculated.",
+        nargs="+",
+        required=True,
     )
     parser.add_argument(
         "--out",
         metavar="csv",
         help="Path of the csv output",
-        default=Path(PATH_DATA_EXTERNAL, "data_external.csv"),
+        required=True,
     )
     args = parser.parse_args(args)
     return args
@@ -60,11 +61,11 @@ def parse_args(args):
 
 def main(args):
     args = parse_args(args)
-    uuids = os.listdir(args.data_dir)
+    uuids = flatten([os.listdir(image_dir) for image_dir in args.image_dirs])
     df = pd.read_csv(args.base_csv)
     df = df.loc[df["uuid"].isin(uuids), :]
     print("Saving dataframe with {} rows to {}".format(len(df), args.out))
-    df.to_csv(args.out)
+    df.to_csv(args.out, index=False)
 
 
 if __name__ == "__main__":

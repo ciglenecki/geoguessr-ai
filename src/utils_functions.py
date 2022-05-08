@@ -24,13 +24,14 @@ class InvalidRatios(Exception):
 T = TypeVar("T")
 
 
+def get_dirs_only(path: Path):
+    """Return only top level directories in the path"""
+    return [d for d in (os.path.join(path, d1) for d1 in os.listdir(path)) if os.path.isdir(d)]
+
+
 def tensor_sum_of_elements_to_one(ten: torch.Tensor, dim):
     """Scales elements of the tensor so that the sum is 1"""
     return ten / torch.sum(ten, dim=dim, keepdim=True)
-
-
-def name_without_extension(filename: Union[Path, str]):
-    return Path(filename).stem
 
 
 def split_by_ratio(array: np.ndarray, *ratios, use_whole_array=False) -> List[np.ndarray]:
@@ -87,23 +88,7 @@ def get_train_test_indices(dataset: Dataset, test_size, dataset_frac=1.0, shuffl
 
 
 def get_timestamp():
-    return datetime.today().strftime("%y-%m-%d-%H-%M-%S")
-
-
-def set_train_val_frac(dataset_size: int, train_split_factor, val_split_factor) -> Tuple[int, int]:
-    """Set size for training and validation set
-    Args:
-        train_split_factor [0,1] - percentage of train images
-        val_split_factor [0,1] - percentage of validation images
-    """
-
-    if train_split_factor + val_split_factor != 1.0:
-        sys.exit("Train and split factor should add up to 1")
-
-    train_frac: int = np.rint(train_split_factor * dataset_size)
-    val_frac: int = dataset_size - train_frac
-
-    return train_frac, val_frac
+    return datetime.today().strftime("%m-%d-%H-%M-%S")
 
 
 def one_hot_encode(index: int, length: int):
@@ -175,7 +160,7 @@ def is_positive_int(value):
 
 def is_valid_unfreeze_arg(arg):
     """Positive int or 'all'"""
-    if type(arg) is str and arg == "all":
+    if type(arg) is str and (arg == "all" or "layer" in arg):
         return arg
     try:
         if is_positive_int(arg):  # is_positive_int's raise will be caught by the except
@@ -204,6 +189,22 @@ class SocketConcatenator(object):
             f.flush()
 
 
+def safely_save_df(df: pd.DataFrame, filepath: Path):
+    """Safely save the dataframe by using and removing temporary files"""
+
+    print("Saving file...", filepath)
+    path_tmp = Path(str(filepath) + ".tmp")
+    path_bak = Path(str(filepath) + ".bak")
+    df.to_csv(path_tmp, mode="w+", index=True, header=True)
+
+    if os.path.isfile(filepath):
+        os.rename(filepath, path_bak)
+    os.rename(path_tmp, filepath)
+
+    if os.path.isfile(path_bak):
+        os.remove(path_bak)
+
+
 def stdout_to_file(file: Path):
     """
     Pipes standard input to standard input and to a file.
@@ -211,6 +212,7 @@ def stdout_to_file(file: Path):
     print("Standard output piped to file:")
     f = open(Path(file), "w")
     sys.stdout = SocketConcatenator(sys.stdout, f)
+    sys.stderr = SocketConcatenator(sys.stderr, f)
 
 
 def add_prefix_to_keys(dict: dict, prefix):
