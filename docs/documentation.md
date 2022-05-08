@@ -287,22 +287,45 @@ A great thing about this module is that the size of the dataset can be dynamical
 
 `GeoguesserDataset` inherits the [`LightningDataModule`](https://pytorch-lightning.readthedocs.io/en/stable/extensions/datamodules.htm) class.
 
-### LitModelClassification ([src/model_classification.py](src/model_classification.py)) or LitModelRegression ([src/model_regression.py](src/model_regression.py) - The King
-
-The CNN model that is going to perform the training is defined in the model module. Each model fetches a pretrained network and changes its last layer to a layer more suitable for the model’s task. We then define each model’s `forward` function, which defines how our data is processed through all the layers of the model, as well as define and all of the training, validation and testing functions. Each function performs an iteration of training through its respective dataset and calculates error, and additionally in the case of validation and testing, the haversine distance function. We then log all the parameters of the model into a file for later fetching and usage.
+### LitModelClassification ([src/model_classification.py](src/model_classification.py)) or LitModelRegression ([src/model_regression.py](src/model_regression.py) - The Knight
 
 Both models inherit the `pl.LightningModule`.
 
-#### Forward function - The King 
-<Todo: populate this>
+The CNN model that is going to perform the training is defined in the model module. Each model fetches a pretrained network and changes its last layer to a layer more suitable for the model’s task. This is done in 2 steps:
+
+1. `model_remove_fc`: remove the fully connected layer on the backbone (ResNeXt)
+2. `_get_last_fc_in_channels`: we calculate new number of input channels for the final fully connected (FC) layer. We do this by simulating a batch of images which we forward through the backbone (ResNeXt). The shape of that output is exactly what should be an input shape for the fully connected (FC) layer. 
+
+Functions `{training,validation,test,predict}_step` define the step for their respective datasets. The step occurs in the [appropriate moment](https://pytorch-lightning.readthedocs.io/en/stable/common/lightning_module.html#hooks) of the training or inference process (names are self-explanatory). Those steps mostly call `forward`, calculate the loss and log metrics (`reports/` directory)
+
+#### Forward function - The King
+
+Model’s `forward`, the most important function, is also defined in this class. It receives list of four images (each for one cardinal direction) which are passed through the backbone (ResNeXt), this output is concatenated and passed to the fully connected layer. It's also possible to call forward function implicitly:  `self(x)`
+
+```py
+def forward(self, image_list) -> Any:
+   outs_backbone = [self.backbone(image) for image in image_list]
+   out_backbone_cat = torch.cat(outs_backbone, dim=1)
+   out_flatten = torch.flatten(out_backbone_cat, 1)
+   out = self.fc(out_flatten)
+   return out
+```
+
+#### Optimizers and LR Schedulers (configure_optimizers) - The Rooks
+
+In general, optimizers define how should weights of our model (composed of ResNeXt and fully connected layer) be updated during the training. This beautiful _magic_ is also done for us by PyTorch Lightning (we don't have to call methods like `optimizer.zero_grad(), loss.backward(), optimizer.step()`). The optimizer that will be used depends on the `--optimizer` argument, which is Adam by default.
+
+Learning rate scheduler we used the most is "reduce on plateau". It sneakily monitors a specific metric and if that metric didn't improve in the last `n` epochs it will lower the learning rate. This is done because the learning rate might be too high, which prevents our model from training properly.
+
+### Utilities
+
+Our solution is composed of four main modules, as well as numerous utility functions. Utility functions were mainly used for tasks that were separate from the training process itself, such as transforming data into a format appropriate for training, geospatial data manipulation, visualization, report saving and loading, etc. Even though we love our utility functions which are crucial to this project, they are generally responsible for lower level work which isn't the focus of this project. Here, we will promptly ignore them and explain only the higher level components of our solution, namely, the four main modules.
+
 
 ### Train Function - The Queen
 
 Finally, we join everything together in the `train` function. Here, we parse the arguments passed to the model, define the data transformations, initiate the `GeoguesserDataModule` module, initiate the logger, create the specified model, define our optimization algorithm and how the learning rate behaves, and finally, train the model. Optionally, we can also visualize our results after training.
 
-### Optimizers and LR Schedulers (configure_optimizers) - The Rooks
-
-Our solution is composed of four main modules, as well as numerous utility functions. Utility functions were mainly used for tasks that were separate from the training process itself, such as transforming data into a format appropriate for training, geospatial data manipulation, visualization, report saving and loading, etc. Even though we love our utility functions which are crucial to this project, they are generally responsible for lower level work which isn't the focus of this project. Here, we will promptly ignore them and explain only the higher level components of our solution, namely, the four main modules.
 
 # Model
 
@@ -458,3 +481,25 @@ There really isn’t much to say here, other than the graphs are truly beautiful
 ![A graph of validation model loss over time for our best model.](img/val_loss_epoch_best.png){width=100%}
 	
 ![A graph of validation model haversine distance over time for our best model.](img/val_hav_epoch_best.png){width=100%}
+
+
+## More data, more data!
+
+In the original dataset we received 16 000 locations (64 000 images). This is more than enough to train a model which solves our problem fairy well. However, since this is a competition, we wanted to increase our odds as much as possible :)
+
+We wanted more images. To get them, we used the blessing of Google free trial on the [Google Developers platform](https://developers.google.com/) so we could consume the [Street View Static API](https://developers.google.com/maps/documentation/streetview/overview) without emptying our wallets.
+
+### Sampling
+
+First, we have to sample the locations before we download the images. We can't come at https://developers.google.com and type in the search box "download many many many street images of Croatia" (maybe in a few decades...). The script [preprocess_sample_coords.py](preprocess_sample_coords.py) is responsible for sampling new locations. It uniformly samples `n` locations in the Croatia which are saved in a `coords_sample__n_1000000.csv` file.
+
+![Hmmmm, what's with the dark orange color? Actually, if you look closely, there are many small red pixels. These red pixels represent newly sampled locations. In this picture, there are 1 000 000 locations. The image size we would have to use so that red pixels do not overlap would be way too large!](sampling.png)
+
+
+Now what, do we just try and download the images of locations we sampled? What if the location is in a mountainous and there are no images? We have to filter our some locations before download actual images. This is done by the [`src/google_api/preprocess_api_coords_sample.py`](src/google_api/preprocess_api_coords_sample) script. It calls the `maps/api/streetview/metadata?` endpoint and asks Google: "hey, does a street view image _exists_ at this location?", to which Google responses:
+1. "yes it does! Exactly at (45.50, 18.13)" or
+2. "No it doesn't. But you can become a professional Google Maps Driver and take those pictures for us!"
+
+Now that we filtered locations, we know exactly for which locations the Google Street Maps API will return an image. We finally download the images with [`src/google_api/download_street_images.py`](src/google_api/download_street_images.py)
+
+In total, we downloaded 266 488 images (66 622 locations)! This new dataset of images will can be recognized by the keyword `external` in our project and it's obviously included each time we perform serious training.2

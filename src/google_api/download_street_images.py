@@ -7,10 +7,8 @@ sys.path.append(str(Path(__file__).parent.resolve().parents[0]))
 
 import argparse
 import asyncio
-import base64
 import csv
-import hashlib
-import hmac
+
 import os
 import sys
 import urllib.parse as urlparse
@@ -115,33 +113,6 @@ def get_params_json(api_key, signature, pano_id, unique_id, heading, url):
     signature = get_signature_param(url, payload, signature)
     payload["signature"] = signature
     return payload
-
-
-# def extract_features_from_json(json):
-#     status = json["status"]
-#     if status == "OK":
-#         return {
-#             "status": status,
-#             "true_lat": json["location"]["lat"],
-#             "true_lng": json["location"]["lng"],
-#             "panorama_id": json["pano_id"],
-#         }
-#     if status != "OK" and status != "ZERO_RESULTS":
-#         print("Unexpected response", json)
-#     return {
-#         "status": status,
-#         "true_lat": None,
-#         "true_lng": None,
-#         "panorama_id": None,
-#     }
-
-# def extract_features_from_response(resp, params):
-#     if resp.ok:
-#         return{
-#             "image": resp.content,
-#             "pano_id": params["pano"],
-#             "heading": params["heading"],
-#         }
 
 
 def safely_save_csv(data, filepath: Path):
