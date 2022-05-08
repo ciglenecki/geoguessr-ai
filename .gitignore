@@ -4,6 +4,8 @@
 /data/test_lumen/images
 /data/external0.95
 /data/raw0.95
+/data/complete
+/data/external/
 
 /data/**/*.jpg
 /data/**/*.zip
