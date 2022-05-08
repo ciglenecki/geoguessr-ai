@@ -159,7 +159,8 @@ class GeoguesserDataModule(pl.LightningDataModule):
             df_merged = preprocess_csv_concat.main(["--csv", *df_paths, "--no-out"])
             df = preprocess_csv_create_polygons.main(["--spacing", str(DEFAULT_SPACING), "--no-out"], df_merged)
 
-        # df.set_index("uuid", inplace=True, drop=False)
+        mask_invalid_rows = df.isnull().any(axis=1)
+        df = df.loc[~mask_invalid_rows, :]  # clean up the dataset
         return df
 
     def _dataframe_create_classes(self, df: pd.DataFrame) -> pd.DataFrame:
