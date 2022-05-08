@@ -12,6 +12,7 @@ from torchvision.models.resnet import model_urls as resnet_model_urls
 from config import (
     DEAFULT_NUM_WORKERS,
     DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING,
+    DEFAULT_AUTO_LR,
     DEFAULT_BATCH_SIZE,
     DEFAULT_DATASET_FRAC,
     DEFAULT_EPOCHS,
@@ -237,6 +238,7 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
         pl_args.log_every_n_steps = 1
         args.image_size = 16
         args.batch_size = 2
+        args.unfreeze_backbone_at_epoch = 1
     return args, pl_args
 
 

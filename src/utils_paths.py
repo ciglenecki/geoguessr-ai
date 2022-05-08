@@ -34,6 +34,11 @@ PATH_DATA_EXAMPLE = Path(PATH_DATA, "original")
 PATH_DATA_SUBSET_EXTERNAL = Path(PATH_DATA, "dataset_external_subset")
 PATH_DATA_SUBSET_ORIGINAL = Path(PATH_DATA, "dataset_original_subset")
 
+
+"""SUBSETS"""
+PATH_DATA_SUBSET_EXTERNAL = Path(PATH_DATA, "external_subset")
+PATH_DATA_SUBSET_ORIGINAL = Path(PATH_DATA, "original_subset")
+
 PATH_DATA_SAMPLER = Path(PATH_DATA, "coord_sampler")
 PATH_WORLD_BORDERS = Path(PATH_DATA, "world-borders", "world_no_croatia_islands.shp")
 
