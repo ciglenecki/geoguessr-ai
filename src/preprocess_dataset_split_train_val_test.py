@@ -19,13 +19,12 @@ from utils_functions import is_valid_dir, is_valid_fractions_array, split_by_rat
 
 
 def parse_args(args):
-    print(args)
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--image-dir",
-        required=True,
         type=is_valid_dir,
         help="Path to the directory that contains UUID subdirectories.",
+        required=True,
     )
     parser.add_argument(
         "--out",
@@ -53,11 +52,16 @@ def create_train_val_test_dirs(out_dir: Path):
 
 def main(args):
     args = parse_args(args)
-    print(args)
 
     image_dir = args.image_dir
-    out_dir = args.image_dir if args.out is None else args.out
+    out_dir = Path(args.image_dir).parent if args.out is None else args.out
     split_ratios = args.split_ratios
+
+    print(
+        "Spltting the image directory '{}' to a parent directory '{}/{{train,val,test}}'".format(
+            str(image_dir), str(out_dir)
+        )
+    )
 
     if sum(split_ratios) != 1:
         raise argparse.ArgumentError(split_ratios, "There has to be 3 fractions (train, val, test) that sum to 1")

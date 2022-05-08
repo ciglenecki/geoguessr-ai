@@ -1,0 +1,10 @@
+# w = model.fc.weight[0:20].data.reshape(20, 224, 224)
+# print(w.shape)
+# grid = utils.make_grid(w, nrow=10, normalize=True, scale_each=True)
+# print(grid.shape)
+#
+# plt.figure(figsize=(10, 10))
+# plt.imshow(grid.numpy()[0])
+# plt.show()
+# plot_weights(model, 0, False, False)
+# plot_weights(model, 0, True, False)

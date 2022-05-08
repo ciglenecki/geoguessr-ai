@@ -1,4 +1,5 @@
 from __future__ import annotations, division, print_function
+import os
 
 from pathlib import Path
 from pprint import pprint
@@ -44,11 +45,10 @@ if __name__ == "__main__":
     unfreeze_at_epoch = args.unfreeze_at_epoch
     weight_decay = args.weight_decay
     shuffle_before_splitting = args.shuffle_before_splitting
-    train_frac, val_frac, test_frac = args.split_ratios
     dataset_frac = args.dataset_frac
     dataset_dirs = args.dataset_dirs
     batch_size = args.batch_size
-    cached_df = args.cached_df
+    csv_rich_static = args.csv_rich_static
     use_single_images = args.use_single_images
     is_regression = args.regression
     scheduler_type = args.scheduler
@@ -61,6 +61,8 @@ if __name__ == "__main__":
 
     timestamp = get_timestamp()
     experiment_codeword = random_codeword()
+
+    os.makedirs(output_report, exist_ok=True)
     filename_report = Path(
         output_report,
         "__".join(["train", experiment_codeword, timestamp]) + ("__quick" if is_quick else "") + ".txt",
@@ -73,12 +75,9 @@ if __name__ == "__main__":
     mean, std = DEFAULT_IMAGE_MEAN, DEFAULT_IMAGE_STD
 
     datamodule = GeoguesserDataModule(
-        cached_df=cached_df,
+        csv_rich_static=csv_rich_static,
         dataset_dirs=dataset_dirs,
         batch_size=batch_size,
-        train_frac=train_frac,
-        val_frac=val_frac,
-        test_frac=test_frac,
         dataset_frac=dataset_frac,
         image_size=image_size,
         num_workers=num_workers,
@@ -105,13 +104,15 @@ if __name__ == "__main__":
     # The EarlyStopping callback runs at the end of every validation epoch, which, under the default
     # configuration, happen after every training epoch.
 
-    callback_early_stopping = EarlyStopping(
-        monitor="val/haversine_distance_epoch",
-        mode="min",
-        patience=DEFAULT_EARLY_STOPPING_EPOCH_FREQ,
-        check_on_train_epoch_end=False,  # note: this is extremely important for model checkpoint loading
-        verbose=True,
-    )
+    # Early stopping doesnt worth with --val_intreval_check
+
+    # callback_early_stopping = EarlyStopping(
+    #     monitor="val/haversine_distance_epoch",
+    #     mode="min",
+    #     patience=DEFAULT_EARLY_STOPPING_EPOCH_FREQ,
+    #     check_on_train_epoch_end=False,  # note: this is extremely important for model checkpoint loading
+    #     verbose=True,
+    # )
 
     callback_checkpoint = ModelCheckpoint(
         monitor="val/haversine_distance_epoch",
@@ -157,7 +158,7 @@ if __name__ == "__main__":
         TQDMProgressBar(refresh_rate=bar_refresh_rate),
         ModelSummary(max_depth=3),
         LogMetricsAsHyperparams(),
-        # OverrideEpochMetricCallback(),
+        OverrideEpochMetricCallback(),
         OnTrainEpochStartLogCallback(),
         LearningRateMonitor(log_momentum=True),
     ]

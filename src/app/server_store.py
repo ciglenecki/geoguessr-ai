@@ -4,15 +4,15 @@ from typing import Dict
 
 from fastapi.exceptions import FastAPIError
 
-from app.config import config
+from app.server_config import server_config
 
 
 class ServerStore:
-    def __init__(self, config):
-        self.config = config
-        self.model_directory = str(config["MODEL_DIRECTORY"])
-        self.model_extension = str(config["MODEL_EXTENSION"])
-        self.batch_size = int(config["PREDICT_BATCH_SIZE"])
+    def __init__(self, server_config):
+        self.server_config = server_config
+        self.model_directory = str(server_config["MODEL_DIRECTORY"])
+        self.model_extension = str(server_config["MODEL_EXTENSION"])
+        self.batch_size = int(server_config["PREDICT_BATCH_SIZE"])
         self.cached_models = {}
         self.refresh_model_filepaths()
 
@@ -37,4 +37,4 @@ class ServerStore:
         return model_filepaths
 
 
-server_store = ServerStore(config)
+server_store = ServerStore(server_config)

@@ -15,7 +15,7 @@ from tqdm import tqdm
 from config import DEFAULT_IMAGE_SIZE
 from utils_dataset import DatasetSplitType
 from utils_functions import flatten
-from utils_paths import PATH_DATA, PATH_DATA_EXTERNAL, PATH_DATA_RAW
+from utils_paths import PATH_DATA, PATH_DATA_EXTERNAL, PATH_DATA_ORIGINAL
 
 
 class DatasetFlat(Dataset):
@@ -29,7 +29,7 @@ class DatasetFlat(Dataset):
     ) -> None:
         self.image_paths = flatten(
             [
-                glob(str(Path(dataset_dir, "images", dataset_type.value, "**/*.jpg")), recursive=True)
+                glob(str(Path(dataset_dir, dataset_type.value, "**/*.jpg")), recursive=True)
                 for dataset_dir in dataset_dirs
             ]
         )
@@ -44,7 +44,7 @@ class DatasetFlat(Dataset):
 
 
 if __name__ == "__main__":
-    dataset_dirs = [PATH_DATA_RAW, PATH_DATA_EXTERNAL, Path(PATH_DATA, "external2")]
+    dataset_dirs = [PATH_DATA_ORIGINAL, PATH_DATA_EXTERNAL, Path(PATH_DATA, "external2")]
     dataset = DatasetFlat(
         dataset_dirs,
         DatasetSplitType.TRAIN,
