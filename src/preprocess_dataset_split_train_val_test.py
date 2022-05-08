@@ -22,15 +22,9 @@ def parse_args(args):
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--image-dir",
-<<<<<<< HEAD
-        required=True,
-        type=is_valid_dir,
-        help="Path to the directory that contains UUID subdirectories.",
-=======
         type=is_valid_dir,
         help="Path to the directory that contains UUID subdirectories.",
         required=True,
->>>>>>> matej
     )
     parser.add_argument(
         "--out",
@@ -60,11 +54,7 @@ def main(args):
     args = parse_args(args)
 
     image_dir = args.image_dir
-<<<<<<< HEAD
-    out_dir = args.image_dir if args.out is None else args.out
-=======
     out_dir = Path(args.image_dir).parent if args.out is None else args.out
->>>>>>> matej
     split_ratios = args.split_ratios
 
     print(

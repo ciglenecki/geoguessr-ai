@@ -22,12 +22,7 @@ import aiohttp
 import pandas as pd
 from asgiref import sync
 from tqdm import tqdm
-<<<<<<< HEAD
-from utils_google_api import (add_columns_if_they_dont_exist, chunker, flip_df,
-                              get_signature_param)
-=======
 from utils_google_api import add_columns_if_they_dont_exist, chunker, flip_df, get_signature_param
->>>>>>> matej
 
 from utils_functions import flatten, get_dirs_only, get_timestamp
 from utils_paths import PATH_DATA_EXAMPLE_IMAGES, PATH_DATA_SAMPLER

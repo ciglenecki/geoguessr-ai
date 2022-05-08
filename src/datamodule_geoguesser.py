@@ -50,12 +50,6 @@ class GeoguesserDataModule(pl.LightningDataModule):
         image_size: int,
         batch_size: int = DEFAULT_BATCH_SIZE,
         train_mean_std: Optional[Tuple[List[float], List[float]]] = None,
-<<<<<<< HEAD
-        train_frac=DEFAULT_TRAIN_FRAC,
-        val_frac=DEFAULT_VAL_FRAC,
-        test_frac=DEFAULT_TEST_FRAC,
-=======
->>>>>>> matej
         dataset_frac=DEFAULT_DATASET_FRAC,
         image_transform: transforms.Compose = transforms.Compose([transforms.ToTensor()]),
         num_workers=DEAFULT_NUM_WORKERS,
@@ -99,13 +93,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
         ) = self._get_class_to_coords_maps(self.num_classes)
 
         if not train_mean_std:
-<<<<<<< HEAD
-            train_image_dirs = [
-                Path(dataset_dir, "images", DatasetSplitType.TRAIN.value) for dataset_dir in self.dataset_dirs
-            ]
-=======
             train_image_dirs = [Path(dataset_dir, DatasetSplitType.TRAIN.value) for dataset_dir in self.dataset_dirs]
->>>>>>> matej
             # TODO: this might take a long time for HUGE datasets. Suggest to user to use predefined values.
             mean, std = calculate_norm_std(train_image_dirs)
         else:
@@ -155,16 +143,11 @@ class GeoguesserDataModule(pl.LightningDataModule):
             df = pd.read_csv(Path(csv_rich_static))
         else:
             df_paths = [str(Path(dataset_dir, "data.csv")) for dataset_dir in self.dataset_dirs]
-<<<<<<< HEAD
-            df_merged = preprocess_csv_concat.main(["--csv", *df_paths, "--no-out"])
-            df = preprocess_csv_create_rich_static.main(["--spacing", str(DEFAULT_SPACING), "--no-out"], df_merged)
-=======
             path_csv_concated = str(Path(PATH_DATA_COMPLETE, "data.csv"))
             df_concated = preprocess_csv_concat.main(["--csv", *df_paths, "--out", path_csv_concated])
             df = preprocess_csv_create_rich_static.main(
                 ["--csv", path_csv_concated, "--spacing", str(DEFAULT_SPACING), "--no-out"], df_concated
             )
->>>>>>> matej
             assert type(df) is pd.DataFrame, "preprocess_csv_create_rich_static.py didn't return a dataframe object."
         return df
 
@@ -416,11 +399,7 @@ class GeoguesserDataModulePredict(pl.LightningDataModule):
 
 if __name__ == "__main__":
     # dm = GeoguesserDataModule(
-<<<<<<< HEAD
-    #     cached_df=Path(PATH_DATA_COMPLETE, "data__spacing_0.5__num_class_55.csv"),
-=======
     #     csv_rich_static=Path(PATH_DATA_COMPLETE, "data__spacing_0.5__num_class_55.csv"),
->>>>>>> matej
     #     dataset_dirs=[PATH_DATA_ORIGINAL],
     # )
     # dm.setup()

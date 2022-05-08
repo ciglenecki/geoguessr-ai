@@ -48,11 +48,7 @@ if __name__ == "__main__":
     dataset_frac = args.dataset_frac
     dataset_dirs = args.dataset_dirs
     batch_size = args.batch_size
-<<<<<<< HEAD
-    cached_df = args.cached_df
-=======
     csv_rich_static = args.csv_rich_static
->>>>>>> matej
     use_single_images = args.use_single_images
     is_regression = args.regression
     scheduler_type = args.scheduler

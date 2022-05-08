@@ -39,11 +39,8 @@ def main(args):
     if args.no_out:
         return df
 
-<<<<<<< HEAD
-=======
     print(Path(args.out).parent)
     os.makedirs(Path(args.out).parent, exist_ok=True)
->>>>>>> matej
     print("Saving df ({}) to '{}'".format(len(df), args.out))
     df.to_csv(args.out, index=False)
     return df

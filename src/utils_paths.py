@@ -20,10 +20,6 @@ PATH_DATA_COMPLETE = Path(PATH_DATA, "dataset_complete")
 
 """DATA/ORIGINAL"""
 PATH_DATA_ORIGINAL = Path(PATH_DATA, "original")
-<<<<<<< HEAD
-PATH_DATA_ORIGINAL_IMAGES = Path(PATH_DATA_ORIGINAL, "images")
-=======
->>>>>>> matej
 
 """DATA/EXTERNAL"""
 PATH_DATA_EXTERNAL = Path(PATH_DATA, "external")
