@@ -9,13 +9,15 @@ import shutil
 from distutils.dir_util import copy_tree
 from config import DEFAULT_SPACING
 import preprocess_csv_concat
-from utils_paths import PATH_DATA_SUBSET_EXTERNAL, PATH_DATA_SUBSET_ORIGINAL
+from utils_paths import PATH_DATA_SUBSET_EXTERNAL, PATH_DATA_SUBSET_ORIGINAL, PATH_FIGURE, PATH_MODEL, PATH_REPORT
 import preprocess_csv_create_rich_static
 import preprocess_dataset_split_train_val_test
 
 
 def parse_args(args):
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.RawTextHelpFormatter, description="Create initial dataset structure for the project"
+    )
 
     parser.add_argument(
         "--dataset-dirs",
@@ -34,17 +36,19 @@ def parse_args(args):
     parser.add_argument(
         "--copy-images",
         action="store_true",
-        help="Copy images from dataset directories to the new directory. You don't need to do this as later on you will be able to pass multiple dataset directories to various scripts.",
+        help="Copy images from dataset directories to the new complete directory.\n\tYou don't need to do this as later on you will be able to pass multiple dataset directories to various scripts.",
         default=False,
     )
     parser.add_argument(
         "--spacing",
         type=float,
-        help="""Spacing that will be used to create a grid of polygons. Different spacings produce different number of classes
-        0.7 spacing => ~31 classes
-        0.5 spacing => ~55 classes
-        0.4 spacing => ~75 classes
-        0.3 spacing => ~115 classes
+        help="""
+Spacing that will be used to create a grid of polygons.
+Different spacings produce different number of classes
+0.7 spacing => ~31 classes
+0.5 spacing => ~55 classes
+0.4 spacing => ~75 classes
+0.3 spacing => ~115 classes
         """,
         default=DEFAULT_SPACING,
     )
@@ -85,15 +89,15 @@ def concat_datasets(dataset_dirs: List[Path], out_dir: Path, should_copy_images:
 def main(args):
     args = parse_args(args)
 
-    for dir_name in ["reports"]:
-        os.makedirs(dir_name)
+    for dir_name in [PATH_REPORT, PATH_FIGURE, PATH_MODEL]:
+        os.makedirs(dir_name, exist_ok=True)
 
     dataset_dirs = args.dataset_dirs
     should_copy_images = args.copy_images
     if args.out_dir:
         out_dir = args.out_dir
     else:
-        parent_dir = dataset_dirs[0].parent
+        parent_dir = Path(dataset_dirs[0]).parent
         out_dir = Path(parent_dir, "dataset_complete_subset")
 
     os.makedirs(out_dir, exist_ok=True)
@@ -108,9 +112,9 @@ def main(args):
     )
 
     for dataset_dir in dataset_dirs:
-        preprocess_dataset_split_train_val_test.main(["--image-dir", dataset_dir])
+        preprocess_dataset_split_train_val_test.main(["--image-dir", str(Path(dataset_dir, "images"))])
     if should_copy_images:
-        preprocess_dataset_split_train_val_test.main(["--image-dir", out_dir])
+        preprocess_dataset_split_train_val_test.main(["--image-dir", str(Path(out_dir, "images"))])
 
 
 if __name__ == "__main__":

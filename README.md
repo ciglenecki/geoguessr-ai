@@ -25,6 +25,11 @@ geometry: margin=1.2cm
 numbersections: true
 title: |
 	Technical documentation
+
+header-includes:
+ - \usepackage{fvextra}
+ - \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines=true, breakanywhere=true,breaksymbol=,breaksymbol=, breakanywheresymbolpre=,commandchars=\\\{\}}
+
 ---
 
 
@@ -35,13 +40,10 @@ title: |
 </p>
 
 ## Notices:
-Although you might be reading this documentation in the form of a PDF file, **we highly recommand that you open the [README.md](README.md) file in a markdown editor** (GitHub, VSCode, PyCharm, IDE...).
-
-As for the API documentation, after setting up the environment, we recommand you run the server with the [`python3 src/app/main.py`](src/app/main.py) command after which you can inspect API endpoints in browser (and execute them too!)
-
-Essentialy, the techincal documentation PDF is rendered from the [README.md](README.md) markdown file and export of the in-browser API documentation. 
+Although you might be reading this documentation in the form of a PDF file, **we highly recommand that you open the [README.md](README.md) file in a markdown editor** (GitHub, VSCode, PyCharm, IDE...). As for the API documentation, after setting up the environment, we recommand you run the server with the [`python3 src/app/main.py`](src/app/main.py) command after which you can inspect API endpoints in browser (and execute them too!). Essentialy, the techincal documentation PDF is rendered from the [README.md](README.md) markdown file and export of the in-browser API documentation. 
 
 Few more notes:
+
 - the documentation assumes you are located at the `.lumen-geoguesser` directory when running Python scripts
 - all global variables are defined in [`src/config.py`](src/config.py) and [`src/paths.py`](src/utils_paths.py)
 - other directories have their own `README.md` files which are hopefully
@@ -52,11 +54,11 @@ Few more notes:
 
 | Directory                   | Description                    |
 | --------------------------- | ------------------------------ |
-| [data](./data/)             | dataset, csvs, country shapefiles                        |
-| [models](./models/)         | model checkpoints, model metadata       |
-| [references](./references/) | research papers and competition guidelines |
-| [reports](./reports/)       | model stat's, figures          |
-| [src](./src/)               | python source code             |
+| [data](data/)             | dataset, csvs, country shapefiles                        |
+| [models](models/)         | model checkpoints, model metadata       |
+| [references](references/) | research papers and competition guidelines |
+| [reports](reports/)       | model stat's, figures          |
+| [src](src/)               | python source code             |
 
 
 ##  Setup
@@ -64,7 +66,8 @@ Few more notes:
 ### Virtual environment
 Create and populate the [virtual environment](https://docs.python.org/3/library/venv.html#:~:text=A%20virtual%20environment%20is%20a,part%20of%20your%20operating%20system). Simply put, the virtual environment allows you to install Python packages only for this project (which you can easily delete later). This way, we won't clutter your global Python packages.
 
-
+**Step 1: Execute the following command:**
+  - the command will initialize the `venv` if it doesn't yet exist
 ```bash
 [ ! -d "venv" ] && (echo "Creating python3 virtual environment"; python3 -m venv venv)
 
@@ -73,10 +76,16 @@ pip install -r requirements.txt
 
 ### Dataset setup
 
-The original dataset strucutre has a directory `data` with images and `data.csv` at the top level:
-```
+This project allows multiple datasets, therefore multiple dataset directories can usually be sent to `*.py` programs 
+
+**Step 1: Rename directory `data` to `images`**
+- The original dataset strucutre has a directory `data` (e.g `dataset_original_subset/data`) which contains subdirectories with uuids of locations (`dataset_original_subset/data/6bde8efe-a565-4f05-8c60-ae2ffb32ee9b`).
+
+Dataset structure should look like this:
+
+```default
 dataset_original_subset/
-├── data
+├── images
 │   ├── 6bde8efe-a565-4f05-8c60-ae2ffb32ee9b
 │   │   ├── 0.jpg
 │   │   ├── 180.jpg
@@ -88,48 +97,90 @@ dataset_original_subset/
 │   │   ...
 │   ...
 └── data.csv
+
+
+dataset_external_subset/
+├── images
+│   ├── e61b6e5f-db0d-4f57-bbe3-4d31f16c5bc3
+│   │   ├── 0.jpg
+│   │   ├── 180.jpg
+│   │   ...
+│   ...
+└── data.csv
 ```
 
 Before running other scripts you have to properly setup new dataset structure using the [`src/preprocess_setup_datasets.py`](src/preprocess_setup_datasets.py) file. It's important to note that this file accepts multiple dataset directories as an argument and it will make sure to merge the datasets correctly. No changes will be done to your original directories.
 
-```
-usage: preprocess_csv_create_rich_static.py [-h] [--csv CSV] [--out dir] [--spacing SPACING] [--out-dir-fig dir] [--fig-format {eps,jpg,jpeg,pdf,pgf,png,ps,raw,rgba,svg,svgz,tif,tiff}] [--no-out]
+```default
+python3 src/preprocess_setup_datasets.py -h
+
+usage: preprocess_setup_datasets.py [-h] [--dataset-dirs dir [dir ...]] [--out-dir dir] [--copy-images] [--spacing SPACING]
 
 optional arguments:
   -h, --help            show this help message and exit
-  --csv CSV             Dataframe you want to enrich (default: None)
-  --out dir             Directory where the enriched dataframe will be saved (default: None)
-  --spacing SPACING     Spacing that will be used to create a grid of polygons.
+  --dataset-dirs dir [dir ...]
+                        Dataset root directories that will be transformed into a single dataset
+  --out-dir dir         Directory where compelte dataset will be placed
+  --copy-images         Copy images from dataset directories to the new complete directory.
+                        You don't need to do this as later on you will be able to pass multiple dataset directories to various scripts.
+  --spacing SPACING     
+                        Spacing that will be used to create a grid of polygons.
                         Different spacings produce different number of classes
                         0.7 spacing => ~31 classes
-                        0.5 spacing => ~55 classes (default: 0.7)
-  --out-dir-fig dir     Directory where the figure will be saved (default: /home/matej/projects/lumen-geoguesser/figures)
-  --fig-format {eps,jpg,jpeg,pdf,pgf,png,ps,raw,rgba,svg,svgz,tif,tiff}
-                        Supported file formats for matplotlib savefig (default: png)
-  --no-out              Disable any dataframe or figure saving. Useful when calling inside other scripts (default: False)
+                        0.5 spacing => ~55 classes
+                        0.4 spacing => ~75 classes
+                        0.3 spacing => ~115 classes
 ```
 
-Example:
+Example of running the initial setup script:
 
 ```sh
 python3 src/preprocess_setup_datasets.py --dataset-dirs data/dataset_original_subset data/dataset_external_subset --out-dir data/dataset_complete_subset
 ```
+What this script does on a high level:
+  1. For all data directories, split the dataset into train, val and test directories
+  2. `complete_subset/data.csv` is csv has concaternated rows of all `data.csv`s from data directories 
+  3. _Rich static CSV_ contains region information, which locations (images) are valid etc, centroids...
+  4. You can also copy images from all dataset directories to the `dataset_complete_subset` with `-- have also 
 
-To run scripts later, you must transform this structure to the following structure:
+New dataset structure:
 
-```
-complete_subset/
+```default
+dataset_complete_subset/
 ├── data.csv
 └── data_rich_static__spacing_0.5_classes_55.csv
+
+
+dataset_original_subset/
+├── data.csv
+├── images [100 entries exceeds filelimit, not opening dir]
+├── test
+│   ├── c4a74f0d-7f30-4966-9b92-f63279139d68
+│   │   ├── 0.jpg
+│   │   ├── 180.jpg
+│   │   ...
+│   ...
+├── train
+└── val
+
+
+dataset_external_subset/
+├── data.csv
+├── images
+├── test
+├── train
+└── val
 ```
 
-1. The dataset is split into train, val and test directories
-2. `data.csv` is csv has concaternated rows of all `data.csv`s
-3. _Rich static CSV_ contains region information, which locations (images) are valid etc, centroids...
 
+### Training
 
-
-
+After you prepared that new dataset structure you can start the _quick version_ of training
+```sh
+python3 src/train.py --dataset-dirs data/dataset_external_subset/ data/dataset_original_subset/ \
+--csv-rich-static data/dataset_complete_subset/data_rich_static__spacing_0.7_classes_31.csv \
+--quick
+```
 
 ### I have the directory `images` that looks like this: Creating enriched dataframe with centroids and regions:
 

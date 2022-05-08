@@ -22,12 +22,6 @@ output:
 		toc: yes
 		toc_depth:
 
-# author:
-# 	- Filip Wolf
-# 	- Leonardo Čuljak
-# 	- Borna Katović
-# 	- Matej Ciglenečki
-
 geometry: margin=1.2cm
 numbersections: true
 title: |
@@ -163,7 +157,7 @@ We have previously mentioned that it's possible to specify the number of classes
 ![](img/croata_n_55_grid.png){width=30%}
 ![](img/croata_n_115_grid.png){width=30%}
 \begin{figure}[!h]
-\caption{Different number of regions (20, 55, 115).}
+\caption{Grids for different number of regions (20, 55, 115).}
 \end{figure}
 
 

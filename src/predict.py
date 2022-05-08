@@ -59,9 +59,7 @@ if __name__ == "__main__":
         ]
     )
 
-    predict_datamodule = GeoguesserDataModulePredict(
-        [Path(PATH_DATA_ORIGINAL, "images", "test")], num_classes=model.num_classes
-    )
+    predict_datamodule = GeoguesserDataModulePredict([Path(PATH_DATA_ORIGINAL, "test")], num_classes=model.num_classes)
 
     trainer = pl.Trainer(
         log_every_n_steps=1, callbacks=[InferenceWriter(Path("./here/df.csv"))], checkpoint_callback=False, logger=False

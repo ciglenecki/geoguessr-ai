@@ -32,9 +32,6 @@ from config import (
     DEFAULT_BATCH_SIZE,
     DEFAULT_DATASET_FRAC,
     DEFAULT_SPACING,
-    DEFAULT_TEST_FRAC,
-    DEFAULT_TRAIN_FRAC,
-    DEFAULT_VAL_FRAC,
 )
 from utils_dataset import DatasetSplitType, filter_df_by_dataset_split
 from utils_functions import print_df_sample
@@ -53,9 +50,6 @@ class GeoguesserDataModule(pl.LightningDataModule):
         image_size: int,
         batch_size: int = DEFAULT_BATCH_SIZE,
         train_mean_std: Optional[Tuple[List[float], List[float]]] = None,
-        train_frac=DEFAULT_TRAIN_FRAC,
-        val_frac=DEFAULT_VAL_FRAC,
-        test_frac=DEFAULT_TEST_FRAC,
         dataset_frac=DEFAULT_DATASET_FRAC,
         image_transform: transforms.Compose = transforms.Compose([transforms.ToTensor()]),
         num_workers=DEAFULT_NUM_WORKERS,
@@ -65,15 +59,10 @@ class GeoguesserDataModule(pl.LightningDataModule):
         super().__init__()
         print("GeoguesserDataModule init")
 
-        self._validate_sizes(train_frac, val_frac, test_frac)
-
         self.dataset_dirs = dataset_dirs
         self.batch_size = batch_size
         self.train_mean_std = train_mean_std
 
-        self.train_frac = train_frac
-        self.val_frac = val_frac
-        self.test_frac = test_frac
         self.dataset_frac = dataset_frac
 
         self.image_transform = image_transform
@@ -104,9 +93,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
         ) = self._get_class_to_coords_maps(self.num_classes)
 
         if not train_mean_std:
-            train_image_dirs = [
-                Path(dataset_dir, "images", DatasetSplitType.TRAIN.value) for dataset_dir in self.dataset_dirs
-            ]
+            train_image_dirs = [Path(dataset_dir, DatasetSplitType.TRAIN.value) for dataset_dir in self.dataset_dirs]
             # TODO: this might take a long time for HUGE datasets. Suggest to user to use predefined values.
             mean, std = calculate_norm_std(train_image_dirs)
         else:
@@ -274,10 +261,6 @@ class GeoguesserDataModule(pl.LightningDataModule):
         os.makedirs(path.parents[0])
         self.df.to_csv(path, mode="w+", index=True, header=True)
 
-    def _validate_sizes(self, train_frac, val_frac, test_frac):
-        if sum([train_frac, val_frac, test_frac]) != 1:
-            raise InvalidSizes("Sum of sizes has to be 1")
-
     def prepare_data(self) -> None:
         pass
 
@@ -394,10 +377,6 @@ class GeoguesserDataModulePredict(pl.LightningDataModule):
             image_transform=image_transform,
         )
         self.dataset_frac = dataset_frac
-
-    def _validate_sizes(self, train_frac, val_frac, test_frac):
-        if sum([train_frac, val_frac, test_frac]) != 1:
-            raise InvalidSizes("Sum of sizes has to be 1")
 
     def prepare_data(self) -> None:
         pass

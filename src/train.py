@@ -45,7 +45,6 @@ if __name__ == "__main__":
     unfreeze_at_epoch = args.unfreeze_at_epoch
     weight_decay = args.weight_decay
     shuffle_before_splitting = args.shuffle_before_splitting
-    train_frac, val_frac, test_frac = args.split_ratios
     dataset_frac = args.dataset_frac
     dataset_dirs = args.dataset_dirs
     batch_size = args.batch_size
@@ -79,9 +78,6 @@ if __name__ == "__main__":
         csv_rich_static=csv_rich_static,
         dataset_dirs=dataset_dirs,
         batch_size=batch_size,
-        train_frac=train_frac,
-        val_frac=val_frac,
-        test_frac=test_frac,
         dataset_frac=dataset_frac,
         image_size=image_size,
         num_workers=num_workers,
