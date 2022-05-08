@@ -31,8 +31,11 @@ output:
 geometry: margin=1.2cm
 numbersections: true
 title: |
-	Documentation
-	![](img/geoguesser-logo.png){width=150}
+	Project documentation
+
+header-includes:
+ - \usepackage{fvextra}
+ - \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines=true, breakanywhere=true,breaksymbol=,breaksymbol=, breakanywheresymbolpre=,commandchars=\\\{\}}
 ---
 
 \pagebreak
@@ -43,10 +46,10 @@ title: |
 
 Most of use know and love the famous online game [_GeoGuessr_](https://en.wikipedia.org/wiki/GeoGuessr). You are dropped in the middle of nowhere in [_Google Street View_](https://www.google.com/streetview/) and tasked with determining your location as closely as possible. “Am I on the North or South Pole?”, “Is this the African or South American jungle?” and “On which end of Russia am I?” are only some of the questions players ask while playing the game. Fortunately, the problem we were tasked with is a little simpler (keyword: _a little_). Instead of playing GeoGuessr on a global scale, we play it only within Croatia. However, we won't be _actually_ playing GeoGuessr, rather, we will do our best to create a machine learning model which will determinate the location. [Photomath](https://photomath.com/en/), the sponsor of this competition, provided us with a **train set** of Google Street View images taken on Croatian roads along with their coordinates. The images come in quadruplets forming a non-continuous 360° view of the location, where each image was taken in a cardinal direction (north, south, west, east) from the perspective of the Street View car. Alongside the images themselves, we also received their locations in the form of latitude and longitude pairs for each set of four image. An example of the four images is displayed in Figure 1.
 
-![](img/0.jpg){width=25%}
-![](img/90.jpg){width=25%}
-![](img/180.jpg){width=25%}
-![](img/270.jpg){width=25%}
+![\ ](img/0.jpg){width=25%}
+![\ ](img/90.jpg){width=25%}
+![\ ](img/180.jpg){width=25%}
+![\ ](img/270.jpg){width=25%}
 
 \begin{figure}[!h]
 \caption{Example of an instance of the dataset. Each instance is composed of four images, each facing a cardinal direction. Example location latitude: 45.131946, longitude: 14.002129}
@@ -56,14 +59,13 @@ Most of use know and love the famous online game [_GeoGuessr_](https://en.wikipe
 
 As we previously stated, our task is to predict the coordinates of the images, specifically, the coordinates of the images from the **test set** which we will receive in the last week of the competition (kept of course in the most secret government bunkers, shut away from our prying eyes). It's important to note that we will not receive the true coordinates for the images in the test set. After we provide  predicted coordinates for each location from the test set, the total error is measured using the [**great-circle distance**](https://en.wikipedia.org/wiki/Great-circle_distance) between the predicted and true coordinates. The great-circle distance measures the distance between two points over a curved surface, e.g. the distance between two cities on the Earth’s curved surface, and it uses the [_haversine formula_](https://www.igismap.com/haversine-formula-calculate-geographic-distance-earth/) to do so (fortunately for you, we won’t go into detail about this). Total error is calculated as the mean of all great-circle distances between the true and predicted coordinates for all locations. It's also possible to explain this error in the following way: the further a bird needs to fly from the predicted coordinates to the true coordinates, the larger the error. The total error will be used to determine how successful one method is compared to others.
 
-![An image of a sphere where the dotted red line represents the great-circle distance between two points on the sphere’s surface. Notice that the great-circle circle distance is larger than a [direct straight line (Euclidean distance)](https://en.wikipedia.org/wiki/Euclidean_distance) through the sphere.](img/The-great-circle-distance-between-origin-and-destination.png){ width=50% }
-
+![An image of a sphere where the dotted red line represents the great-circle distance between two points on the sphere’s surface. Notice that the great-circle circle distance is larger than a [direct straight line (Euclidean distance)](https://en.wikipedia.org/wiki/Euclidean_distance) through the sphere.](img/The-great-circle-distance-between-origin-and-destination.png){ width=30% }
 
 # Solution
 
 ## Computer vision
 
-The data we were provided with is in the form of images (as well as coordinate information, but that’s not training data). When trying to solve problems which in some way revolve around images as the main source of data, the method used to find a solution will most likely come from the field of [**computer vision**](#computer-vision). Computer vision is an area of research that has arguably seen the most growth from the advent of deep learning, being right up there with with meaningless buzzwords and sketchy venture capital funds. Over the past decade, it grew from a niche research area to one of the most widely applicable fields within machine learning. Nowadays in computer vision, we use neural networks to analyze a large number of images, extract some potentially useful information from them, and use that information to classify those images into predefined classes or predict a target variable. It’s a field of research with a very wide spectrum of applications, ranging anywhere from detecting traffic sings for self-driving cars to distinguishing fake works of art from real ones. The problem we were tasked with solving in this competition falls neatly into this category. And indeed, we will also apply methods and knowledge from the area of computer vision to solve our problem.
+The data we were provided with is in the form of images (as well as coordinate information). When trying to solve problems which in some way revolve around images as the main source of data, the method used to find a solution will most likely come from the field of [**computer vision**](#computer-vision). Computer vision is an area of research that has arguably seen the most growth from the advent of deep learning, being right up there with with meaningless buzzwords and sketchy venture capital funds. Over the past decade, it grew from a niche research area to one of the most widely applicable fields within machine learning. Nowadays in computer vision, we use neural networks to analyze a large number of images, extract some potentially useful information from them, and use that information to classify those images into predefined classes or predict a target variable. It’s a field of research with a very wide spectrum of applications, ranging anywhere from detecting traffic sings for self-driving cars to distinguishing fake works of art from real ones. The problem we were tasked with solving in this competition falls neatly into this category. And indeed, we will also apply methods and knowledge from the area of computer vision to solve our problem.
 
 On paper, the problem sounds fairly simple and is not unlike many other computer vision tasks. However, we are faced with the following problem: a country can look very similar over large swathes of land. Turns out, the grass is green and the sky is blue wherever you are in the world. For example, if we were randomly placed somewhere in the area of [Slavonia](https://www.google.com/maps/@45.4743188,17.5110713,8.75z) and were told to determine where we are located exactly, it might feel impossible to predict our exact (or even approximate) location (the unending flatness of the region might give us a clue though). Unless we’ve already seen the landscape or we notice some obvious features of the location, such as a town sign or a famous landmark, there is little chance for us to correctly predict our whereabouts. There is a silver lining to this though. Croatia, although small, is very geologically and culturally diverse (thank you centuries of non-independence). Due to this, mountains, houses, forests and even fields can look different depending on the region of the country, giving precedence to the idea that the model could learn to spot these differences. That being said, it is nonetheless a difficult problem to solve and requires clever feature engineering and a careful neural network setup in order to work, which we will talk about in the coming chapters.
 
@@ -88,10 +90,11 @@ The capacity of a model to successfully predict values (in our case coordinates)
 
 Each layer in CNNs uses 2D _filters_ to capture image features. A filter is a 2D matrix where each element has it's own learnable weight. It slides across images to detect patterns it learned. You can think of it like a magnifying glass that slides across the image. Ideally, each filter in a CNN layer would specialize in learning different image features. By stacking multiple layers of these filters, each layer can learn a higher order of abstraction of the image data. For instance, the first layer might only learn to recognize simple lines. The second layer might combine these lines into shapes, while the third layer could finally combine these shapes into something recognizable, like a car. Such an architecture mimics how the human brain actually recognizes objects, that is to say, by combining smaller elements we see into larger ones. After we have stacked enough convolutional layers for recognizing objects, we finish off the network by feeding all the results into a fully connected layer for classification or regression and train it with any generic loss function.
 
-A large advantage of CNNs compared to other network architectures is their interpretability. The filter weights can be visualized to depict what each filter detects in an image, while network weights depict how the filters are combined. This can help us in understanding how the network learns from images. This is exemplified in Image 3.
+The filter weights can be visualized to depict what each filter detects in an image, while network weights depict how the filters are combined. This can help us in understanding how the network learns from images. This is exemplified in Image 3.
 
 ![This image depicts feature maps of the CNN trained on car images. We can see how the model learns progressively more complex features as we move higher in the layer order](img/example_feature_map_car.png){width=50%}
 
+For this competition, we used ResNeXt convolutional neural network.
 
 ## Data and Feature Engineering
 
@@ -104,7 +107,7 @@ The dataset we received is composed of a directory with images and a `data.csv` 
 | 5e2f692d-a2e6-45b1-b18b-3cec90b31b64 | 45.42498633931014 | 18.76785331863612 |
 | b3447ea2-8ea2-4c4e-b2a8-8611c8253995 | 46.15450138396207 | 17.0570928956176  |
 
-The `uuid` column is filled with IDs that represent the previously stated directory name. For each folder, we also have a specified `latitude` and `longitude` of the images contained inside. That being said, we made numerous modifications to this file ourselves, which we will describe in more detail in this chapter. We will call this new modified CSV file a _statically enriched csv_. An example can be seen in the following table:
+The `uuid` column is filled with IDs that represent the previously stated directory name. For each folder, we also have a specified `latitude` and `longitude` of the images contained inside. That being said, we made numerous modifications to this file ourselves, which we will describe in more detail in this chapter. We will call this new modified CSV file _Rich static CSV_. An example can be seen in the following table:
 
 | uuid  | lat   | lon   | poly_idx | center_lng | center_lat | crs_y      | crs_x      | crs_center_x | crs_center_y |
 | ------------------------------------ | ----- | ----- | -------- | ---------- | ---------- | ------- | ------- | ------------ | ------------ |
@@ -119,7 +122,7 @@ Another thing that was of interest to us was the visual inspection of the distri
 
 ## Data Representation
 
-Because Croatia is such a small country (though not as small as Slovenia) and its coordinates have a range of no more then a few degrees in both latitude and longitude, we needed to normalize them. But, before doing that, there was another transformation we needed to perform. The thing is, we can’t use the haversine distance function during the training phase of the model due to its slowness (it contains a lot of trigonometric operations that don’t cooperate nicely with GPU-s). But we also can’t use regular coordinates even after transforming them because the Earth’s surface is curved (even though some would want you to believe otherwise) and generic loss functions don’t take this into account. Coordinates that are expressed as a latitude and longitude pair in degrees live in the [ESPG:4326](https://en.wikipedia.org/wiki/EPSG_Geodetic_Parameter_Dataset#:~:text=EPSG%3A4326%20%2D%20WGS%2084%2C,including%20Google%20Maps%20and%20OpenStreetMap.) latitude/longitude coordinate system that's based on the Earth's center of mass. This coordinate system is unsuitable as input our our model, but before explaining why, we have to mention that the ESPG:4326 space is what is called a **global space**. This will be useful later on. Now, back to explaining the issue, the drawback of space represented as coordinates is that the straight path distance (a.k.a "digging a tunnel", a.k.a the Euclidean distance) between two coordinates doesn't scale well on large distances. For example, a straight path distance between the locations (lat: 10, lng: 0) and (lat: 20, lng: 0) isn't the same as the distance from location (lat: 20, lng: 0) to (lat: 30, lng: 0). Sure, you may think that, Croatia being small, it won’t affect the results, but it does make a difference in the end. So in order to fix it, **we need a simple system of `x` and `y` coordinates in 2D Euclidean space on which we can use straight path distance without remorse!** Multiple ideas were tested to solve this, including cosine transforming the coordinates, as well as projecting them into a Cartesian coordinate system of three coordinates. Finally, we ended up using a much more elegant solution with fewer steps: the [_coordinate reference system (CRS) projection_](https://en.wikipedia.org/wiki/Spatial_reference_system). Here’s how it works. It transforms every coordinate on Earth’s curved surface into a different coordinate on a flat surface (2D Euclidean space) using a projection. In other words, a latitude and longitude pair is transformed into a `x` and `y` pair. A wonderful thing about the `x` and `y` coordinates is that they are expressed in terms of meters and that the error of projection applied on Croatia is minimal (no more than about 1m). Maybe most importantly, a generic [mean squared error](https://youtu.be/Mhw_-xHVmaE) loss function is directly applicable to these coordinates, or at least, the standardized version of them. The exact name of the new space is called [ESPG:3766](https://epsg.io/3766) which we will refer to as **Croatia CRS space**, tailor made for projecting Croatia's latitude and longitude coordinates into `x` and `y` coordinates which live in 2D Euclidean space.
+Because Croatia is such a small country (though not as small as Slovenia) and its coordinates have a range of no more then a few degrees in both latitude and longitude. However, we can't use angle values (latitude and longitude) directly. For that, we would have to construct a loss function which works with angles, haversine formula. The thing is, we can’t use the haversine distance function during the training phase of the model due to its slowness (it contains a lot of trigonometric operations that don’t cooperate nicely with GPU-s). But we also can’t use regular coordinates even after transforming them because the Earth’s surface is curved (even though some would want you to believe otherwise) and generic loss functions don’t take this into account. Coordinates that are expressed as a latitude and longitude pair in degrees live in the [ESPG:4326](https://en.wikipedia.org/wiki/EPSG_Geodetic_Parameter_Dataset#:~:text=EPSG%3A4326%20%2D%20WGS%2084%2C,including%20Google%20Maps%20and%20OpenStreetMap.) latitude/longitude coordinate system that's based on the Earth's center of mass. This coordinate system is unsuitable as input our our model, but before explaining why, we have to mention that the ESPG:4326 space is what is called a **global space**. This will be useful later on. Now, back to explaining the issue, the drawback of space represented as coordinates is that the straight path distance (a.k.a "digging a tunnel", a.k.a the Euclidean distance) between two coordinates doesn't scale well on large distances. For example, a straight path distance between the locations (lat: 10, lng: 0) and (lat: 20, lng: 0) isn't the same as the distance from location (lat: 20, lng: 0) to (lat: 30, lng: 0). Sure, you may think that, Croatia being small, it won’t affect the results, but it does make a difference in the end. So in order to fix it, **we need a simple system of `x` and `y` coordinates in 2D Euclidean space on which we can use straight path distance without remorse!** Multiple ideas were tested to solve this, including cosine transforming the coordinates, as well as projecting them into a Cartesian coordinate system of three coordinates. Finally, we ended up using a much more elegant solution with fewer steps: the [_coordinate reference system (CRS) projection_](https://en.wikipedia.org/wiki/Spatial_reference_system). Here’s how it works. It transforms every coordinate on Earth’s curved surface into a different coordinate on a flat surface (2D Euclidean space) using a projection. In other words, a latitude and longitude pair is transformed into a `x` and `y` pair. A wonderful thing about the `x` and `y` coordinates is that they are expressed in terms of meters and that the error of projection applied on Croatia is minimal (no more than about 1m). Maybe most importantly, a generic [mean squared error](https://youtu.be/Mhw_-xHVmaE) loss function is directly applicable to these coordinates, or at least, the standardized version of them. The exact name of the new space is called [ESPG:3766](https://epsg.io/3766) which we will refer to as **Croatia CRS space**, tailor made for projecting Croatia's latitude and longitude coordinates into `x` and `y` coordinates which live in 2D Euclidean space.
 
 Splendid! Now we simply need to find the maximum and minimum coordinates of the train dataset and use them to normalize the data into a 0 – 1 range. This is done to improve training stability and simplify the output. It is worth noting that we calculate these values only on the training part of the dataset, as using other parts of the dataset would essentially give the model access to their information, which wouldn’t be fair at all. This is is called [_data leakage_](https://machinelearningmastery.com/data-leakage-machine-learning/). Since our model will be outputing coordinates in the Croatian CRS space, we need to re-project them back into the global space so we can properly calculate the great-circle distance. A degrees to radian transformation is one more transformation that we need to apply since functions, such as the haversine distance function, take radians as input.
 
@@ -131,14 +134,24 @@ The problem of predicting coordinates given four Google Street View images can b
 
 In the Classification approach, we classify images into a fixed set of regions of Croatia in the form of a grid on the map (notice: we lose the information about the image's exact location here), while in the regression approach we try regressing the image coordinates to a continuous output from the model that will be restricted by the minimum and maximum possible coordinates (bounds of Croatia).
 
-The set of regions of Croatia we mentioned above can be represented in the form of square regions on a map. Each region corresponds to a single class and each region also has a centroid that represents the coordinates assigned to the class. The idea is that, instead of predicting the _exact_ coordinates of an image, the model classifies the images into regions from the previously described set of regions (Figure 6). Notice that we don’t directly predict the coordinates for each set of four images, rather, we predict the class (region) of Croatia the images belong in. However, due to the way the competition is set up, at some point we do have to provide a concrete value for the latitude and longitude coordinates. How will we decide on these coordinates? We declare the predicted coordinates to be the **centroid of the predicted region**. This centroid will be used to calculate our error in regards to the true coordinates. Notice that the image's true coordinates might be relatively distant from the centroid of the region into which the image was classified. This error shrinks as the number of specified regions (classes) grows.
+![\ ](img/croatia_progression/country_HR_spacing_0.28_grid_2.png){style="width: 20%; margin: auto;"}
+\begin{figure}[!h]
+\caption{Example of maps of Croatia divided into distinct regions which represent classes.}
+\end{figure}
 
-![A map of Croatia divided into square regions. In this case, there are 115 regions that intersect with Croatia.](img/croata_n_115_grid.png){width=50%}
+<!-- \begin{figure}[!h]
+\caption{Example of maps of Croatia divided into distinct regions that represent classes. Red dots represent the centroids of the regions, or otherwise, the point on land closest to the centroid if the centroid is at sea. The number of regions are, from left to right, 20, 55 and 115}
+\end{figure} -->
 
+
+The set of regions of Croatia we mentioned above can be represented in the form of square regions on a map. Each region corresponds to a single class and each region also has a centroid that represents the coordinates assigned to the class. The idea is that, instead of predicting the _exact_ coordinates of an image, the model classifies the images into regions from the previously described set of regions (Figure 6). Notice that we don’t directly predict the coordinates for each set of four images, rather, we predict the class (region) of Croatia the images belong in.Due to the way the competition is set up, at some point we do have to provide a concrete value for the latitude and longitude coordinates. How will we decide on these coordinates? We declare the predicted coordinates to be the **centroid of the predicted region**. This centroid will be used to calculate our error in regards to the true coordinates. Notice that the image's true coordinates might be relatively distant from the centroid of the region into which the image was classified. This error shrinks as the number of specified regions (classes) grows.
 
 ### Class Creation
 
 How is this grid-like set of regions created? First, we create a generic grid that is located fully inside the bounds of Croatia. It contains numerous regions (squares) which are adjacent to each other. Although we are working with a fixed number of regions, not every region is created equal. This is because, unfortunately, some of them aren’t located in Croatia at all, as they don’t really intersect Croatian territory. Therefore, they shouldn’t be taken into consideration further on and are filtered out. After this is done, we proceed to the task of finding the centroids of these regions. Using the [`geopandas`](https://geopandas.org/en/stable/) library, this problem can be reduced to a single simple Python property: `region.centroid`. Great! Now we have a set of classes for our model. But before we continue the journey let us double-check what we did so far ...
+
+![A map of Croatia divided into square regions. In this case, there are 134 regions that intersect with Croatia.](img/croatia_progression/country_HR_spacing_0.28_grid_intersection_3.png){width=30%}
+
 
 ### Problems That Arise
 
@@ -148,9 +161,9 @@ Let us observe the following example. Even though the centroids of the regions w
 
 We have previously mentioned that it's possible to specify the number of classes we desire before creating the grid and thereby make it more or less dense. By choosing a dense grid, we can essentially simulate something akin to regression. This is because, as the number of classes increases and the size of each class decreases, more regions and centroid values are available as potential classes. A smaller class means that the theoretical maximum distance between a class’ centroid and the true image coordinates is also smaller, and therefore has the potential of decreasing the total prediction error. Note that, at the end of the day, this is what matters, not the accuracy of our class predictions, because we calculate the final error by measuring the distance between an image’s coordinates (here the class centroid) and its true coordinates. Even if we classify all images correctly, we will still have a potentially large average haversine distance because we never actually predict the true image coordinates, only the class centroids. If we take this to the extreme, which is an infinite number of classes, we can come quite close to regression, but there is a caveat. In classification models, each class needs a certain number of images to effectively train. If this number is too low, the model simply can’t extract enough meaningful information from the images of a class to learn the features of that class.
 
-![](img/croata_n_20_grid.png){width=33%}
-![](img/croata_n_55_grid.png){width=33%}
-![](img/croata_n_115_grid.png){width=33%}
+![\ ](img/croata_n_20_grid.png){width=33%}
+![\ ](img/croata_n_55_grid.png){width=33%}
+![\ ](img/croata_n_115_grid.png){width=33%}
 \begin{figure}[!h]
 \caption{Example of maps of Croatia divided into distinct regions that represent classes. Red dots represent the centroids of the regions, or otherwise, the point on land closest to the centroid if the centroid is at sea. The number of regions are, from left to right, 20, 55 and 115}
 \end{figure}
@@ -177,7 +190,7 @@ Lastly, as with most classification approaches, we use [cross entropy loss](http
 
 - Letters to the Computer Scientists, 0:9
 
-The true classes are represented with a one-hot encoded vector ([1, 0, 0]), while the predicted classes are represented with a vector of probabilities for the likelihood of each class ([0.6, 0.3, 0.1]). Now that we have probabilities for each class/region, how do we obtain the final coordinates? Firstly, we extract the centroid from all classes. Then, we multiply the centroids with the corresponding probabilities. You can think of the probabilities as weights in this context. Finally, we add everything up and end up with a [weighted arithmetic mean](https://en.wikipedia.org/wiki/Weighted_arithmetic_mean). Notice that our final predicted image coordinate is not necessarily within our predicted class, but as our model becomes more sure in its predictions, so do these averaged coordinates come closer to their true class. We have noticed that this averaging approach improves performance.
+The true classes are represented with a one-hot encoded vector ([1, 0, 0]), while the predicted classes are represented with a vector of probabilities for the likelihood of each class ([0.6, 0.3, 0.1]). Now that we have probabilities for each class/region, how do we obtain the final coordinates? Firstly, we extract the centroid from all classes. Then, we multiply the centroids with the corresponding probabilities. You can think of the probabilities as weights in this context. Finally, we add everything up and end up with a [weighted arithmetic mean](https://en.wikipedia.org/wiki/Weighted_arithmetic_mean). Notice that our final predicted image coordinate is not necessarily within our predicted class, or even bounds of Croatia (e.g. weighted mean location could end up in Bosnia)! Bbut as our model becomes more sure in its predictions, so do these averaged coordinates come closer to their true class. We have noticed that this averaging approach improves performance.
 
 ## Regression Approach
 
@@ -205,11 +218,10 @@ Some of the Python packages we used:
 - [`imageio`](https://imageio.readthedocs.io/en/stable/) - write and read image files
 - [`isort`](https://github.com/PyCQA/isort) - sort python imports
 - [`matplotlib`](https://matplotlib.org/) - data visualization with Python
-- [`NumPy`](https://numpy.org/) - mathematical functions and management of multi-dimensional arrays. Does anything even run without this?
+- [`NumPy`](https://numpy.org/) - mathematical functions and management of multi-dimensional arrays. Does anything even run without it?
 - `requests` - a HTTP library for Python. The goal of the project is to make HTTP requests simpler and more human-friendly
 - `scikit-learn` - a free machine learning library for Python. It features various classification, regression and clustering algorithms
 - `Shapely` - package for manipulation and analysis of planar geometric objects. It is based on the widely deployed GEOS (the engine of PostGIS) and JTS (from which GEOS is ported) libraries
-- `tabulate` - easy and pretty Python tables
 - `tensorboard` - library used for fetching and visualizing machine learning model training data in a browser
 - `tqdm` - easy Python progress bars
 
@@ -217,20 +229,20 @@ Some of the Python packages we used:
 
 The core library used for this project is PyTorch Lightning (PL), first developed by [William Falcon](https://www.williamfalcon.com/). You can glance through it's [introductory website](https://pytorch-lightning.readthedocs.io/en/stable/starter/introduction.html) to get a good sense of what PL actually does. PL doesn't introduce significant complexity to existing PyTorch code, isntead, it organizes the it into intuitive PyTorch Lightning modules. Examples of how it does this can be seen [here](https://pytorch-lightning.readthedocs.io/en/latest/starter/converting.html). It's important to note that the main component, the [`LightningModule`](https://pytorch-lightning.readthedocs.io/en/stable/common/lightning_module.html), is inherited from [`torch.nn.Module`](https://pytorch.org/docs/stable/generated/torch.nn.Module.html) but with added functionality, making it entirely compatible with regular PyTorch. It’s also worth noting that PL passively forced us to write clean code with smaller overhead (compared to raw PyTorch code) and allowed us to quickly add crucial functionalities like logging, model checkpoints, general prototyping, and more. Kudos to the [PyTorch Lightning team](https://www.pytorchlightning.ai/team) for creating, maintaining and improving this great library.
 
-To get a sense of how PL organizes code, we will show a simplified version of our `pl.LightningModule`:
+To get a sense of how Pytorch Lightning organizes code, we will show a simplified version of our `pl.LightningModule`:
 
 ```py
 # examples/litmodel.py
 ```
 
-(optional) you can quickly glance over Key PL modules:
+(optional) you can quickly glance over the documentation for key PL modules:
 
-1. [`pl.LightningModule`](https://pytorch-lightning.readthedocs.io/en/stable/common/lightning_module.html) - `LightningModule` organizes PyTorch code into six sections:
+1. [`pl.LightningModule`](https://pytorch-lightning.readthedocs.io/en/stable/common/lightning_module.html) - organizes PyTorch code into six sections:
    1. Computations (init)
    2. Train Loop (training_step)
    3. Validation Loop (validation_step)
    4. Test Loop (test_step)
-   5. Predicti3on Loop (predict_step)
+   5. Prediction Loop (predict_step)
    - this is also where the actual **model** is created
 2. [`pl.DataModule`](https://pytorch-lightning.readthedocs.io/en/latest/data/datamodule.html) - `DataModule` is a shareable, reusable class that encapsulates all the steps needed to process data:
    1. Download / process the data (for example from a website or CSV file)
@@ -253,20 +265,20 @@ It's also worth mentioning that any image or coordinate transformation is genera
 
 `GeoguesserDataset` inherits the [torch.utils.data.Dataset](https://pytorch.org/tutorials/beginner/data_loading_tutorial.html) class.
 
-### GeoguesserDataModule (src/datamodule_geoguesser.py) - The Bishop
+### GeoguesserDataModule ([src/datamodule_geoguesser.py](src/datamodule_geoguesser.py)) - The Bishop
 
 The `GeoguesserDataModule` is mainly responsible for two things:
 
-1. preprocessing that can't be done by `GeoguesserDataset`. This preprocessed data is sent to `GeoguesserDataset`.
-2. creating train, val and test [`DataLoader`s](https://pytorch.org/tutorials/beginner/basics/data_tutorial.html#preparing-your-data-for-training-with-dataloaders), each for one `GeoguesserDataset`
+1. preprocessing that can't/shouldn't be done by `GeoguesserDataset`. This preprocessed data is sent to `GeoguesserDataset`.
+2. creating train, val and test [`DataLoader`s](https://pytorch.org/tutorials/beginner/basics/data_tutorial.html#preparing-your-data-for-training-with-dataloaders), each of one `GeoguesserDataset`
 
-We will first describe what kind of preprocessing actually happens here. `GeoguesserDataModule` will receive the CSV file which contains information about the image's locations, i.e. regions in which they are placed. Then, this CSV is enriched with new columns in advance with values which we would otherwise need to calculate during the training. For example, we create a new column `crs_x_minmax` which is the `x` coordinate in Croatia's local system scaled to [0, 1]. We mentioned how we exclude the regions that contain no image data. But how can we know this in advance? What if someone decides to add more images (like we did) to the dataset and suddenly some region that was previously forgotten becomes a viable option? This is why we create classes in `GeoguesserDataModule` during runtime. The weighted mean centroid of each region is also calculated here. We also perform some dataset statistics extraction, as well as data standardization for all CRS features. Finally, we split the data into the train, validation and test dataset and create the dataset instances that will be described in the next paragraph. We also do some sanity checking to make sure everything is in order before continuing. 
+We will first describe what kind of preprocessing actually happens here. `GeoguesserDataModule` will receive the _Rich static CSV_ file which contains information about the image's locations, i.e. regions in which they are placed. Then, this CSV is enriched with new columns in advance with values which we would otherwise need to calculate during the training. For example, we create a new column `crs_x_minmax` which is the `x` coordinate in Croatia's local system scaled to [0, 1]. We mentioned how we exclude the regions that contain no image data. But how can we know this in advance? What if someone decides to add more images (like we did) to the dataset and suddenly some region that was previously forgotten becomes a viable option? This is why we create classes in `GeoguesserDataModule` during runtime. The weighted mean centroid of each region is also calculated here. It also performs some dataset statistics extraction, as well as data standardization for all CRS features. Finally, for each split, it creates the dataset instances that will be described in the next paragraph. We also do some sanity checking to make sure everything is in order before continuing. 
 
-![](img/Croatia_progression/country_HR_1.png){width=20%}
-![](img/Croatia_progression/country_HR_grid_2.png){width=20%}
-![](img/Croatia_progression/country_HR_grid_intersection_3.png){width=20%}
-![](img/Croatia_progression/data_fig__spacing_0.7__num_class_31_regions_colored_4.png){width=20%}
-![](img/Croatia_progression/data_fig__spacing_0.7__num_class_31centroid_5.png){width=20%}
+![\ ](img/croatia_progression/country_HR_1.png){width=20%}
+![\ ](img/croatia_progression/country_HR_spacing_0.28_grid_2.png){width=20%}
+![\ ](img/croatia_progression/country_HR_spacing_0.28_grid_intersection_3.png){width=20%}
+![\ ](img/croatia_progression/data_fig__spacing_0.28__num_class_134_regions_colored_4.png){width=20%}
+![\ ](img/croatia_progression/data_fig__spacing_0.28__num_class_134centroid_5.png){width=20%}
 \begin{figure}[!h]
 \caption{These figures represent the progression of the grid creation for Croatia. In step 1, a plain map of Croatia can be seen. In step 2, we overlay a square grid over the map. We then in step 3 remove classes (squares) from the grid that our outside the bounds of Croatia. In step 4, we eliminate classes that don’t have any images in them, and finally in step 5, we calculate the centroid for each class, as well as clip the centroids at sea to the closest point on land.}
 \end{figure}
@@ -275,10 +287,11 @@ A great thing about this module is that the size of the dataset can be dynamical
 
 `GeoguesserDataset` inherits the [`LightningDataModule`](https://pytorch-lightning.readthedocs.io/en/stable/extensions/datamodules.htm) class.
 
-### LitModelClassification (src/model_classification.py) or LitModelRegression (src/model_regression.py) - The King
+### LitModelClassification ([src/model_classification.py](src/model_classification.py)) or LitModelRegression ([src/model_regression.py](src/model_regression.py) - The King
 
-The CNN model that is going to perform the training is defined in the model module. The different models we defined here (classification and regression) all inherit the `LightningModule` class to make things as simple as possible. Each model fetches a pretrained network and changes its last layer to a layer more suitable for the model’s task. We then define each model’s `forward` function, which defines how our data is processed through all the layers of the model, as well as define and all of the training, validation and testing functions. Each function performs an iteration of training through its respective dataset and calculates error, and additionally in the case of validation and testing, the haversine distance function. We then log all the parameters of the model into a file for later fetching and usage.
+The CNN model that is going to perform the training is defined in the model module. Each model fetches a pretrained network and changes its last layer to a layer more suitable for the model’s task. We then define each model’s `forward` function, which defines how our data is processed through all the layers of the model, as well as define and all of the training, validation and testing functions. Each function performs an iteration of training through its respective dataset and calculates error, and additionally in the case of validation and testing, the haversine distance function. We then log all the parameters of the model into a file for later fetching and usage.
 
+Both models inherit the `pl.LightningModule`.
 
 #### Forward function - The King 
 <Todo: populate this>
@@ -318,8 +331,8 @@ ResNeXt is a highly modular architecture that revolves around repeating powerful
 
 Firstly, we removed the last layer of the network and replaced it with our own classification or regression layer in the form of a simple linear layer that had the appropriate output dimension for our problem. Secondly, because, as we mentioned before, every location contained four images, we modified our network to perform its forward operations for the four images in tandem and then concatenate the outputs before imputing them into the last layer. We did this after doing some research on what was the best way to compute the outputs of separate, but statistically linked images.
 
-![](img/model_arh.png){width=50%}
-![](img/model_arh_high.png){width=50%}
+![\ ](img/model_arh.png){width=50%}
+![\ ](img/model_arh_high.png){width=50%}
 \begin{figure}[!h]
 \caption{On the image on the left, we can see an overview of the model we used for training. Inputs are fed into the ResNeXt layer with four images being processed in parallel. The output is then fed into a linear layer which can either classify the results into distinct classes or predict coordinates directly as output. On the image on the right, a closeup of the ResNeXt backbone is shown. We can see that it is composed of an early convolution layer, followed by multiple sequential layers who all contain their own convolutions and transformations.}
 \end{figure}
