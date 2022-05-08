@@ -20,7 +20,8 @@ class EnvFileException(Exception):
     pass
 
 
-_config = dotenv_values()
+_config = dotenv_values("src/app/.env")
+print(_config)
 _keys = ["MODEL_DIRECTORY", "MODEL_EXTENSION", "PREDICT_BATCH_SIZE", "HOST", "PORT", "HOT_RELOAD"]
 if any([key not in _config for key in _keys]):
     raise EnvFileException(_exception_message.format(_keys))
