@@ -22,6 +22,12 @@ output:
 		toc: yes
 		toc_depth:
 
+# author:
+# 	- Filip Wolf
+# 	- Leonardo Čuljak
+# 	- Borna Katović
+# 	- Matej Ciglenečki
+
 geometry: margin=1.2cm
 numbersections: true
 title: |
@@ -219,30 +225,29 @@ To get a sense of how PL organizes code, we will show a simplified version of ou
 
 (optional) you can quickly glance over Key PL modules:
 
-1. [`pl.LightningModule`](https://pytorch-lightning.readthedocs.io/en/stable/common/lightning_module.html) - LightningModule organizes your PyTorch code into 6 sections:
+1. [`pl.LightningModule`](https://pytorch-lightning.readthedocs.io/en/stable/common/lightning_module.html) - `LightningModule` organizes PyTorch code into six sections:
    1. Computations (init)
    2. Train Loop (training_step)
    3. Validation Loop (validation_step)
    4. Test Loop (test_step)
    5. Predicti3on Loop (predict_step)
    - this is also where the actual **model** is created
-2. [`pl.DataModule`](https://pytorch-lightning.readthedocs.io/en/latest/data/datamodule.html) - datamodule is a shareable, reusable class that encapsulates all the steps needed to process data:
+2. [`pl.DataModule`](https://pytorch-lightning.readthedocs.io/en/latest/data/datamodule.html) - `DataModule` is a shareable, reusable class that encapsulates all the steps needed to process data:
    1. Download / process the data (for example from a website or CSV file)
    2. Clean and (maybe) save to disk
    3. Load the data into `Dataset`
-   4. Initialize transforms (rotate, resize, etc…) that will be sent to `Dataset`
+   4. Initialize transforms (rotate, resize, etc …) that will be sent to `Dataset`
    5. Wrap `Dataset` inside a `DataLoader`. `DataLoader` will be returned to the `Trainer`.
 
-
-3. [`pl.Trainer`](https://pytorch-lightning.readthedocs.io/en/latest/common/trainer.html) - once you’ve organized your PyTorch code into a `pl.LightningModule`, the `pl.Trainer` automates everything else:
-   1. Automatically enabling/disabling grads
+3. [`pl.Trainer`](https://pytorch-lightning.readthedocs.io/en/latest/common/trainer.html) - once you’ve organized your PyTorch code into a `LightningModule`, the `Trainer` automates everything else:
+   1. Automatic enabling/disabling of gradients
    2. Running the training, validation and test dataloaders
    3. Calling the Callbacks (logging, model checkpoints, learning rate scheduling...) at the appropriate times
    4. Putting batches and computations on the correct devices
 
 ### GeoguesserDataset ([src/dataset_geoguesser.py](../src/dataset_geoguesser.py)) - The Pawn
 
-The `GeoguesserDataset` module is responsible for lazily fetching images and their coordinates during training. We initialize it three times in total (for training, validation and testing). Now, each of the three `GeoguesserDataset`s is responsible only for fetching the data from it's corresponding dataset. For example, the `GeoguesserDataset` with the parameter `dataset_type` set to `DatasetSplitType.TRAIN` will only return the images from the train set. The most important operation that the `GeoguesserDataset` module performs, aside from defining from which dataset the images are fetched, is lazily fetching and passing the location and four images (one for each cardinal direction) to the `pl.Trainer` during the training, validation and testing phase. Essentially, this module answers the following question: "_Which data will I start sending out in batches once the training process is started_?"
+The `GeoguesserDataset` module is responsible for lazily fetching images and their coordinates during training. We initialize it three times in total (for training, validation and testing). Now, each of the three `GeoguesserDataset`s is responsible only for fetching the data from it's corresponding dataset. For example, the `GeoguesserDataset` with the parameter `dataset_type` set to `DatasetSplitType.TRAIN` will only return the images from the train set. The most important operation that the `GeoguesserDataset` module performs, aside from defining from which dataset the images are fetched, is lazily fetching and passing the location and four images (one for each cardinal direction) to the `Trainer` during the training, validation and testing phase. Essentially, this module answers the following question: "_Which data will I start sending out in batches once the training process is started_?"
 
 It's also worth mentioning that any image or coordinate transformation is generally done inside of this module. What does this mean? Let's say we want to resize our original image, 640x640 pixels, to a size of 224x224 pixels. The model obviously requires more time to train on large images. Since this competition lasts a few months and not a few years (now THAT would be interesting), we generally resize our images to 224x224 pixels. Instead of resizing images stored on the disk, we can do this during training. And you might say "yes, wouldn’t it be faster to resize them in advance so that the program doesn't waste precious resources during training?". That's true, but the computation required to resize the image is negligible compared to other actions that occur during the training phase. Okay, so we settled on resizing the images during training. Now, who would be responsible for that? Exactly, that would be `GeoguesserDataset`. Before returning the images and their coordinates to the trainer which sends it further into the model, the `GeoguesserDataset` will apply resizing transformation on the images. In fact, any transformation can be specified before we create the `GeoguesserDataset` and that exact transformation will be applied before the trainer fetches the data. Examples of such image transformations, other than resizing, include cropping, translation, noise injection, color space transformations, and [more](https://journalofbigdata.springeropen.com/articles/10.1186/s40537-019-0197-0).
 
@@ -252,13 +257,21 @@ It's also worth mentioning that any image or coordinate transformation is genera
 
 The `GeoguesserDataModule` is mainly responsible for two things:
 
-1. preprocessing that can't be done by `GeoguesserDataset`. This preprocessed data is sent to the `GeoguesserDataset`.
+1. preprocessing that can't be done by `GeoguesserDataset`. This preprocessed data is sent to `GeoguesserDataset`.
 2. creating train, val and test [`DataLoader`s](https://pytorch.org/tutorials/beginner/basics/data_tutorial.html#preparing-your-data-for-training-with-dataloaders), each for one `GeoguesserDataset`
 
-We will first describe what kind of preprocessing actually happens here. `GeoguesserDataModule` will receive the CSV file which contains information about image's locations, regions in which they are placed. Then this CSV is enriched with new columns in advance, values which we would need to calculate during the training. For example, we create a new column `crs_x_minmax` which is the x coordinate in Croatia's local system scaled to [0, 1]. We mentioned how we exclude the regions that contain no image data. But how can we know this in advance? What if someone decides to add more images (like we did) in the sets and suddenly some region that was long forgotten becomes a viable option? This is why we create classes in `GeoguesserDataModule`, during the runtime. The weighted mean centroid of each region is also calculated here. We also perform some dataset statistics extraction, as well as data standardization for all CRS features. Finally, we split the data into the train, validation and test dataset and create the dataset instances that will be described in the next paragraph. We also do some sanity checking to make sure everything is in order before continuing. 
-<todo: insert image of croatia, grid and each class and its number>
+We will first describe what kind of preprocessing actually happens here. `GeoguesserDataModule` will receive the CSV file which contains information about the image's locations, i.e. regions in which they are placed. Then, this CSV is enriched with new columns in advance with values which we would otherwise need to calculate during the training. For example, we create a new column `crs_x_minmax` which is the `x` coordinate in Croatia's local system scaled to [0, 1]. We mentioned how we exclude the regions that contain no image data. But how can we know this in advance? What if someone decides to add more images (like we did) to the dataset and suddenly some region that was previously forgotten becomes a viable option? This is why we create classes in `GeoguesserDataModule` during runtime. The weighted mean centroid of each region is also calculated here. We also perform some dataset statistics extraction, as well as data standardization for all CRS features. Finally, we split the data into the train, validation and test dataset and create the dataset instances that will be described in the next paragraph. We also do some sanity checking to make sure everything is in order before continuing. 
 
-Great thing about this module is that it's dynamic in terms of defining the size of the dataset. Parameters that define the fraction each set (`train_frac`,`val_frac`,`test_frac`) or the dataset as a whole (`dataset_frac`) turned out to be quite useful during the prototyping phase of the problem solving. Although you almost always want to use all your available data (`dataset_frac = 1`) it's nice to have options too.
+![](img/Croatia_progression/country_HR_1.png){width=20%}
+![](img/Croatia_progression/country_HR_grid_2.png){width=20%}
+![](img/Croatia_progression/country_HR_grid_intersection_3.png){width=20%}
+![](img/Croatia_progression/data_fig__spacing_0.7__num_class_31_regions_colored_4.png){width=20%}
+![](img/Croatia_progression/data_fig__spacing_0.7__num_class_31centroid_5.png){width=20%}
+\begin{figure}[!h]
+\caption{These figures represent the progression of the grid creation for Croatia. In step 1, a plain map of Croatia can be seen. In step 2, we overlay a square grid over the map. We then in step 3 remove classes (squares) from the grid that our outside the bounds of Croatia. In step 4, we eliminate classes that don’t have any images in them, and finally in step 5, we calculate the centroid for each class, as well as clip the centroids at sea to the closest point on land.}
+\end{figure}
+
+A great thing about this module is that the size of the dataset can be dynamically defined. The parameters that define the fraction for the size of each set (`train_frac`,`val_frac`,`test_frac`) or the dataset as a whole (`dataset_frac`) turned out to be quite useful during the prototyping phase of the problem solving. Although you almost always want to use all your available data (`dataset_frac = 1`), it's nice to have the option for that.
 
 `GeoguesserDataset` inherits the [`LightningDataModule`](https://pytorch-lightning.readthedocs.io/en/stable/extensions/datamodules.htm) class.
 
