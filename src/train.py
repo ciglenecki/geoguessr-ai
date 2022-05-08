@@ -65,7 +65,7 @@ if __name__ == "__main__":
     os.makedirs(output_report, exist_ok=True)
     filename_report = Path(
         output_report,
-        "__".join(["train", experiment_codeword, timestamp]) + ("__quick" if is_quick else "") + ".txt",
+        "__".join(["train", experiment_codeword, timestamp]) + ".txt",
     )
 
     stdout_to_file(filename_report)

@@ -1,3 +1,37 @@
+
+
+## Evaluate:
+```sh
+curl -X POST lumen.photomath.net/evaluate \
+-F 'file=@mapped_to_country_pred-Mike_41-2022-05-06-10-01-15.csv' \
+-F "team_code=<INSERT CODE HERE>"
+```
+
+Stats:
+33.37094934360599 - mapped_to_country_pred-Mike_41-2022-05-06-10-01-15.csv 
+
+
+
+
+
+
+### Developer notes:
+
+To create `requirements.txt` use the following steps:
+
+```sh
+pip install pipreqs
+cp requirements.txt requirements.txt.backup
+pipreqs --force .
+```
+
+
+
+Merging PDFs:
+```
+pdfunite in-1.pdf in-2.pdf in-n.pdf out.pdf
+```
+
 ## 🧠 Brainstorming
 
 

@@ -51,21 +51,21 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
         "--regression",
         action="store_true",
         default=False,
-        help="Select regression model for training",
+        help="Select regression model for training instead of classification",
     )
     user_group.add_argument(
         "--dataset-frac",
         metavar="float",
         default=DEFAULT_DATASET_FRAC,
         type=is_between_0_1,
-        help="Size of the dataset that will be trained",
+        help="Fraction of the dataset that will be used. This fraction reduces the size for all dataset splits.",
     )
     user_group.add_argument(
         "--image-size",
         metavar="int",
         default=DEFAULT_IMAGE_SIZE,
         type=is_valid_image_size,
-        help="Image size",
+        help="Image size in pixels",
     )
     user_group.add_argument(
         "--num-workers",
@@ -78,7 +78,7 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
         "--model",
         default=DEFAULT_MODEL,
         type=str,
-        help="Models used for training",
+        help="Models used for training. resnext101_32x8d is recommend. We not guarantee that other models will work out the box",
         choices=[
             "resnet18",
             "resnet34",
@@ -103,7 +103,7 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
         metavar="dir",
         nargs="+",
         type=str,
-        help="Dataset root directories that will be used for training",
+        help="Dataset root directories that will be used for training, validation and testing",
         required=True,
         default=[PATH_DATA_ORIGINAL, PATH_DATA_EXTERNAL],
     )
@@ -111,7 +111,7 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
     user_group.add_argument(
         "--csv-rich-static",
         type=str,
-        help="e.g. data/original/data__num_class_259__spacing_0.2.csv => Filepath to cached dataframe",
+        help="Filepath to the Rich static CSV (e.g. data/dataset_complete_subset/data_rich_static__spacing_0.7_classes_31.csv",
     )
 
     user_group.add_argument(
@@ -122,18 +122,17 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
         default=PATH_REPORT,
     )
     user_group.add_argument(
-        "-b",
         "--unfreeze-blocks",
         metavar="['all', 'layer3.2', n]",
         type=is_valid_unfreeze_arg,
-        help="Number of trainable blocks. Parameters of trainable block will be updated (required_grad=True) during the training. This argument changes nothing if argument `--pretrained` isn't set. If model isn't pretrained its weights are random.It doesn't make sense to freeze blocks which have random (untrained) weights.",
+        help="'All': the whole model is trainable. n: number of trainable blocks (block is the highest level nn.Module). 'layer{3.2, 4.10,...}': model will be trainable from specified layer onwards",
         default=DEFAULT_UNFREEZE_LAYERS_NUM,
     )
     user_group.add_argument(
         "-p",
         "--pretrained",
         type=bool,
-        help="Load pretrained model.",
+        help="Use the pretrained model.",
         default=DEFAULT_PRETRAINED,
     )
     user_group.add_argument(
@@ -145,7 +144,7 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
 
     user_group.add_argument(
         "--recaculate-normalization",
-        help="Calls calculate_norm_std during before training to ensure that images are properly normalize with training data only.",
+        help="Warning: this could take along time for large datasets. Calls calculate_norm_std during before training to ensure that images are properly normalize with training data only.",
         action="store_true",
         default=False,
     )
@@ -169,7 +168,7 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
     user_group.add_argument(
         "-u",
         "--unfreeze-at-epoch",
-        help="Backbone Finetuning. Trains only last layer for n epoches.",
+        help="Finetuning, defines how many epochs should pass until the model is unfrozen.",
         metavar="N",
         type=is_positive_int,
         default=DEFAULT_FINETUNING_EPOCH_PERIOD,
@@ -188,6 +187,7 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
     )
     user_group.add_argument(
         "--lr-finetune",
+        help="Learning rate that will be used during the finetuning phase. Same as initial learning rate by default.",
         type=float,
         default=DEFAULT_LR_FINETUNE,
     )
@@ -195,7 +195,7 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
     user_group.add_argument(
         "--use-single-images",
         action="store_true",
-        help="Use single image as an input to the model",
+        help="Use single image as an input to the model. Warning: this is experimental.",
     )
 
     user_group.add_argument(
@@ -216,6 +216,7 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
         "--epochs",
         default=DEFAULT_EPOCHS,
         type=is_positive_int,
+        help="Maximum number epochs. Works only when using the ONECYCLE scheduler. Default number of epochs in other cases is 1000.",
     )
 
     args = parser.parse_args()

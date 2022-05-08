@@ -1,13 +1,29 @@
-To render documentation.md to pdf use the following:
+Requirements:
 ```
 sudo apt update
 sudo apt install nodejs npm
+sudo npm install --global embedme
+```
 
-npx embedme --strip-embed-comment --stdout docs/documentation.md > docs/tmp.md && pandoc --standalone --toc  docs/tmp.md --pdf-engine=xelatex --resource-path=docs -s --highlight-style kate -o docs/pdf-documentation.pdf
+Render documentation
+```
+npx embedme --strip-embed-comment --stdout docs/documentation.md > docs/.tmp.md && \
+pandoc --standalone --toc --pdf-engine=xelatex \
+--resource-path=docs \
+-H docs/head.tex \
+--wrap auto --highlight-style espresso \
+docs/.tmp.md \
+-o docs/pdf-documentation.pdf
+```
 
-npx embedme --strip-embed-comment --stdout docs/documentation.md > docs/tmp.md && pandoc --standalone --toc docs/tmp.md --pdf-engine=xelatex --resource-path=docs -s --wrap auto --highlight-style espresso -o docs/pdf-documentation.pdf -H docs/head.tex
-
-pandoc --standalone --toc README.md --pdf-engine=xelatex --resource-path=docs -s --wrap auto --highlight-style espresso -o pdf-technical-documentation.pdf -H docs/head.tex
+Render technical documentation
+```
+pandoc --standalone --toc --pdf-engine=xelatex \
+--resource-path=. \
+-H docs/head.tex \
+--wrap auto --highlight-style espresso \
+README.md \
+-o docs/pdf-technical-documentation.pdf
 ```
 
 To resize images to 2000px:
