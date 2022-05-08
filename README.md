@@ -1,4 +1,4 @@
----
+﻿---
 # to transform this file to .pdf run the following command: pandoc --standalone --toc  docs/documentation.md --pdf-engine=xelatex --resource-path=docs -o docs/pdf-documentation.pdf
 
 # https://pandoc-discuss.narkive.com/m4QmhNgm/fetch-images-when-creating-pdf
@@ -40,17 +40,17 @@ header-includes:
 </p>
 
 ## Notices:
-Although you might be reading this documentation in the form of a PDF file, **we highly recommend that you open the [README.md](README.md) file in a markdown editor** (GitHub, VSCode, PyCharm, IDE...). As for the API documentation, after setting up the environment, we recommend you run the server with the [`python3 src/app/main.py`](src/app/main.py) command after which you can inspect API endpoints in browser (and execute them too!). Essentially, the technical documentation PDF is rendered from the [README.md](README.md) markdown file and export of the in-browser API documentation. 
 
-Few more notes:
+Although you might be reading this documentation in the form of a PDF file, **we strongly recommend that you open the [README.md](README.md) file in a markdown editor** (GitHub, VSCode, PyCharm, IDE...). As for the API documentation, after setting up the environment, we recommend you run the server with the [`python3 src/app/main.py`](src/app/main.py) command after which you can inspect API endpoints in a browser (and execute them too!). Essentially, the technical documentation PDF is rendered from the [README.md](README.md) markdown file and concatenated with the PDF API documentation. 
+
+A few more notes:
 
 - the documentation assumes you are located at the `.lumen-geoguesser` directory when running Python scripts
 - all global variables are defined in [`src/config.py`](src/config.py) and [`src/paths.py`](src/utils_paths.py)
-- other directories have their own `README.md` files which hopefully come useful 
-- you can run most python files with the `python3 program.py -h` to the sense of which arguments you can/must send and what the script actually does
+- other directories have their own `README.md` files which hopefully will come in handy
+- you can run most python files with the `python3 program.py -h` command to get a sense of which arguments you can/must send and what the script actually does
 
-
-## Directory structure
+## Directory Structure
 
 | Directory                 | Description                                |
 | ------------------------- | ------------------------------------------ |
@@ -62,23 +62,23 @@ Few more notes:
 | [reports](reports/)       | model checkpoints and model metadata       |
 | [src](src/)               | python source code                         |
 
-
 ##  Setup
 
-### Virtual environment
-Create and populate the [virtual environment](https://docs.python.org/3/library/venv.html#:~:text=A%20virtual%20environment%20is%20a,part%20of%20your%20operating%20system). Simply put, the virtual environment allows you to install Python packages only for this project (which you can easily delete later). This way, we won't clutter your global Python packages.
+### Virtual Environment
+
+Create and populate the [virtual environment](https://docs.python.org/3/library/venv.html#:~:text=A%20virtual%20environment%20is%20a,part%20of%20your%20operating%20system). Simply put, the virtual environment allows you to install Python packages for this project only (which you can easily delete later). This way, we won't clutter your global Python packages.
 
 **Step 1: Execute the following command:**
-  - the command will initialize the `venv` if it doesn't yet exist
+  - the command will initialize the `venv` if it doesn't exist yet
 ```bash
 [ ! -d "venv" ] && (echo "Creating python3 virtual environment"; python3 -m venv venv)
 . venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### Dataset setup
+### Dataset Setup
 
-This project allows multiple datasets, therefore multiple dataset directories can usually be sent to `*.py` programs 
+This project allows for the usage multiple datasets, therefore, multiple dataset directories can usually be sent to `*.py` programs 
 
 **Step 1: If needed, rename directory `data` (which contains uuid subdirectories) to `images`**
 - The original dataset structure has a directory `data` (e.g `dataset_original_subset/data`) which contains subdirectories with uuids of locations (`dataset_original_subset/data/6bde8efe-a565-4f05-8c60-ae2ffb32ee9b`).
@@ -111,7 +111,7 @@ dataset_external_subset/
 └── data.csv
 ```
 **Step 2: Setup datasets with [`src/preprocess_setup_datasets.py`](src/preprocess_setup_datasets.py)**
-- Before running other scripts you have to properly setup new dataset structure using the [`src/preprocess_setup_datasets.py`](src/preprocess_setup_datasets.py) file. It's important to note that this file accepts multiple dataset directories as an argument and it will make sure to merge the datasets correctly. No changes will be done to your original directories.
+- Before running other scripts, you have to properly setup a new dataset structure using the [`src/preprocess_setup_datasets.py`](src/preprocess_setup_datasets.py) file. It's important to note that this file accepts multiple dataset directories as an argument and it will make sure to merge the datasets correctly. No changes will be done to your original directories.
 
 ```default
 python3 src/preprocess_setup_datasets.py -h
@@ -127,7 +127,7 @@ optional arguments:
                         You don't need to do this as later on you will be able to pass multiple dataset directories to various scripts.
   --spacing SPACING     
                         Spacing that will be used to create a grid of polygons.
-                        Different spacings produce different number of classes
+                        Different spacings generate a different number of classes
                         0.7 spacing => ~31 classes
                         0.5 spacing => ~55 classes
                         0.4 spacing => ~75 classes
@@ -142,11 +142,10 @@ python3 src/preprocess_setup_datasets.py --dataset-dirs data/dataset_original_su
 
 `preprocess_setup_datasets.py` does all the necessary preprocessing. However, underneath the hood it calls other preprocessing scripts. What happens when you run this script?
 
-1. directory of the new (complete) dataset is created, images are copied if `--copy-images` flag was passed
-2. `preprocess_csv_concat.main()` is called which concatenates multiple `data.csv`s into a single `data.csv`
-3. this new (complete) `data.csv`  is enriched by `preprocess_csv_create_rich_static.main()`. Here, regions (future classes) and their information (centroids, crs centroids...) are attached to each location. Enriched data is saved to a _Rich static CSV_ file created called `data_rich_static__spacing_<float>_classes_<int>`.
+1. a directory for the new (complete) dataset is created, images are copied if `--copy-images` flag was passed
+2. `preprocess_csv_concat.main()` is called, which concatenates multiple `data.csv`s into a single `data.csv`
+3. this new (complete) `data.csv`  is enriched by `preprocess_csv_create_rich_static.main()`. Here, regions (future classes) and their information (centroids, crs centroids ...) are attached to each location. Enriched data is saved to a _Rich static CSV_ file created called `data_rich_static__spacing_<float>_classes_<int>`.
 4. Directory `images` in all directories (including the `complete` one) will be split into `train`, `val` and `test` directories. Note: directory `images` won't be deleted.
-
 
 New dataset structure:
 
@@ -180,14 +179,15 @@ dataset_external_subset/
 
 ## Training
 
-After you prepared that new dataset structure you can start the _quick version_ of training:
+After you prepared that new dataset structure, you can start the _quick version_ of training:
 ```sh
 python3 src/train.py --dataset-dirs data/dataset_external_subset/ data/dataset_original_subset/ \
 --csv-rich-static data/dataset_complete_subset/data_rich_static__spacing_0.7_classes_31.csv \
 --quick
 ```
 
-`--csv-rich-static` can be left out which fill force the _Rich static CSV_ creation in the runtime (this will somewhat slow down the initial setup). You can perform the full training by removing the `--quick` flag. Some additional interesting arguments are listed below. Run the `python src/train.py -h` command to see all supported arguments. 
+`--csv-rich-static` can be left out which forces the _Rich static CSV_ creation during runtime (this will somewhat slow down the initial setup). You can perform the full training by removing the `--quick` flag. Some additional interesting arguments are listed below. Run the `python src/train.py -h` command to see all supported arguments. 
+
 ```default
 --image-size
 --num-workers
@@ -212,10 +212,9 @@ python3 src/train.py \
 --unfreeze-at-epoch 1 --scheduler plateau
 ```
 
-During the training a few things will occur in the [`reports/`](reports/) directory:
+During the training, a few things will occur in the [`reports/`](reports/) directory:
 
-
-1. `reports/train_*.txt` files will be create which log everything that's outputted to the standard output
+1. `reports/train_*.txt` files will be created which log everything that's outputted to the standard output
 2. subdirectory `reports/<model_name>` will be created in which:
     1. `data_runtime.csv` will be created, serves as backup
     2. `version/0` directory which contains:
@@ -236,39 +235,17 @@ reports/<model_name>/
 
 ## Logs - Tensorboard
 
-Tensorboard logging is enabled by default. To see training and validation logs, run the command bellow. Logs should be available in browser at `http://localhost:6006/`. For more options check `tensorboard -h`.
+Tensorboard logging is enabled by default. To see training and validation logs, run the command bellow. Logs should be available in a browser at `http://localhost:6006/`. For more options, check `tensorboard -h`.
 ```bash
 tensorboard --port 6006 --logdir reports/
 ```
 ![](docs/img/tensorboard_example.png){width=30%}
 
-## Inference
+## Local Server
 
-After you trained a model and have the model checkpoint file (`.ckpt`) ready, you can run inference with `predict.py` file. 
+A local server is useful when you are trying to do inference on a trained model. The sever code and config live in the [`src/app`](src/app) directory.
 
-```default
-usage: predict.py [-h] --checkpoint CHECKPOINT --images-dir IMAGES_DIR --out OUT
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --checkpoint CHECKPOINT
-                        Path to the model checkpoint (default: None)
-  --images-dir IMAGES_DIR
-                        Path to images directory (default: None)
-  --out OUT             Path to csv output (default: None)
-```
-
-```bash
-python3 src/predict.py --checkpoint <path_to_model.ckpt> \
---images-dir data/dataset_original_subset/test
---out data/dataset_original_subset/predictions.csv
-```
-
-## Local server
-
-Local server is useful when you are trying to do inference on a trained model. The sever code and config live in [`src/app`](src/app) directory.
-
-Before running the sever set the variable `MODEL_DIRECTORY` in [`src/app/.env`](src/app/.env) to a directory which contains (or will contain) model checkpoints (`.ckpt`). Models outside of this directory can't be used for inference via endpoints. We recommend creating new directory called `models` and copying model checkpoint files (e.g. `reports/<model_name>/version_0/checkpoints/mymodel.ckpt`) to this directory.
+Before running the sever, set the variable `MODEL_DIRECTORY` in [`src/app/.env`](src/app/.env) to a directory which contains (or will contain) model checkpoints (`.ckpt`). Models outside of this directory can't be used for inference via endpoints. We recommend creating a new directory called `models` and copying model checkpoint files (e.g. `reports/<model_name>/version_0/checkpoints/mymodel.ckpt`) to this directory.
 
 **Step 1. copy model checkpoints to /models/**
 ```bash
@@ -287,7 +264,6 @@ cat src/app/.env
   PORT = 8090
   HOT_RELOAD = 0  # please don't enable hot reloading as it's unstable
 ```
-
 
 **Step 2. run the server**:
 ```bash
