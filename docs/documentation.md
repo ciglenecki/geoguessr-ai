@@ -109,14 +109,14 @@ We wanted more images. To get them, we used the blessing of Google’s free tria
 
 First, we have to sample the locations before we download the images. We can't just opem https://developers.google.com and type in the search box "download many many street images of Croatia" (maybe in a few decades ...). The script [preprocess_sample_coords.py](preprocess_sample_coords.py) is responsible for sampling new locations. It uniformly samples `n` locations in Croatia which are saved in a `coords_sample__n_1000000.csv` file.
 
-![If you look closely at the red mesh, there are many small red pixels. These red pixels represent newly sampled locations. In this picture, there are 1 000 000 locations, so they’re overlapping](./img/sampling.png)
+![If you look closely at the red mesh, there are many small red pixels. These red pixels represent newly sampled locations. In this picture, there are 1 000 000 locations, so they’re overlapping](./img/sampling.png){width=50%}
 
 Now what, do we just try and download the images of the locations we sampled? What if the location is in a mountainous area and there are no images? We have to filter out some locations before we download the actual images. This is using the [`src/google_api/preprocess_api_coords_sample.py`](src/google_api/preprocess_api_coords_sample) script. It calls the `maps/api/streetview/metadata?` endpoint and asks Google: "Hey, does a street view image exist at this location?", to which Google responds:
 
 1. "Yes it does! Exactly at (45.50, 18.13)" or
 2. "No it doesn't. But you can become a professional Google Maps Driver and shoot these pictures for us!"
 
-Now that we filtered out the locations, we know exactly for which locations the Google Street Maps API will return an image. We finally download the images with [`src/google_api/download_street_images.py`](src/google_api/download_street_images.py){width=200%}
+Now that we filtered out the locations, we know exactly for which locations the Google Street Maps API will return an image. We finally download the images with [`src/google_api/download_street_images.py`](src/google_api/download_street_images.py)
 
 In total, we downloaded 266 488 images (66 622 locations)! This new dataset of images can be recognized by the keyword `external` keyword in our project and it's included each time we perform serious training.
 
