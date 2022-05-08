@@ -158,8 +158,7 @@ The problem of predicting coordinates given four Google Street View images can b
 
 In the Classification approach, we classify images into a fixed set of regions of Croatia in the form of a grid on the map (notice: we lose the information about the image's exact location here), while in the regression approach we try regressing the image coordinates to a continuous output from the model that will be restricted by the minimum and maximum possible coordinates (bounds of Croatia).
 
-
-The set of regions of Croatia we mentioned above can be represented in the form of square regions on a map. Each region corresponds to a single class and each region also has a centroid that represents the coordinates assigned to the class. The idea is that, instead of predicting the _exact_ coordinates of an image, the model classifies the images into regions from the previously described set of regions (Figure 6). Notice that we don’t directly predict the coordinates for each set of four images, rather, we predict the class (region) of Croatia the images belong in.Due to the way the competition is set up, at some point we do have to provide a concrete value for the latitude and longitude coordinates. How will we decide on these coordinates? We declare the predicted coordinates to be the **centroid of the predicted region**. This centroid will be used to calculate our error in regards to the true coordinates. Notice that the image's true coordinates might be relatively distant from the centroid of the region into which the image was classified. This error shrinks as the number of specified regions (classes) grows.
+The set of regions of Croatia we mentioned above can be represented in the form of square regions on a map. Each region corresponds to a single class and each region also has a centroid that represents the coordinates assigned to the class. The idea is that, instead of predicting the _exact_ coordinates of an image, the model classifies the images into regions from the previously described set of regions (Figure 7). Notice that we don’t directly predict the coordinates for each set of four images, rather, we predict the class (region) of Croatia the images belong in.Due to the way the competition is set up, at some point we do have to provide a concrete value for the latitude and longitude coordinates. How will we decide on these coordinates? We declare the predicted coordinates to be the **centroid of the predicted region**. This centroid will be used to calculate our error in regards to the true coordinates. Notice that the image's true coordinates might be relatively distant from the centroid of the region into which the image was classified. This error shrinks as the number of specified regions (classes) grows.
 
 ![](img/croata_n_20_grid.png){width=33%}
 ![](img/croata_n_55_grid.png){width=33%}
@@ -170,7 +169,16 @@ The set of regions of Croatia we mentioned above can be represented in the form 
 
 #### Class Creation
 
-How is this grid-like set of regions created? First, we create a generic grid that is located fully inside the bounds of Croatia. It contains numerous regions (squares) which are adjacent to each other. Although we are working with a fixed number of regions, not every region is created equal. This is because, unfortunately, some of them aren’t located in Croatia at all, as they don’t really intersect Croatian territory. Therefore, they shouldn’t be taken into consideration further on and are filtered out. After this is done, we proceed to the task of finding the centroids of these regions. Using the [`geopandas`](https://geopandas.org/en/stable/) library, this problem can be reduced to a single simple Python property: `region.centroid`. Great! Now we have a set of classes for our model. But before we continue the journey let us double-check what we did so far ...
+How is this grid-like set of regions created? First, we create a generic grid that is located fully inside the bounds of Croatia. It contains numerous regions (squares) which are adjacent to each other. Although we are working with a fixed number of regions, not every region is created equal. This is because, unfortunately, some of them aren’t located in Croatia at all, as they don’t really intersect Croatian territory. Therefore, they shouldn’t be taken into consideration further on and are filtered out. After this is done, we proceed to the task of finding the centroids of these regions. Using the [`geopandas`](https://geopandas.org/en/stable/) library, this problem can be reduced to a single simple Python property: `region.centroid`. Great! Now we have a set of classes for our model. But before we continue the journey let us double-check what we did so far …
+
+![\ ](img/croatia_progression/country_HR_1.png){width=20%}
+![\ ](img/croatia_progression/country_HR_spacing_0.28_grid_2.png){width=20%}
+![\ ](img/croatia_progression/country_HR_spacing_0.28_grid_intersection_3.png){width=20%}
+![\ ](img/croatia_progression/data_fig__spacing_0.28__num_class_134_regions_colored_4.png){width=20%}
+![\ ](img/croatia_progression/data_fig__spacing_0.28__num_class_134centroid_5.png){width=20%}
+\begin{figure}[!h]
+\caption{These figures represent the progression of the grid creation for Croatia. In step 1, a plain map of Croatia can be seen. In step 2, we overlay a square grid over the map. We then in step 3 remove classes (squares) from the grid that our outside the bounds of Croatia. In step 4, we eliminate classes that don’t have any images in them, and finally in step 5, we calculate the centroid for each class, as well as clip the centroids at sea to the closest point on land.}
+\end{figure}
 
 #### Problems That Arise
 
@@ -178,13 +186,13 @@ Let us observe the following example. Even though the centroids of the regions w
 
 We have previously mentioned that it's possible to specify the number of classes we desire before creating the grid and thereby make it more or less dense. By choosing a dense grid, we can essentially simulate something akin to regression. This is because, as the number of classes increases and the size of each class decreases, more regions and centroid values are available as potential classes. A smaller class means that the theoretical maximum distance between a class’ centroid and the true image coordinates is also smaller, and therefore has the potential of decreasing the total prediction error. Note that, at the end of the day, this is what matters, not the accuracy of our class predictions, because we calculate the final error by measuring the distance between an image’s coordinates (here the class centroid) and its true coordinates. Even if we classify all images correctly, we will still have a potentially large average haversine distance because we never actually predict the true image coordinates, only the class centroids. If we take this to the extreme, which is an infinite number of classes, we can come quite close to regression, but there is a caveat. In classification models, each class needs a certain number of images to effectively train. If this number is too low, the model simply can’t extract enough meaningful information from the images of a class to learn the features of that class.
 
-Another problem arises because of Croatia’s unique shape, only matched by that of Chile and The Gambia. For some regions, the intersection area with Croatia's territory is only a few tiny spots, meaning that the majority of the region's area ends up in a neighboring country. If this was anywhere before 1991., this wouldn’t be a problem, but it isn’t. The usage of clipped centroids we previously defined somewhat alleviates this issue, but another problem arises because there simply might not exist any images in the dataset that are located in that tiny area of the region, that is, within Croatia. And in fact, we did end up in such a situation. We solved this by discarding these regions and pretending like they didn't exist in the list of classes we could classify the images into. Fortunately, this doesn’t happen too often as the dataset is fairly large and the image’s locations are uniformly distributed.
-
 ![](img/clipping_example.png){width=50%}
 ![](img/no_images_in_class.png){width=50%}
 \begin{figure}[!h]
 \caption{The image on the left depicts a clipped centroid represented with a red dot. The true centroid isn't located at the center of the region so the centroid is relocated (clipped) to the nearest point on the land. The image on the right depicts a class which doesn’t contain any images from the train set due to being mostly made up of sea. This class will be ignored during training and prediction.}
 \end{figure}
+
+Another problem arises because of Croatia’s unique shape, only matched by that of Chile and The Gambia. For some regions, the intersection area with Croatia's territory is only a few tiny spots, meaning that the majority of the region's area ends up in a neighboring country. If this was anywhere before 1991., this wouldn’t be a problem, but it isn’t. The usage of clipped centroids we previously defined somewhat alleviates this issue, but another problem arises because there simply might not exist any images in the dataset that are located in that tiny area of the region, that is, within Croatia. And in fact, we did end up in such a situation. We solved this by discarding these regions and pretending like they didn't exist in the list of classes we could classify the images into. Fortunately, this doesn’t happen too often as the dataset is fairly large and the image’s locations are uniformly distributed.
 
 In the later stages of this project, we had an Eureka moment. Why do we have to declare a centroid (clipped or not) as the final coordinate of the region? What if the geography of a class is hostile to cars, for instance a a mountain, or even worse, Split? However well prepared, the little Street View car would have issues traversing some of these areas. Just look at an area such as [Lika](https://www.google.com/maps/@44.7471723,15.2368329,9.25z/data=!5m1!1e4). Due to this, we expect more Google Street View images to come from a more car friendly part of the region. To take this into account, we created **weighted centroids** for each region. Weighted centroids are calculated as the average location of all images in a specific region. Worth of note is that only the images from the train set were used in this process (remember the number one enemy of every well reproducible deep learning model: data leakage).
 
@@ -385,15 +393,6 @@ The `GeoguesserDataModule` is mainly responsible for two things:
 
 We will first describe what kind of preprocessing actually happens here. `GeoguesserDataModule` will receive the _Rich static CSV_ file which contains information about the image's locations, i.e. regions in which they are placed. Then, this CSV is enriched with new columns in advance with values which we would otherwise need to calculate during the training. For example, we create a new column `crs_x_minmax` which is the `x` coordinate in Croatia's local system scaled to [0, 1]. We mentioned how we exclude the regions that contain no image data. But how can we know this in advance? What if someone decides to add more images (like we did) to the dataset and suddenly some region that was previously forgotten becomes a viable option? This is why we create classes in `GeoguesserDataModule` during runtime. The weighted mean centroid of each region is also calculated here. It also performs some dataset statistics extraction, as well as data standardization for all CRS features. Finally, for each split, it creates the dataset instances that will be described in the next paragraph. We also do some sanity checking to make sure everything is in order before continuing. 
 
-![\ ](img/croatia_progression/country_HR_1.png){width=20%}
-![\ ](img/croatia_progression/country_HR_spacing_0.28_grid_2.png){width=20%}
-![\ ](img/croatia_progression/country_HR_spacing_0.28_grid_intersection_3.png){width=20%}
-![\ ](img/croatia_progression/data_fig__spacing_0.28__num_class_134_regions_colored_4.png){width=20%}
-![\ ](img/croatia_progression/data_fig__spacing_0.28__num_class_134centroid_5.png){width=20%}
-\begin{figure}[!h]
-\caption{These figures represent the progression of the grid creation for Croatia. In step 1, a plain map of Croatia can be seen. In step 2, we overlay a square grid over the map. We then in step 3 remove classes (squares) from the grid that our outside the bounds of Croatia. In step 4, we eliminate classes that don’t have any images in them, and finally in step 5, we calculate the centroid for each class, as well as clip the centroids at sea to the closest point on land.}
-\end{figure}
-
 A great thing about this module is that the size of the dataset can be dynamically defined. The parameters that define the fraction for the size of each set (`train_frac`,`val_frac`,`test_frac`) or the dataset as a whole (`dataset_frac`) turned out to be quite useful during the prototyping phase of the problem solving. Although you almost always want to use all of your available data (`dataset_frac = 1`), it's nice to have the option for that.
 
 `GeoguesserDataset` inherits the [`LightningDataModule`](https://pytorch-lightning.readthedocs.io/en/stable/extensions/datamodules.htm) class.
@@ -443,7 +442,7 @@ In this chapter, we will describe the results of our model, mostly focusing on t
 
 ## Training
 
-The bulk of the model learning process is contained in the training phase. Here, models would often reach near perfect classification and loss results which would translate to overfitting during validation. An example of these graphs is shown in Figure 13 and Figure 14.
+The bulk of the model learning process is contained in the training phase. Here, models would often reach near perfect classification and loss results which would translate to overfitting during validation. An example of these graphs is shown in Figure 15 and Figure 15.
 
 ![A graph of train model accuracy over time. A curve that is more to the left and up on the image shows faster training and higher accuracy.](img/train_acc_epoch.png){width=100%}
 
@@ -457,7 +456,7 @@ The drop and subsequent recovery in performance that is observable in the earlie
 
 ## Validation
 
-Validation is much more interesting to observe than training. It is much harder to reach good performance here and there is a larger difference between the individual models. The champions of generalization show their true colors here. We will examine three graphs here instead of two. They are shown in Figure 15, Figure 16 and Figure 17.
+Validation is much more interesting to observe than training. It is much harder to reach good performance here and there is a larger difference between the individual models. The champions of generalization show their true colors here. We will examine three graphs here instead of two. They are shown in Figure 16, Figure 17 and Figure 18.
 
 ![A graph of validation model accuracy over time. A curve that is more to the left and up on the image shows faster training and higher accuracy.](img/val_acc_epoch.png){width=100%}
 
@@ -479,13 +478,9 @@ In general, we have noticed a few patterns. A larger image size seems to increas
 
 ## Winner Model
 
-Because of a small screw up we did, we will highlight the best model we trained separately. Due to it being trained on a much larger dataset (over 72 000 images) and because of the way we logged our data, the graphs of this model are not comparable to the rest on the time domain, but the shape of the graph is not unlike what we already saw. We will only highlight the validation graphs here because the training graphs are quite similar to what we saw before. This is also a classification model. The graphs are represented in Figure 20, Figure 21 and Figure 22.
+Because of a small screw up we did, we will highlight the best model we trained separately. Due to it being trained on a much larger dataset (over 72 000 images) and because of the way we logged our data, the graphs of this model are not comparable to the rest on the time domain, but the shape of the graph is not unlike what we already saw. We will only highlight the validation graphs here because the training graphs are quite similar to what we saw before. This is also a classification model. The graphs are represented in Figure 19, Figure 20 and Figure 21.
 
 There really isn’t much to say here, other than the graphs are truly beautiful. Due to the large dataset size, this model’s training process was much slower. Also, because the training part of the dataset was so large and it took such a long time to get to the validation, we perform validation four times during training. This way, we can potentially find an even better model that would otherwise be missed during training. Other than that, it also makes the performance graphs smoother. It is also worth noting that we used a much larger class size of 205 for this model, to leverage the extra data and bring the classification closer to regression. The other parameters are similar to previously tested models (224x224 image size, batch size of 8, similar learning rate, etc …).
-
-![A graph of validation model loss over time for our best model.](img/val_loss_epoch_best.png){width=100%}
-	
-![A graph of validation model haversine distance over time for our best model.](img/val_hav_epoch_best.png){width=100%}
 
 Finally, for completeness sake, here are the parameters of the winning model:
 
@@ -524,3 +519,7 @@ user_args/split_ratios:
 user_args/unfreeze_at_epoch: 1
 user_args/unfreeze_blocks: all
 ```
+
+![A graph of validation model loss over time for our best model.](img/val_loss_epoch_best.png){width=100%}
+	
+![A graph of validation model haversine distance over time for our best model.](img/val_hav_epoch_best.png){width=100%}
