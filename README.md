@@ -29,7 +29,6 @@ title: |
 header-includes:
  - \usepackage{fvextra}
  - \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines=true, breakanywhere=true,breaksymbol=,breaksymbol=, breakanywheresymbolpre=,commandchars=\\\{\}}
-
 ---
 
 
@@ -137,7 +136,9 @@ optional arguments:
 Example of running the initial setup script:
 
 ```sh
-python3 src/preprocess_setup_datasets.py --dataset-dirs data/dataset_original_subset data/dataset_external_subset --out-dir data/dataset_complete_subset
+python3 src/preprocess_setup_datasets.py \
+--dataset-dirs data/dataset_original_subset data/dataset_external_subset \
+--out-dir data/dataset_complete_subset
 ```
 
 `preprocess_setup_datasets.py` does all the necessary preprocessing. However, underneath the hood it calls other preprocessing scripts. What happens when you run this script?
@@ -185,6 +186,8 @@ python3 src/train.py --dataset-dirs data/dataset_external_subset/ data/dataset_o
 --csv-rich-static data/dataset_complete_subset/data_rich_static__spacing_0.7_classes_31.csv \
 --quick
 ```
+
+You can stop the training anytime with `Ctrl + C`. Pressing it once will gracefully shutdown the training (and perform the testing phase). Pressing it twice shows more aggression, which will stop the training immediately. 
 
 `--csv-rich-static` can be left out which forces the _Rich static CSV_ creation during runtime (this will somewhat slow down the initial setup). You can perform the full training by removing the `--quick` flag. Some additional interesting arguments are listed below. Run the `python src/train.py -h` command to see all supported arguments. 
 
@@ -256,13 +259,15 @@ cp -r reports/<model_name>/version_0/checkpoints/* models/
 **Step 1.1. ensure that the `MODEL_DIRECTORY` variable is set in [`src/app/.env`](src/app/.env) file**:
 ```bash
 cat src/app/.env
-
-  MODEL_DIRECTORY = "models"  # relative to the lumen-geoguesser directory
-  MODEL_EXTENSION = "ckpt"
-  PREDICT_BATCH_SIZE = 16
-  HOST = "localhost"
-  PORT = 8090
-  HOT_RELOAD = 0  # please don't enable hot reloading as it's unstable
+```
+Output:
+```default
+MODEL_DIRECTORY = "models"  # relative to the lumen-geoguesser directory
+MODEL_EXTENSION = "ckpt"
+PREDICT_BATCH_SIZE = 16
+HOST = "localhost"
+PORT = 8090
+HOT_RELOAD = 0  # please don't enable hot reloading as it's unstable
 ```
 
 **Step 2. run the server**:

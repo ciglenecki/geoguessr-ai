@@ -50,7 +50,7 @@ if __name__ == "__main__":
     recaculate_norm = args.recaculate_normalization
     optimizer_type = args.optimizer
     is_quick = args.quick or dataset_frac < 0.1
-    output_report = PATH_REPORT_QUICK if is_quick else args.output_report
+    output_report = args.output_report
     lr_finetune = args.lr_finetune
 
     timestamp = get_timestamp()
