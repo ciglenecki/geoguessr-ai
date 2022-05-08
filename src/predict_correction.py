@@ -74,6 +74,7 @@ def main(args, df_object: Optional[pd.DataFrame] = None):
     country_shape = get_country_shape(world_shape, DEFAULT_COUNTRY_ISO2)
     country_shape.set_crs(default_crs)
 
+    contains_int = 0
     new_df_dict = {"uuid": [], "latitude": [], "longitude": []}
     for _, row in tqdm(df_predict_geo.iterrows()):
 
@@ -83,6 +84,7 @@ def main(args, df_object: Optional[pd.DataFrame] = None):
         if country_shape.contains(row.geometry).any():
             new_df_dict["latitude"].append(lat)
             new_df_dict["longitude"].append(lng)
+            contains_int += 1
         else:
             new_point = minimal_distance_from_point_to_geodataframe(Point(lng, lat), df_regions_geo)
             new_df_dict["latitude"].append(new_point.y)
@@ -90,7 +92,7 @@ def main(args, df_object: Optional[pd.DataFrame] = None):
 
     output_df = pd.DataFrame.from_dict(new_df_dict)
     output_df.to_csv(path_out, index=False)
-
+    print(contains_int, len(df_predict_geo))
     print("Saved file to:", path_out)
 
 

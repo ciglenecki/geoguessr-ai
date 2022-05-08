@@ -271,13 +271,21 @@ def main(args, df_object=None) -> Union[str, pd.DataFrame]:
     save_fig(Path(out_dir_fig, "country_{}_1.png".format(DEFAULT_COUNTRY_ISO2)))
 
     df_grid.plot(ax=ax, alpha=1, facecolor="none", linewidth=0.6, edgecolor="black")
-    save_fig(Path(out_dir_fig, "country_{}_grid_2.png".format(DEFAULT_COUNTRY_ISO2)))
+    save_fig(
+        Path(
+            out_dir_fig,
+            "country_{}_spacing_{}_grid_2.png".format(
+                DEFAULT_COUNTRY_ISO2,
+                spacing,
+            ),
+        )
+    )
 
     plt.close()
     ax = plot_country(country_shape)
 
     df_intersect_grid.plot(ax=ax, alpha=1, facecolor="none", linewidth=0.6, edgecolor="black")
-    save_fig(Path(out_dir_fig, "country_{}_grid_intersection_3.png".format(DEFAULT_COUNTRY_ISO2)))
+    save_fig(Path(out_dir_fig, "country_{}_spacing_{}_grid_intersection_3.png".format(DEFAULT_COUNTRY_ISO2, spacing)))
 
     """ Plotting polygon index"""
     df_polys_with_images["coords"] = df_polys_with_images["geometry"].apply(

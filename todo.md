@@ -5,11 +5,15 @@
 curl -X POST lumen.photomath.net/evaluate \
 -F 'file=@mapped_to_country_pred-Mike_41-2022-05-06-10-01-15.csv' \
 -F "team_code=<INSERT CODE HERE>"
+
+curl -X POST lumen.photomath.net/evaluate \
+-F 'file=@mapped_to_country_predict-India_63__haversine_0.0040__val_acc_0.7066__val_loss_1.1691__05-07-11-36-13.csv' \
+-F "team_code=342931b3-a7d7-48c6-ad01-ef13f62759e4"
 ```
 
 Stats:
 33.37094934360599 - mapped_to_country_pred-Mike_41-2022-05-06-10-01-15.csv 
-
+India best 24
 
 
 
