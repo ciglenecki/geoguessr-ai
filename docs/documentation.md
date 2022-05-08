@@ -398,7 +398,7 @@ A great thing about this module is that the size of the dataset can be dynamical
 
 `GeoguesserDataset` inherits the [`LightningDataModule`](https://pytorch-lightning.readthedocs.io/en/stable/extensions/datamodules.htm) class.
 
-### LitModelClassification ([src/model_classification.py](src/model_classification.py)) or LitModelRegression ([src/model_regression.py](src/model_regression.py) - The Knight
+### LitModelClassification ([src/model_classification.py](src/model_classification.py)) or LitModelRegression ([src/model_regression.py](src/model_regression.py)) - The Knight
 
 Both models inherit the `pl.LightningModule`.
 
@@ -411,7 +411,7 @@ Functions `{training,validation,test,predict}_step` define the step for their re
 
 #### Forward function - The King
 
-Model’s `forward`, the most important function, is also defined in this class. It receives list of four images (each for one cardinal direction) which are passed through the backbone (ResNeXt), this output is concatenated and passed to the fully connected layer. It's also possible to call forward function implicitly:  `self(x)`
+Model’s `forward`, the most important function, is also defined in this class. It receives list of four images (each for one cardinal direction) which are passed through the backbone (ResNeXt). ResNeXt's output is concatenated and passed to the fully connected layer. It's also possible to call forward function implicitly:  `self(x)`
 
 ```py
 def forward(self, image_list) -> Any:
@@ -424,17 +424,18 @@ def forward(self, image_list) -> Any:
 
 #### Optimizers and LR Schedulers (configure_optimizers) - The Rooks
 
-In general, optimizers define how should weights of our model (composed of ResNeXt and fully connected layer) be updated during the training. This beautiful _magic_ is also done for us by PyTorch Lightning (we don't have to call methods like `optimizer.zero_grad(), loss.backward(), optimizer.step()`). The optimizer that will be used depends on the `--optimizer` argument, which is Adam by default.
+In general, optimizers define how the weights of our model (composed of ResNeXt and fully connected layer) should be updated during the training. This beautiful _magic_ is also done for us by PyTorch Lightning (we don't have to call methods like `optimizer.zero_grad(), loss.backward(), optimizer.step()`). The optimizer that will be used depends on the `--optimizer` argument, which is [Adam](https://pytorch.org/docs/stable/generated/torch.optim.Adam.html) by default.
 
-Learning rate scheduler we used the most is "reduce on plateau". It sneakily monitors a specific metric and if that metric didn't improve in the last `n` epochs it will lower the learning rate. This is done because the learning rate might be too high, which prevents our model from training properly.
+The learning rate scheduler we used the most was "reduce on plateau". It sneakily monitors a specific metric and if that metric doesn't improve in the last `n` epochs it will lower the learning rate. This is done because the learning rate might be too high, which prevents our model from training properly.
+
+### Train Function - The Queen
+
+
+Finally, we join everything together in the `train` function. Here, we parse the arguments passed to the model, define the data transformations, initiate the `GeoguesserDataModule` module, initiate the logger, create the `LitModelClassification` model, and finally, train the model. It has to be said that we also pass a lot of custom `Callbacks` which perform various actions like: saving model checkpoints, executing early stopping, logging hyperparameters and etc. Optionally, we can also visualize our results after training.
 
 ### Utilities
 
 Our solution is composed of four main modules, as well as numerous utility functions. Utility functions were mainly used for tasks that were separate from the training process itself, such as transforming data into a format appropriate for training, geospatial data manipulation, visualization, report saving and loading, etc. Even though we love our utility functions which are crucial to this project, they are generally responsible for lower level work which isn't the focus of this project. Here, we will promptly ignore them and explain only the higher level components of our solution, namely, the four main modules.
-
-### Train Function - The Queen
-
-Finally, we join everything together in the `train` function. Here, we parse the arguments passed to the model, define the data transformations, initiate the `GeoguesserDataModule` module, initiate the logger, create the specified model, define our optimization algorithm and how the learning rate behaves, and finally, train the model. Optionally, we can also visualize our results after training.
 
 # Results
 
