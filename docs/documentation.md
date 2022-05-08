@@ -109,13 +109,14 @@ We wanted more images. To get them, we used the blessing of Google’s free tria
 
 First, we have to sample the locations before we download the images. We can't just opem https://developers.google.com and type in the search box "download many many street images of Croatia" (maybe in a few decades ...). The script [preprocess_sample_coords.py](preprocess_sample_coords.py) is responsible for sampling new locations. It uniformly samples `n` locations in Croatia which are saved in a `coords_sample__n_1000000.csv` file.
 
-![If you look closely at the red mesh, there are many small red pixels. These red pixels represent newly sampled locations. In this picture, there are 1 000 000 locations, so they’re overlapping](./img/sampling.png)
+![If you look closely at the red mesh, there are many small red pixels. These red pixels represent newly sampled locations. In this picture, there are 1 000 000 locations, so they’re overlapping](./img/sampling.png){width=50%}
 
 Now what, do we just try and download the images of the locations we sampled? What if the location is in a mountainous area and there are no images? We have to filter out some locations before we download the actual images. This is using the [`src/google_api/preprocess_api_coords_sample.py`](src/google_api/preprocess_api_coords_sample) script. It calls the `maps/api/streetview/metadata?` endpoint and asks Google: "Hey, does a street view image exist at this location?", to which Google responds:
+
 1. "Yes it does! Exactly at (45.50, 18.13)" or
 2. "No it doesn't. But you can become a professional Google Maps Driver and shoot these pictures for us!"
 
-Now that we filtered out the locations, we know exactly for which locations the Google Street Maps API will return an image. We finally download the images with [`src/google_api/download_street_images.py`](src/google_api/download_street_images.py){width=200%}
+Now that we filtered out the locations, we know exactly for which locations the Google Street Maps API will return an image. We finally download the images with [`src/google_api/download_street_images.py`](src/google_api/download_street_images.py)
 
 In total, we downloaded 266 488 images (66 622 locations)! This new dataset of images can be recognized by the keyword `external` keyword in our project and it's included each time we perform serious training.
 
@@ -477,10 +478,48 @@ In general, we have noticed a few patterns. A larger image size seems to increas
 
 ## Winner Model
 
-Finally, because of a small screw up we did, we will highlight the best model we trained separately. Due to it being trained on a much larger dataset (over 72 000 images) and because of the way we logged our data, the graphs of this model are not comparable to the rest on the time domain, but the shape of the graph is not unlike what we already saw. We will only highlight the validation graphs here because the training graphs are quite similar to what we saw before. This is also a classification model. The graphs are represented in Figure 20, Figure 21 and Figure 22.
+Because of a small screw up we did, we will highlight the best model we trained separately. Due to it being trained on a much larger dataset (over 72 000 images) and because of the way we logged our data, the graphs of this model are not comparable to the rest on the time domain, but the shape of the graph is not unlike what we already saw. We will only highlight the validation graphs here because the training graphs are quite similar to what we saw before. This is also a classification model. The graphs are represented in Figure 20, Figure 21 and Figure 22.
 
 There really isn’t much to say here, other than the graphs are truly beautiful. Due to the large dataset size, this model’s training process was much slower. Also, because the training part of the dataset was so large and it took such a long time to get to the validation, we perform validation four times during training. This way, we can potentially find an even better model that would otherwise be missed during training. Other than that, it also makes the performance graphs smoother. It is also worth noting that we used a much larger class size of 205 for this model, to leverage the extra data and bring the classification closer to regression. The other parameters are similar to previously tested models (224x224 image size, batch size of 8, similar learning rate, etc …).
 
 ![A graph of validation model loss over time for our best model.](img/val_loss_epoch_best.png){width=100%}
 	
 ![A graph of validation model haversine distance over time for our best model.](img/val_hav_epoch_best.png){width=100%}
+
+Finally, for completeness sake, here are the parameters of the winning model:
+
+```default
+batch_size: 8
+epochs: 22
+image_size: 224
+learning_rate: 2.0e-05
+lr_finetune: 2.0e-05
+model_name: resnext101_32x8d
+num_classes: 205
+optimizer_type: adam
+pretrained: true
+scheduler_type: plateau
+train_size: 71056
+test_size: 5784
+val_size: 5782
+train_dataloader_size: 8881
+unfreeze_at_epoch: 1
+user_args/batch_size: 8
+user_args/cached_df: data/complete/data_huge_spacing_0.21_num_class_211.csv
+user_args/dataset_dirs:
+- data/original/
+- data/external/
+user_args/image_size: 224
+user_args/lr: 2.0e-05
+user_args/lr_finetune: 2.0e-05
+user_args/model: resnext101_32x8d
+user_args/num_workers: 32
+user_args/optimizer: adam
+user_args/scheduler: plateau
+user_args/split_ratios:
+- 0.9 # train
+- 0.05 # val
+- 0.05 # test
+user_args/unfreeze_at_epoch: 1
+user_args/unfreeze_blocks: all
+```
