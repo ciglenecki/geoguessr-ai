@@ -1,26 +1,45 @@
-# Byte-compiled / optimized / DLL files
-/data/**/*.png
+/data/external/images
+/data/external2/images
+/data/
+/data/raw/images
+/data/test_lumen/images
+/data/external0.95
+/data/raw0.95
+
 /data/**/*.jpg
 /data/**/*.zip
-!data/example/**
+/data/complete
+/data/external
+/data/example
+/data/raw
+/data/original
+
+# !data/example/**
 
 .directory
 
-.vscode/
-.idea/
+docs/tmp.md
+
 *.ckpt
 *ignoreme*
-reports/22*
-reports/train*
+
+reports-quick/
+reports/
 old_reports/
+
 nohup*.out
+
+
+
+
+.vscode/
+.idea/
+
 __pycache__/
 *.py[cod]
-*$py.class
-
 # C extensions
 *.so
-
+*$py.class
 # Distribution / packaging
 .Python
 build/
