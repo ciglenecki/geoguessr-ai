@@ -27,6 +27,7 @@ from model_callbacks import (
 )
 from model_classification import LitModelClassification, LitSingleModel
 from model_regression import LitModelRegression
+from src.utils_model import plot_weights
 from utils_dataset import DatasetSplitType, get_dataset_dirs_uuid_paths
 from train_args import parse_args_train
 from utils_functions import add_prefix_to_keys, get_timestamp, random_codeword, stdout_to_file
@@ -226,6 +227,8 @@ if __name__ == "__main__":
 
         print(new_lr)
         exit(1)
+
+    plot_weights()
 
     trainer.fit(model, datamodule, ckpt_path=trainer_checkpoint)
     trainer.test(model, datamodule)
