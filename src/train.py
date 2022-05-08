@@ -27,6 +27,14 @@ from model_callbacks import (
     OverrideEpochMetricCallback,
     BackboneFinetuning,
 )
+from visualisation import (
+    get_example_params,
+    GuidedBackprop,
+    save_gradient_images,
+    convert_to_grayscale,
+    get_positive_negative_saliency,
+)
+from utils_model import plot_weights
 from train_args import parse_args_train
 from utils_functions import add_prefix_to_keys, get_timestamp, random_codeword, stdout_to_file
 from utils_paths import PATH_REPORT_QUICK
@@ -237,5 +245,17 @@ if __name__ == "__main__":
         print(new_lr)
         exit(1)
 
+    # w = model.fc.weight[0:20].data.reshape(20, 224, 224)
+    # print(w.shape)
+    # grid = utils.make_grid(w, nrow=10, normalize=True, scale_each=True)
+    # print(grid.shape)
+    #
+    # plt.figure(figsize=(10, 10))
+    # plt.imshow(grid.numpy()[0])
+    # plt.show()
+
     trainer.fit(model, datamodule, ckpt_path=trainer_checkpoint)
+
+    plot_weights(model, 0, False, False)
+    # plot_weights(model, 0, True, False)
     trainer.test(model, datamodule)
