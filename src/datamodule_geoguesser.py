@@ -101,8 +101,16 @@ class GeoguesserDataModule(pl.LightningDataModule):
 
         self.image_transform = transforms.Compose(
             [
-                transforms.Resize(image_size),
+                transforms.RandomResizedCrop(image_size, scale=(0.5, 1.0)),
+                # transforms.Resize(image_size),
                 transforms.AutoAugment(policy=AutoAugmentPolicy.IMAGENET),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=mean, std=std),
+            ]
+        )
+        self.image_transform_val = transforms.Compose(
+            [
+                transforms.Resize(image_size),
                 transforms.ToTensor(),
                 transforms.Normalize(mean=mean, std=std),
             ]
@@ -120,7 +128,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
             df=self.df,
             num_classes=self.num_classes,
             dataset_dirs=self.dataset_dirs,
-            image_transform=self.image_transform,
+            image_transform=self.image_transform_val,
             dataset_type=DatasetSplitType.VAL,
         )
 
@@ -128,7 +136,7 @@ class GeoguesserDataModule(pl.LightningDataModule):
             df=self.df,
             num_classes=self.num_classes,
             dataset_dirs=self.dataset_dirs,
-            image_transform=self.image_transform,
+            image_transform=self.image_transform_val,
             dataset_type=DatasetSplitType.TEST,
         )
 

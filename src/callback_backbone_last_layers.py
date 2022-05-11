@@ -48,6 +48,8 @@ class BackboneFinetuningLastLayers(BackboneFinetuning):
         self.lr_total_diff = self.lr_finetuning_max - self.lr_finetuning_min
         self.lr_after_finetune = lr_after_finetune
 
+        self.is_finetuning = True
+
         """ Useless arguments but we send them anyway as a sanity check"""
         lambda_func = lambda x: x
         backbone_initial_ratio_lr = 1
@@ -124,7 +126,8 @@ class BackboneFinetuningLastLayers(BackboneFinetuning):
     ) -> None:
 
         """Called when the epoch begins."""
-        if epoch == self.unfreeze_backbone_at_epoch:
+        if epoch >= self.unfreeze_backbone_at_epoch and self.is_finetuning:
+            self.is_finetuning = False
             self.unfreeze_and_add_param_group(
                 modules=pl_module.backbone,
                 optimizer=optimizer,

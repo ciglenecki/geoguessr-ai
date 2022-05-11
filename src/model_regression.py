@@ -205,7 +205,7 @@ class LitModelRegression(pl.LightningModule):
                 optimizer,
                 "min",
                 factor=0.66,
-                patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ // 3) - 1,
+                patience=int(DEFAULT_EARLY_STOPPING_EPOCH_FREQ // 2) - 1,
                 verbose=True,
             )
             interval = "epoch"

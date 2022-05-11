@@ -185,15 +185,10 @@ def predict_dataset(model_name: str, body: models.PostPredictDatasetRequest):
         callbacks = []
         if body.csv_filename:
             callbacks.append(InferenceWriter(Path(body.csv_filename)))
-
-        # is_gpu = torch.cuda.is_available()
-        # print("is_gpu",is_gpu)
         trainer = pl.Trainer(
             callbacks=callbacks,
             checkpoint_callback=False,
             logger=False,
-            auto_select_gpus=True
-            # accelerator="gpu" if is_gpu else "cpu",
         )
         predictions = trainer.predict(
             model=model,
