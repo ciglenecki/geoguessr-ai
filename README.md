@@ -1,7 +1,4 @@
 ﻿---
-# to transform this file to .pdf run the following command: pandoc --standalone --toc  docs/documentation.md --pdf-engine=xelatex --resource-path=docs -o docs/pdf-documentation.pdf
-
-# https://pandoc-discuss.narkive.com/m4QmhNgm/fetch-images-when-creating-pdf
 title: Documentation
 mainfont: DejaVuSerif.ttf
 sansfont: DejaVuSans.ttf
@@ -27,8 +24,8 @@ title: |
 	Technical documentation
 
 header-includes:
- - \usepackage{fvextra}
- - \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines=true, breakanywhere=true,breaksymbol=,breaksymbol=, breakanywheresymbolpre=,commandchars=\\\{\}}
+- \usepackage{fvextra}
+- \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines=true, breakanywhere=true,breaksymbol=,breaksymbol=, breakanywheresymbolpre=,commandchars=\\\{\}}
 ---
 
 
