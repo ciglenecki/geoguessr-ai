@@ -1,17 +1,45 @@
-﻿
+﻿---
+title: Documentation
+mainfont: DejaVuSerif.ttf
+sansfont: DejaVuSans.ttf
+monofont: DejaVuSansMono.ttf 
+mathfont: texgyredejavu-math.otf
+mainfontoptions:
+- Extension=.ttf
+- UprightFont=*
+- BoldFont=*-Bold
+- ItalicFont=*-Italic
+- BoldItalicFont=*-BoldItalic
+colorlinks: true
+linkcolor: red
+urlcolor: red
+output:
+	pdf_document:
+		toc: yes
+		toc_depth:
+
+geometry: margin=1.2cm
+numbersections: true
+title: |
+	Technical documentation
+
+header-includes:
+- \usepackage{fvextra}
+- \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines=true, breakanywhere=true,breaksymbol=,breaksymbol=, breakanywheresymbolpre=,commandchars=\\\{\}}
+---
+
+
 # Lumen Geoguesser
 
 <p align="center">
 	<img src="docs/img/geoguesser-logo.png"></img>
 </p>
 
-## Results:
-
-Work in progress
-
-Location prediction mean error is 22km. Croatia's "bounding box" is ~450 x 450km.
-
 ## Notices:
+
+Although you might be reading this documentation in the form of a PDF file, **we strongly recommend that you open the [README.md](README.md) file in a markdown editor** (GitHub, VSCode, PyCharm, IDE...). As for the API documentation, after setting up the environment, we recommend you run the server with the [`python3 src/app/main.py`](src/app/main.py) command after which you can inspect API endpoints in a browser (and execute them too!). Essentially, the technical documentation PDF is rendered from the [README.md](README.md) markdown file and concatenated with the PDF API documentation. 
+
+A few more notes:
 
 - the documentation assumes you are located at the `.lumen-geoguesser` directory when running Python scripts
 - all global variables are defined in [`src/config.py`](src/config.py) and [`src/paths.py`](src/utils_paths.py)
