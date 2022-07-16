@@ -77,10 +77,10 @@ def save_fig(path: Union[str, Path]):
     print("Saved figure: {}".format(path))
 
 
-def plot_country(country_shape: gpd.GeoDataFrame):
+def plot_country(country_shape: gpd.GeoDataFrame, ax_arg=None):
 
     country_shape = get_country_shape(gpd.read_file(str(PATH_WORLD_BORDERS)), DEFAULT_COUNTRY_ISO2)
-    ax = country_shape.plot(color="green")
+    ax = country_shape.plot(color="green", ax=ax_arg)
     ax.set_xlabel("Longitude")
     ax.set_ylabel("Latitude")
     plt.axis("scaled")
@@ -268,9 +268,13 @@ def main(args, df_object=None) -> Union[str, pd.DataFrame]:
     os.makedirs(out_dir_fig, exist_ok=True)
 
     ax = plot_country(country_shape)
+    plt.xlim(xmax=20.25)
+    plt.ylim(ymin=42)
     save_fig(Path(out_dir_fig, "country_{}_1.png".format(DEFAULT_COUNTRY_ISO2)))
 
     df_grid.plot(ax=ax, alpha=1, facecolor="none", linewidth=0.6, edgecolor="black")
+    plt.xlim(xmax=20.25)
+    plt.ylim(ymin=42)
     save_fig(
         Path(
             out_dir_fig,
@@ -283,7 +287,8 @@ def main(args, df_object=None) -> Union[str, pd.DataFrame]:
 
     plt.close()
     ax = plot_country(country_shape)
-
+    plt.xlim(xmax=20.25)
+    plt.ylim(ymin=42)
     df_intersect_grid.plot(ax=ax, alpha=1, facecolor="none", linewidth=0.6, edgecolor="black")
     save_fig(Path(out_dir_fig, "country_{}_spacing_{}_grid_intersection_3.png".format(DEFAULT_COUNTRY_ISO2, spacing)))
 
@@ -309,6 +314,8 @@ def main(args, df_object=None) -> Union[str, pd.DataFrame]:
     df_polys_with_images.plot(
         ax=ax, alpha=1, facecolor="none", linewidth=0.6, edgecolor="black"
     )  # replot black squares
+    plt.xlim(xmax=20.25)
+    plt.ylim(ymin=42)
     save_fig(Path(out_dir_fig, basename + "_regions_colored_4" + fig_format))
 
     intersecting_points_df.plot(ax=ax, alpha=1, linewidth=0.3, markersize=5, edgecolor="white", color="red")

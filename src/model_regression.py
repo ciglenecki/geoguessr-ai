@@ -160,7 +160,6 @@ class LitModelRegression(pl.LightningModule):
         return data_dict
 
     def configure_optimizers(self):
-        print("\n", self.__class__.__name__, "Configure optimizers\n")
 
         if self.optimizer_type == OptimizerType.ADAMW.value:
             optimizer = torch.optim.AdamW(self.parameters(), lr=float(self.learning_rate), weight_decay=5e-3)

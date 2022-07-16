@@ -85,7 +85,7 @@ class LitModelClassification(pl.LightningModule):
         self.batch_size = batch_size
         self.image_size = image_size
         self.num_classes = num_classes
-        self.crs_scaler: MinMaxScaler = crs_scaler  # type: ignore
+        self.crs_scaler = crs_scaler
         self.scheduler_type = scheduler_type
         self.epochs = epochs
         self.train_dataloader_size = train_dataloader_size
