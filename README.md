@@ -5,9 +5,8 @@
 	<img src="docs/img/geoguesser-logo.png"></img>
 </p>
 
-## Results:
 
-Work in progress
+⚠️ note: Although the competition is finished, I will try to restructure some parts of this project so that it conforms to better practices (structured logging, better configs, etc.) ⚠️
 
 Location prediction mean error is 22km. Croatia's "bounding box" is ~450 x 450km.
 
@@ -41,7 +40,11 @@ Create and populate the [virtual environment](https://docs.python.org/3/library/
 ```bash
 [ ! -d "venv" ] && (echo "Creating python3 virtual environment"; python3 -m venv venv)
 . venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
+```
+**(optional) Step 2: Activate pre-commit hook**
+```
+pre-commit install
 ```
 
 ### Dataset Setup
