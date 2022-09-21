@@ -6,7 +6,7 @@
 </p>
 
 
-⚠️ note: Although the competition is finished, I will try to restructure some parts of this project so that it conforms to better practices (structured logging, better configs, etc.) ⚠️
+⚠️ note: Although the competition is finished, I will try to restructure some parts of this project so that the project conforms to better practices (structured logging, better configs, etc.) ⚠️
 
 Location prediction mean error is 22km. Croatia's "bounding box" is ~450 x 450km.
 
