@@ -17,7 +17,8 @@ http://0.0.0.0:8090/model/Golf_76__haversine_0.0098__val_acc_0.47__val_loss_1.98
 ```
 """
 
-get_models_desc = """Returns names of all available models on the server. You must use model names for all `POST` request predictions. Model name is a stem of the model checkpoint, e.g. model with filename `my_model.ckpt` has the name `my_model`. Models are fetched from the directory `MODEL_DIRECTORY` which is defined in the `.env` file. Only models with the extension `MODEL_EXTENSION` are fetched. Model names will be returned instead of the model filenames.
+get_models_desc = """Returns names of all available models on the server.
+You must use model names for all `POST` request predictions. Model name is a stem of the model checkpoint, e.g. model with filename `my_model.ckpt` has the name `my_model`. Models are fetched from the directory `MODEL_DIRECTORY` which is defined in the `.env` file. Only models with the extension `MODEL_EXTENSION` are fetched. Model names will be returned instead of the model filenames.
 """
 
 predict_images_desc = """Infers latitude and longitude for multiple images. If you have a group of images where each image represents one cardinal direction (north, east, south, and west) ("0.jpg", ... , "270.jpg") you should use the `/model/{model_name}/predict-cardinal-images endpoint

@@ -1,5 +1,10 @@
 """
-Enriches the coords_sample__n_<int>.csv.csv file. This file originally contains uniformly sampled values (lat, lng). The problem is that an image might not exist on the sampled (lat, lng) location. This file goes through the rows of coords_sample__n_<int>.csv and populates additional columns which provide information if the street view image in fact exists on that location. If it does, additional metadata will be writen. 
+Enriches the coords_sample__n_<int>.csv.csv file. This file originally contains
+uniformly sampled values (lat, lng). The problem is that an image might not
+exist on the sampled (lat, lng) location. This file goes through the rows
+of coords_sample__n_<int>.csv and populates additional columns which provide
+information if the street view image in fact exists on that location. If it does,
+additional metadata will be writen.
 
 E.g.
     Input (--csv)
@@ -19,12 +24,7 @@ E.g.
 
 import argparse
 import asyncio
-import base64
-import hashlib
-import hmac
-import os
 import sys
-import urllib.parse as urlparse
 import uuid
 from pathlib import Path
 from time import sleep
@@ -93,7 +93,7 @@ def parse_args(args):
     return args
 
 
-def get_json_batch(url, params_list: List[Dict[str, Any]]):
+def get_json_batch(url, params_list: list[Dict[str, Any]]):
     """
     Args:
         url - base url that will be used for querying e.g. https://maps.googleapis.com/maps/api/streetview/metadata
@@ -106,7 +106,9 @@ def get_json_batch(url, params_list: List[Dict[str, Any]]):
 
     async def get_all(url, params_list):
         timeout = aiohttp.ClientTimeout(total=600)
-        async with aiohttp.ClientSession(trust_env=True, timeout=timeout, read_bufsize=2**25) as session:
+        async with aiohttp.ClientSession(
+            trust_env=True, timeout=timeout, read_bufsize=2**25
+        ) as session:
 
             async def fetch(url, params):
                 async with session.get(url, params=params) as response:
@@ -153,7 +155,8 @@ def flip_df(df: pd.DataFrame):
 def upsert_uuids(df: pd.DataFrame):
     """Add uuid attribute to rows where uuid is NaN"""
     mask_no_uuid = df["uuid"].isna()
-    df.loc[mask_no_uuid, "uuid"] = [uuid.uuid4() for _ in range(len(df.loc[mask_no_uuid, :].index))]
+    new_uuids = [str(uuid.uuid4()) for _ in range(len(df.loc[mask_no_uuid, :].index))]
+    df.loc[mask_no_uuid, "uuid"] = pd.Series(new_uuids)
     return df
 
 
@@ -222,7 +225,10 @@ def main(args):
         start_idx, end_idx = indices[0], indices[-1]
 
         lats, lngs = rows["sample_latitude"], rows["sample_longitude"]
-        params = [get_params_json(key, signature, lat, lng, radius, url) for lat, lng in zip(lats, lngs)]
+        params = [
+            get_params_json(key, signature, lat, lng, radius, url)
+            for lat, lng in zip(lats, lngs)
+        ]
         response_json_batch = get_json_batch(url, params)
 
         rows_batch = [extract_features_from_json(json) for json in response_json_batch]

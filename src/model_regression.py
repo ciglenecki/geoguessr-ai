@@ -19,7 +19,7 @@ from utils_train import OptimizerType, SchedulerType
 
 
 class LitModelRegression(pl.LightningModule):
-    loggers: List[TensorBoardLogger]
+    loggers: list[TensorBoardLogger]
     num_of_outputs = 2
 
     def __init__(
@@ -57,9 +57,13 @@ class LitModelRegression(pl.LightningModule):
         self.unfreeze_at_epoch = unfreeze_at_epoch
         self.epoch = 0
 
-        backbone = torch.hub.load(DEFAULT_TORCHVISION_VERSION, model_name, pretrained=pretrained)
+        backbone = torch.hub.load(
+            DEFAULT_TORCHVISION_VERSION, model_name, pretrained=pretrained
+        )
         self.backbone = model_remove_fc(backbone)
-        self.fc = nn.Linear(self._get_last_fc_in_channels(), LitModelRegression.num_of_outputs)
+        self.fc = nn.Linear(
+            self._get_last_fc_in_channels(), LitModelRegression.num_of_outputs
+        )
 
         self._set_example_input_array()
         self.save_hyperparameters()
@@ -81,11 +85,15 @@ class LitModelRegression(pl.LightningModule):
         num_image_sides = 4
         with torch.no_grad():
             image_batch_list = [
-                torch.rand(self.batch_size, num_channels, self.image_size, self.image_size)
+                torch.rand(
+                    self.batch_size, num_channels, self.image_size, self.image_size
+                )
             ] * num_image_sides
             outs_backbone = [self.backbone(image) for image in image_batch_list]
             out_backbone_cat = torch.cat(outs_backbone, dim=1)
-            flattened_output = torch.flatten(out_backbone_cat, 1)  # shape (batch_size x some_number)
+            flattened_output = torch.flatten(
+                out_backbone_cat, 1
+            )  # shape (batch_size x some_number)
         return flattened_output.shape[1]
 
     def get_num_of_trainable_params(self):
@@ -118,7 +126,9 @@ class LitModelRegression(pl.LightningModule):
         image_list, _, image_true_crs_coords = batch
         pred_crs_coord = self(image_list)
 
-        haver_dist = get_haversine_from_predictions(self.crs_scaler, pred_crs_coord, image_true_crs_coords)
+        haver_dist = get_haversine_from_predictions(
+            self.crs_scaler, pred_crs_coord, image_true_crs_coords
+        )
 
         loss = F.mse_loss(pred_crs_coord, image_true_crs_coords)
         data_dict = {
@@ -135,7 +145,9 @@ class LitModelRegression(pl.LightningModule):
         image_list, _, image_true_crs_coords = batch
         pred_crs_coord = self(image_list)
 
-        haver_dist = get_haversine_from_predictions(self.crs_scaler, pred_crs_coord, image_true_crs_coords)
+        haver_dist = get_haversine_from_predictions(
+            self.crs_scaler, pred_crs_coord, image_true_crs_coords
+        )
 
         loss = F.mse_loss(pred_crs_coord, image_true_crs_coords)
         data_dict = {
@@ -156,13 +168,19 @@ class LitModelRegression(pl.LightningModule):
         pred_crs_coord_transformed = self.crs_scaler.inverse_transform(pred_crs_coord)
         pred_degree_coords = crs_coords_to_degree(pred_crs_coord_transformed)
 
-        data_dict = {"latitude": pred_degree_coords[:, 0], "longitude": pred_degree_coords[:, 1], "uuid": uuid}
+        data_dict = {
+            "latitude": pred_degree_coords[:, 0],
+            "longitude": pred_degree_coords[:, 1],
+            "uuid": uuid,
+        }
         return data_dict
 
     def configure_optimizers(self):
 
         if self.optimizer_type == OptimizerType.ADAMW.value:
-            optimizer = torch.optim.AdamW(self.parameters(), lr=float(self.learning_rate), weight_decay=5e-3)
+            optimizer = torch.optim.AdamW(
+                self.parameters(), lr=float(self.learning_rate), weight_decay=5e-3
+            )
         else:
             optimizer = torch.optim.Adam(
                 self.parameters(),

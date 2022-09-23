@@ -1,0 +1,61 @@
+[tool.black]
+line-length = 88
+
+[tool.pylint.master]
+ignore = [
+    "venv"
+    ]
+
+max-line-length = 88
+
+load-plugins= [
+    "pylint.extensions.broad_try_clause",
+    "pylint.extensions.code_style",
+    "pylint.extensions.emptystring",
+    "pylint.extensions.comparetozero",
+    "pylint.extensions.comparison_placement",
+    "pylint.extensions.confusing_elif",
+    "pylint.extensions.for_any_all",
+    "pylint.extensions.consider_ternary_expression",
+    "pylint.extensions.bad_builtin",
+    "pylint.extensions.mccabe",
+    "pylint.extensions.check_elif",
+    "pylint.extensions.redefined_variable_type",
+    "pylint.extensions.overlapping_exceptions",
+    "pylint.extensions.docparams",
+    "pylint.extensions.empty_comment",
+    "pylint.extensions.set_membership",
+    "pylint.extensions.typing"
+    ]
+disable = [
+    "raw-checker-failed",
+    "bad-inline-option",
+    "locally-disabled",
+    "file-ignored",
+    "suppressed-message",
+    "useless-suppression",
+    "deprecated-pragma",
+    "consider-using-f-string",
+    "unspecified-encoding",
+    "too-few-public-methods",
+    "missing-module-docstring",
+    "missing-class-docstring",
+    "missing-function-docstring",
+    "singleton-comparison",
+    "dangerous-default-value",
+    "pointless-string-statement",
+    ]
+[tool.pylint.similarities]
+ignore-imports="yes"
+
+[tool.mypy]
+exclude = "venv"
+
+
+[[tool.mypy.overrides]]
+module = [
+    "torchvision",
+    ]
+
+[tool.isort]
+profile = "black"

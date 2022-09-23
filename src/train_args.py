@@ -11,7 +11,6 @@ from torchvision.models.resnet import model_urls as resnet_model_urls
 
 from config import (
     DEAFULT_NUM_WORKERS,
-    DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING,
     DEFAULT_BATCH_SIZE,
     DEFAULT_DATASET_FRAC,
     DEFAULT_EPOCHS,
@@ -20,13 +19,14 @@ from config import (
     DEFAULT_LR,
     DEFAULT_LR_FINETUNE,
     DEFAULT_MODEL,
+    DEFAULT_OPTIMIZER,
     DEFAULT_PRETRAINED,
     DEFAULT_SCHEDULER,
     DEFAULT_UNFREEZE_LAYERS_NUM,
     DEFAULT_WEIGHT_DECAY,
     LOG_EVERY_N,
+    DEAFULT_shuffle_before_splitting,
 )
-from config import DEFAULT_OPTIMIZER
 from utils_functions import (
     is_between_0_1,
     is_positive_int,
@@ -139,7 +139,7 @@ def parse_args_train() -> Tuple[argparse.Namespace, argparse.Namespace]:
         "--shuffle-before-splitting",
         type=bool,
         help="The dataset will be shuffled before splitting dataset to train/val/test",
-        default=DEAFULT_SHUFFLE_DATASET_BEFORE_SPLITTING,
+        default=DEAFULT_shuffle_before_splitting,
     )
 
     user_group.add_argument(

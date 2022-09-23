@@ -1,25 +1,27 @@
 from __future__ import annotations, division, print_function
+
 import argparse
 import os
-
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
 import pytorch_lightning as pl
+import torch
 from pytorch_lightning.callbacks import Callback
 from torchvision import transforms
 
-from datamodule_geoguesser import GeoguesserDataModulePredict
 from config import DEFAULT_IMAGE_MEAN, DEFAULT_IMAGE_STD
+from datamodule_geoguesser import GeoguesserDataModulePredict
 from model_classification import LitModelClassification, LitSingleModel
 from model_regression import LitModelRegression
 from utils_paths import PATH_DATA_ORIGINAL
-import torch
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
     parser.add_argument(
         "--checkpoint",
         help="Path to the model checkpoint",
@@ -69,7 +71,9 @@ if __name__ == "__main__":
     os.makedirs(Path(out).parent, exist_ok=True)
 
     with torch.no_grad():
-        model_constructor = LitModelRegression if is_regression else LitModelClassification
+        model_constructor = (
+            LitModelRegression if is_regression else LitModelClassification
+        )
         model = model_constructor.load_from_checkpoint(str(checkpoint), batch_size=8)
         for param in model.parameters():
             param.requires_grad = False
@@ -85,7 +89,9 @@ if __name__ == "__main__":
             ]
         )
 
-        predict_datamodule = GeoguesserDataModulePredict([args.images_dir], num_classes=model.num_classes)
+        predict_datamodule = GeoguesserDataModulePredict(
+            [args.images_dir], num_classes=model.num_classes
+        )
 
         use_gpu = torch.cuda.is_available()
         trainer = pl.Trainer(

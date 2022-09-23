@@ -1,8 +1,8 @@
 """Concaternates rows and columns of multiple csv dataframes"""
 import argparse
 import os
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import pandas as pd
 

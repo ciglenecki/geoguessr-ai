@@ -57,14 +57,22 @@ def main(args, df_object: Optional[pd.DataFrame] = None):
     df_regions = pd.read_csv(Path(args.csv_runtime), index_col=False)
 
     df_regions = df_regions.loc[:, ["lat_weighted", "lng_weighted"]].drop_duplicates()
-    df_regions.rename(columns={"lat_weighted": "latitude", "lng_weighted": "longitude"}, inplace=True)
+    df_regions.rename(
+        columns={"lat_weighted": "latitude", "lng_weighted": "longitude"}, inplace=True
+    )
 
     df_predict_geo = gpd.GeoDataFrame(
-        df_predict, geometry=gpd.points_from_xy(df_predict.loc[:, "longitude"], df_predict.loc[:, "latitude"])
+        df_predict,
+        geometry=gpd.points_from_xy(
+            df_predict.loc[:, "longitude"], df_predict.loc[:, "latitude"]
+        ),
     )
 
     df_regions_geo = gpd.GeoDataFrame(
-        df_regions, geometry=gpd.points_from_xy(df_regions.loc[:, "longitude"], df_regions.loc[:, "latitude"])
+        df_regions,
+        geometry=gpd.points_from_xy(
+            df_regions.loc[:, "longitude"], df_regions.loc[:, "latitude"]
+        ),
     )
 
     print(df_predict_geo.head(n=3))
@@ -86,7 +94,9 @@ def main(args, df_object: Optional[pd.DataFrame] = None):
             new_df_dict["longitude"].append(lng)
             contains_int += 1
         else:
-            new_point = minimal_distance_from_point_to_geodataframe(Point(lng, lat), df_regions_geo)
+            new_point = minimal_distance_from_point_to_geodataframe(
+                Point(lng, lat), df_regions_geo
+            )
             new_df_dict["latitude"].append(new_point.y)
             new_df_dict["longitude"].append(new_point.x)
 

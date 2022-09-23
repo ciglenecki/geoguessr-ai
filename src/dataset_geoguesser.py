@@ -27,9 +27,13 @@ class GeoguesserDataset(Dataset):
         self,
         df: pd.DataFrame,
         num_classes,
-        dataset_dirs: List[Path],
-        crs_coords_transform: Callable = lambda crs_x, crs_y: torch.tensor([crs_x, crs_y]).float(),
-        image_transform: transforms.Compose = transforms.Compose([transforms.ToTensor()]),
+        dataset_dirs: list[Path],
+        crs_coords_transform: Callable = lambda crs_x, crs_y: torch.tensor(
+            [crs_x, crs_y]
+        ).float(),
+        image_transform: transforms.Compose = transforms.Compose(
+            [transforms.ToTensor()]
+        ),
         dataset_type: DatasetSplitType = DatasetSplitType.TRAIN,
     ) -> None:
         print("GeoguesserDataset {} init".format(dataset_type.value))
@@ -43,7 +47,9 @@ class GeoguesserDataset(Dataset):
         """Any rows that contain NaN and have uuid will be used to remove the uuid and images from the dataset. These are invalid locations for which the projection couldn't be caculated."""
 
         """ Populate uuid, uuid path and image path variables """
-        uuid_dir_paths = get_dataset_dirs_uuid_paths(dataset_dirs=dataset_dirs, dataset_split_types=dataset_type)
+        uuid_dir_paths = get_dataset_dirs_uuid_paths(
+            dataset_dirs=dataset_dirs, dataset_split_types=dataset_type
+        )
 
         self.uuids = []
         self.image_filepaths = []
@@ -51,7 +57,9 @@ class GeoguesserDataset(Dataset):
 
         for uuid_dir_path in uuid_dir_paths:
             uuid = Path(uuid_dir_path).stem
-            image_filepaths = [Path(uuid_dir_path, "{}.jpg".format(degree)) for degree in self.degrees]
+            image_filepaths = [
+                Path(uuid_dir_path, "{}.jpg".format(degree)) for degree in self.degrees
+            ]
             self.image_store[uuid] = image_filepaths
             self.uuids.append(uuid)
             self.image_filepaths.append(image_filepaths)
@@ -76,7 +84,9 @@ class GeoguesserDataset(Dataset):
             Dataframe with new column y
         """
 
-        self.y_map = df.filter(["polygon_index"]).drop_duplicates().sort_values("polygon_index")
+        self.y_map = (
+            df.filter(["polygon_index"]).drop_duplicates().sort_values("polygon_index")
+        )
         self.y_map["y"] = np.arange(len(self.y_map))
         df = df.merge(self.y_map, on="polygon_index")
         return df
@@ -111,16 +121,20 @@ class GeoguesserDataset(Dataset):
 class GeoguesserDatasetPredict(Dataset):
     def __init__(
         self,
-        images_dirs: List[Path],
+        images_dirs: list[Path],
         num_classes: int,
-        image_transform: transforms.Compose = transforms.Compose([transforms.ToTensor()]),
+        image_transform: transforms.Compose = transforms.Compose(
+            [transforms.ToTensor()]
+        ),
     ) -> None:
         print("GeoguesserDatasetPredict init")
         super().__init__()
         self.num_classes = num_classes
         self.degrees = ["0", "90", "180", "270"]
         self.image_transform = image_transform
-        self.uuid_dir_paths = flatten([get_dirs_only(images_dir) for images_dir in images_dirs])
+        self.uuid_dir_paths = flatten(
+            [get_dirs_only(images_dir) for images_dir in images_dirs]
+        )
         self.uuids = [Path(uuid_dir_path).stem for uuid_dir_path in self.uuid_dir_paths]
 
         """ Build image cache """
@@ -129,7 +143,9 @@ class GeoguesserDatasetPredict(Dataset):
     def _get_image_store(self):
         image_store = {}
         for uuid, uuid_dir_path in zip(self.uuids, self.uuid_dir_paths):
-            image_filepaths = [Path(uuid_dir_path, "{}.jpg".format(degree)) for degree in self.degrees]
+            image_filepaths = [
+                Path(uuid_dir_path, "{}.jpg".format(degree)) for degree in self.degrees
+            ]
             cache_item = image_filepaths
             image_store[uuid] = cache_item
         return image_store

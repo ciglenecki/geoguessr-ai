@@ -21,7 +21,7 @@ from utils_paths import PATH_DATA, PATH_DATA_EXTERNAL, PATH_DATA_ORIGINAL
 class DatasetFlat(Dataset):
     def __init__(
         self,
-        dataset_dirs: List[Path],
+        dataset_dirs: list[Path],
         dataset_type: DatasetSplitType,
         image_transform=transforms.Compose(
             [transforms.Resize(DEFAULT_IMAGE_SIZE), transforms.ToTensor()],
@@ -29,7 +29,10 @@ class DatasetFlat(Dataset):
     ) -> None:
         self.image_paths = flatten(
             [
-                glob(str(Path(dataset_dir, dataset_type.value, "**/*.jpg")), recursive=True)
+                glob(
+                    str(Path(dataset_dir, dataset_type.value, "**/*.jpg")),
+                    recursive=True,
+                )
                 for dataset_dir in dataset_dirs
             ]
         )
@@ -44,7 +47,11 @@ class DatasetFlat(Dataset):
 
 
 if __name__ == "__main__":
-    dataset_dirs = [PATH_DATA_ORIGINAL, PATH_DATA_EXTERNAL, Path(PATH_DATA, "external2")]
+    dataset_dirs = [
+        PATH_DATA_ORIGINAL,
+        PATH_DATA_EXTERNAL,
+        Path(PATH_DATA, "external2"),
+    ]
     dataset = DatasetFlat(
         dataset_dirs,
         DatasetSplitType.TRAIN,
@@ -63,5 +70,7 @@ if __name__ == "__main__":
         print(mean, std)
         return mean, std
 
-    loader = torch.utils.data.DataLoader(dataset, batch_size=8, num_workers=0, shuffle=False)
+    loader = torch.utils.data.DataLoader(
+        dataset, batch_size=8, num_workers=0, shuffle=False
+    )
     mean, std = get_mean_and_std(loader)

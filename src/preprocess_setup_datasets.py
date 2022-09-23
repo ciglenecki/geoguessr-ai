@@ -1,22 +1,31 @@
 import argparse
 import os
-from pathlib import Path
-import sys
-from typing import List
-import pandas as pd
-import numpy as np
 import shutil
+import sys
 from distutils.dir_util import copy_tree
-from config import DEFAULT_SPACING
+from pathlib import Path
+from typing import List
+
+import numpy as np
+import pandas as pd
+
 import preprocess_csv_concat
-from utils_paths import PATH_DATA_SUBSET_EXTERNAL, PATH_DATA_SUBSET_ORIGINAL, PATH_FIGURE, PATH_MODEL, PATH_REPORT
 import preprocess_csv_create_rich_static
 import preprocess_dataset_split_train_val_test
+from config import DEFAULT_SPACING
+from utils_paths import (
+    PATH_DATA_SUBSET_EXTERNAL,
+    PATH_DATA_SUBSET_ORIGINAL,
+    PATH_FIGURE,
+    PATH_MODEL,
+    PATH_REPORT,
+)
 
 
 def parse_args(args):
     parser = argparse.ArgumentParser(
-        formatter_class=argparse.RawTextHelpFormatter, description="Create initial dataset structure for the project"
+        formatter_class=argparse.RawTextHelpFormatter,
+        description="Create initial dataset structure for the project",
     )
 
     parser.add_argument(
@@ -56,7 +65,7 @@ Different spacings produce different number of classes
     return parser.parse_args(args)
 
 
-def copy_images(dataset_dirs: List[Path], out_dir: Path):
+def copy_images(dataset_dirs: list[Path], out_dir: Path):
     images_out_path = Path(out_dir, "images")
     os.makedirs(images_out_path, exist_ok=True)
     for dataset_dir in dataset_dirs:
@@ -64,7 +73,7 @@ def copy_images(dataset_dirs: List[Path], out_dir: Path):
     print("Images saved to: '{}'".format(images_out_path))
 
 
-def save_new_csv(dataset_dirs: List[Path], out_dir: Path) -> str:
+def save_new_csv(dataset_dirs: list[Path], out_dir: Path) -> str:
     csv_paths = [str(Path(dataset_dir, "data.csv")) for dataset_dir in dataset_dirs]
 
     path_new_csv = str(Path(out_dir, "data.csv"))
@@ -79,7 +88,7 @@ def save_new_csv(dataset_dirs: List[Path], out_dir: Path) -> str:
     return path_new_csv
 
 
-def concat_datasets(dataset_dirs: List[Path], out_dir: Path, should_copy_images: bool):
+def concat_datasets(dataset_dirs: list[Path], out_dir: Path, should_copy_images: bool):
     if should_copy_images:
         copy_images(dataset_dirs, out_dir)
     save_new_csv(dataset_dirs, out_dir)
@@ -101,7 +110,9 @@ def main(args):
         out_dir = Path(parent_dir, "dataset_complete_subset")
 
     os.makedirs(out_dir, exist_ok=True)
-    out_dir = concat_datasets(dataset_dirs, out_dir, should_copy_images=should_copy_images)
+    out_dir = concat_datasets(
+        dataset_dirs, out_dir, should_copy_images=should_copy_images
+    )
     path_csv_out = preprocess_csv_create_rich_static.main(
         [
             "--csv",
@@ -112,9 +123,13 @@ def main(args):
     )
 
     for dataset_dir in dataset_dirs:
-        preprocess_dataset_split_train_val_test.main(["--image-dir", str(Path(dataset_dir, "images"))])
+        preprocess_dataset_split_train_val_test.main(
+            ["--image-dir", str(Path(dataset_dir, "images"))]
+        )
     if should_copy_images:
-        preprocess_dataset_split_train_val_test.main(["--image-dir", str(Path(out_dir, "images"))])
+        preprocess_dataset_split_train_val_test.main(
+            ["--image-dir", str(Path(out_dir, "images"))]
+        )
 
 
 if __name__ == "__main__":

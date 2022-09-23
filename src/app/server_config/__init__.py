@@ -2,7 +2,6 @@ from pathlib import Path
 
 from dotenv import dotenv_values
 
-
 _exception_message = """
 .env file that is located at src/app/.env should contain the following variables: {}
 Example of env file:
@@ -22,7 +21,14 @@ class EnvFileException(Exception):
 
 _config = dotenv_values("src/app/.env")
 print(_config)
-_keys = ["MODEL_DIRECTORY", "MODEL_EXTENSION", "PREDICT_BATCH_SIZE", "HOST", "PORT", "HOT_RELOAD"]
+_keys = [
+    "MODEL_DIRECTORY",
+    "MODEL_EXTENSION",
+    "PREDICT_BATCH_SIZE",
+    "HOST",
+    "PORT",
+    "HOT_RELOAD",
+]
 if any([key not in _config for key in _keys]):
     raise EnvFileException(_exception_message.format(_keys))
 

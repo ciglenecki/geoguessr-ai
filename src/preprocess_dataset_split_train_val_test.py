@@ -64,7 +64,9 @@ def main(args):
     )
 
     if sum(split_ratios) != 1:
-        raise argparse.ArgumentError(split_ratios, "There has to be 3 fractions (train, val, test) that sum to 1")
+        raise argparse.ArgumentError(
+            split_ratios, "There has to be 3 fractions (train, val, test) that sum to 1"
+        )
 
     uuids = sorted(next(os.walk(image_dir))[1])
     uuid_indices = np.arange(len(uuids))

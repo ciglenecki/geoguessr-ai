@@ -14,15 +14,20 @@ class InvalidArgument(Exception):
 
 class BackboneFinetuningLastLayers(BackboneFinetuning):
     """
-    BackboneFinetuning (base class) callback performs finetuning procedure where only the last layer is trainable. After unfreeze_backbone_at_epoch number of epochs it makes the whole model trainable.
-    BackboneFinetuningLastLayers does the same thing but it makes only last N blocks trainable instead of the whole model (all blocks).
+    BackboneFinetuning (base class) callback performs finetuning procedure where only
+    the last layer is trainable. After unfreeze_backbone_at_epoch number of epochs it
+    makes the whole model trainable. BackboneFinetuningLastLayers does the same thing
+    but it makes only last N blocks trainable instead of the whole model (all blocks).
     https://pytorch-lightning.readthedocs.io/en/stable/api/pytorch_lightning.callbacks.BackboneFinetuning.html
 
     Args:
-        unfreeze_blocks_num - number of blocks that will be trainable after the finetuning procedure. Argument 'all' will reduce this class to BackboneFinetuning because the whole model will become trainable.
+        unfreeze_blocks_num - number of blocks that will be trainable after the
+        finetuning procedure. Argument 'all' will reduce this class to
+        BackboneFinetuning because the whole model will become trainable.
 
         unfreeze_at_epoch - at which epoch to unfreeze the rest of model
-        lr_finetuning_range - two ranges that define the starting and the ending learning rate during the finetuning phase
+        lr_finetuning_range - two ranges that define the starting and the ending
+                              learning rate during the finetuning phase
         lr_after_finetune - sets learning rate to this value after finetuning is finished
     """
 
@@ -68,7 +73,6 @@ class BackboneFinetuningLastLayers(BackboneFinetuning):
         modules: Union[Module, Iterable[Union[Module, Iterable]]],
         unfreeze_blocks_num: Union[int, str],
     ):
-
         if type(unfreeze_blocks_num) is int:
             blocks = get_model_blocks(modules)
             return blocks[len(blocks) - unfreeze_blocks_num :]
@@ -89,12 +93,16 @@ class BackboneFinetuningLastLayers(BackboneFinetuning):
 
             if not found_layer:
                 raise InvalidArgument(
-                    "unfreeze_blocks_num {} should be a a named module (e.g. layer3.2)".format(unfreeze_blocks_num)
+                    "unfreeze_blocks_num {} should be a a named module (e.g. layer3.2)".format(
+                        unfreeze_blocks_num
+                    )
                 )
             return modules_list
 
         elif unfreeze_blocks_num != "all":
-            raise InvalidArgument("unfreeze_blocks_num argument should be [0, inf> or 'all'")
+            raise InvalidArgument(
+                "unfreeze_blocks_num argument should be [0, inf> or 'all'"
+            )
 
         return get_model_blocks(modules)
 
@@ -107,20 +115,28 @@ class BackboneFinetuningLastLayers(BackboneFinetuning):
     ) -> None:
         # TODO: current version suports only one module
 
-        trainable_blocks: List[Module] = self._return_trainable_modules(modules, self.unfreeze_blocks_num)
+        trainable_blocks: list[Module] = self._return_trainable_modules(
+            modules, self.unfreeze_blocks_num
+        )
 
         last_layer = get_last_layer(modules)
         if last_layer:
             trainable_blocks.append(last_layer)
 
         BaseFinetuning.make_trainable(trainable_blocks)
-        params = BaseFinetuning.filter_params(trainable_blocks, train_bn=train_bn, requires_grad=True)
+        params = BaseFinetuning.filter_params(
+            trainable_blocks, train_bn=train_bn, requires_grad=True
+        )
         params = BaseFinetuning.filter_on_optimizer(optimizer, params)
         if params:
             optimizer.add_param_group({"params": params, "lr": lr})
 
     def finetune_function(
-        self, pl_module: "pl.LightningModule", epoch: int, optimizer: Optimizer, opt_idx: int
+        self,
+        pl_module: "pl.LightningModule",
+        epoch: int,
+        optimizer: Optimizer,
+        opt_idx: int,
     ) -> None:
 
         """Called when the epoch begins."""
@@ -132,7 +148,10 @@ class BackboneFinetuningLastLayers(BackboneFinetuning):
                 train_bn=self.train_bn,
             )
             if self.verbose:
-                print("\nBackboneFinetuningLastLayers is setting the learning rate to:", self.lr_after_finetune)
+                print(
+                    "\nBackboneFinetuningLastLayers is setting the learning rate to:",
+                    self.lr_after_finetune,
+                )
 
 
 if __name__ == "__main__":

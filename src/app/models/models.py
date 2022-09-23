@@ -29,5 +29,5 @@ class PredictDirectoryReponse(BaseModel):
     longitude: float
 
 
-class PostPredictCardinal(List[UploadFile]):
+class PostPredictCardinal(list[UploadFile]):
     pass

@@ -1,0 +1,76 @@
+torchvision_version: "pytorch/vision:v0.12.0"
+
+defaults: # path to default yamls e.g. "optimizing/config/optimizer/adam.yaml"
+  - _self_
+  - optimizing/config/optimizer: adam
+  - optimizing/config/lr_scheduler: exponential_lr
+  - model: resnext101_32x8d
+  - geo/area: croatia
+
+paths: # TODO: write path validators
+  data: data
+  data_complete: ${paths.data}/dataset_complete
+  data_original: ${paths.data}/data_original
+  data_external: ${paths.data}/data_external
+  data_example: ${paths.data}/data_example
+  data_subset_external: ${paths.data}/dataset_external_subset
+  data_complete_subset: ${paths.data}/complete_subset
+  data_sampler: ${paths.data}/coord_sampler
+  world_borders: ${paths.data}/world-borders/world_no_croatia_islands.shp
+  reports: reports
+  reports_quick: reports-quick
+  figures: figures
+  models: models
+
+datamodule:
+  image_size: 224
+  csv_spacing: 0.7
+  dataset_frac: 1
+  shuffle_before_splitting: false
+  num_workers: 4
+  drop_last: true
+  batch_size: 8
+  dataset_dirs:
+    - ${paths.data_complete_subset}
+  dataset_csv: data/complete_subset/data_rich_static__spacing_0.5_classes_55.csv
+  use_single_images: true
+  kwargs: ~
+
+trainer:
+  log_every_n: 100
+  max_epochs: 22
+  lr: 2e-5
+  lr_finetune: 2e-5
+  finetuning_epoch_period: 5
+  early_stopping_epoch_freq: 15
+  weight_decay: 0
+
+
+model:
+  pretrained: true
+  unfreeze_layers_num: "all"
+
+optimizing:
+  config:
+    lr_scheduler: exponential_lr
+    set_grads_none: true
+
+experiment:
+  nothing: true
+geo:
+  global_crs: 4326
+  area:
+    local_crs: ~
+    country_iso2: ~
+
+
+
+
+datetime_format: "%F-%H:%M:%S"
+
+checkpoint: ~
+log:
+  level: DEBUG
+  name: app
+hydra:
+  output_subdir: null

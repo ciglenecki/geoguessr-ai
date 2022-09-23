@@ -54,7 +54,9 @@ def get_setup(
     random.seed(0)
     torch.manual_seed(SEED)
 
-    model: ResNet = torch.hub.load("pytorch/vision:v0.12.0", model_name, pretrained=True)
+    model: ResNet = torch.hub.load(
+        "pytorch/vision:v0.12.0", model_name, pretrained=True
+    )
     # model.fc = Identity()
 
     if freeze_batchnorm_layers:
@@ -67,10 +69,14 @@ def get_setup(
     optimizer = torch.optim.SGD(model.parameters(), lr=1, momentum=0.2, weight_decay=0)
 
     torch.manual_seed(SEED)
-    labels = torch.randint(0, 3, size=(batch_size * consecutive_forwads_num, 1)).squeeze()
+    labels = torch.randint(
+        0, 3, size=(batch_size * consecutive_forwads_num, 1)
+    ).squeeze()
 
     torch.manual_seed(SEED)
-    image_batch_list = [torch.rand(batch_size, channels, image_size, image_size)] * consecutive_forwads_num
+    image_batch_list = [
+        torch.rand(batch_size, channels, image_size, image_size)
+    ] * consecutive_forwads_num
 
     torch.manual_seed(SEED)
 
@@ -114,7 +120,9 @@ class Identity(nn.Module):
 
 def freeze_batchnorm(model: ResNet):
     for (param_name, param) in model.named_modules():
-        if "bn" in param_name or "downsample.1" in param_name:  # downsample.1 is batchnorm in resnet18
+        if (
+            "bn" in param_name or "downsample.1" in param_name
+        ):  # downsample.1 is batchnorm in resnet18
             param.requires_grad_(False)
             param.affine = False
 

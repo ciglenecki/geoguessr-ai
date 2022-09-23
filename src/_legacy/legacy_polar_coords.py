@@ -21,7 +21,9 @@ def _get_class_to_centroid_list_cart(df, num_classes: int):
     ].drop_duplicates()
     _class_to_crs_centroid_map = []
     for class_idx in range(num_classes):
-        row = df_class_info.loc[df_class_info["y"] == class_idx].head(1)  # ensure that only one row is taken
+        row = df_class_info.loc[df_class_info["y"] == class_idx].head(
+            1
+        )  # ensure that only one row is taken
         polygon_x, polygon_y, polygon_z = (
             row["centroid_x"].values[0],
             row["centroid_y"].values,
@@ -59,7 +61,11 @@ def cart_to_lat_long(self, y, images):
     tmp_tensor = torch.zeros(images.size(0), images.size(1))
 
     tmp_tensor[:, :2] = images[:, [0, 1]] ** 2
-    latitude_images = torch.atan2(images[:, 2], torch.sum(tmp_tensor[:, :2], dim=-1).sqrt())
+    latitude_images = torch.atan2(
+        images[:, 2], torch.sum(tmp_tensor[:, :2], dim=-1).sqrt()
+    )
     longitude_images = torch.atan2(images[:, 1], images[:, 0])
 
-    return torch.stack((latitude_y, longitude_y)), torch.stack((latitude_images, longitude_images))
+    return torch.stack((latitude_y, longitude_y)), torch.stack(
+        (latitude_images, longitude_images)
+    )

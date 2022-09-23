@@ -1,0 +1,40 @@
+optimizing:
+  config:
+    optimizer:
+      type: Adam
+      kwargs:
+        lr: 0.0001
+    lr_scheduler:
+      type: ExponentialLR
+      kwargs:
+        gamma: 0.98
+    set_grads_none: true
+model:
+  type: resnext101_32x8d
+  params: {}
+  pretrained: true
+  unfreeze_layers_num: all
+datamodule:
+  image_size: 224
+  csv_spacing: 0.7
+  dataset_frac: 1
+  train_frac: 0.9
+  val_frac: 0.05
+  test_frac: 0.05
+  shuffle_dataset_before_splitting: false
+  num_workers: 4
+  drop_last: true
+  batch_size: 8
+trainer:
+  log_every_n: 100
+  max_epochs: 22
+  lr: 2.0e-05
+  lr_finetune: 2.0e-05
+  finetuning_epoch_period: 5
+  early_stopping_epoch_freq: 15
+  weight_decay: 0
+geo: null
+croatia_crs: 3766
+global_crs: 4326
+country_iso2: hr
+torchvision_version: pytorch/vision:v0.12.0

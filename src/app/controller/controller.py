@@ -10,19 +10,18 @@ from typing import Dict, List, Literal, Union
 
 import pytorch_lightning as pl
 import torch
-from datamodule_geoguesser import GeoguesserDataModulePredict
-from config import DEFAULT_IMAGE_MEAN, DEFAULT_IMAGE_STD
 from fastapi import HTTPException, UploadFile, status
-from model_classification import LitModelClassification
 from PIL import Image
-from predict import InferenceWriter
-import app.models.models as models
-
 from torchvision import transforms
-from utils_model import crs_coords_to_degree, crs_coords_weighed_mean
 
-from app.server_store import server_store
+import app.models.models as models
 from app.logger import logger
+from app.server_store import server_store
+from config import DEFAULT_IMAGE_MEAN, DEFAULT_IMAGE_STD
+from datamodule_geoguesser import GeoguesserDataModulePredict
+from model_classification import LitModelClassification
+from predict import InferenceWriter
+from utils_model import crs_coords_to_degree, crs_coords_weighed_mean
 
 
 def _verify_model_name(model_name: str):
@@ -34,7 +33,9 @@ def _verify_model_name(model_name: str):
 def _verify_dataset_directory_path(path_arg: str):
     dataset_directory_path = Path(path_arg).resolve()
     if not Path(dataset_directory_path).resolve().is_dir():
-        raise HTTPException(404, "Dataset directory '{}' not found.".format(dataset_directory_path))
+        raise HTTPException(
+            404, "Dataset directory '{}' not found.".format(dataset_directory_path)
+        )
     return dataset_directory_path
 
 
@@ -47,7 +48,9 @@ def _load_model(model_name: str):
             # is_regression = False
             # use_single_images = False
             model_constructor = LitModelClassification
-            model = model_constructor.load_from_checkpoint(str(model_path), batch_size=server_store.batch_size)
+            model = model_constructor.load_from_checkpoint(
+                str(model_path), batch_size=server_store.batch_size
+            )
             for param in model.parameters():
                 param.requires_grad = False
             model.eval()
@@ -56,7 +59,9 @@ def _load_model(model_name: str):
 
 
 def _get_lat_lng_predictions(y_pred: torch.Tensor, model: LitModelClassification):
-    pred_crs_coord = crs_coords_weighed_mean(y_pred, model.class_to_crs_weighted_map, top_k=5)
+    pred_crs_coord = crs_coords_weighed_mean(
+        y_pred, model.class_to_crs_weighted_map, top_k=5
+    )
     pred_crs_coord = pred_crs_coord.cpu()
     pred_crs_coord_transformed = model.crs_scaler.inverse_transform(pred_crs_coord)
     pred_degree_coords = crs_coords_to_degree(pred_crs_coord_transformed)
@@ -80,7 +85,7 @@ def _process_image(image: Image.Image, image_size: int) -> torch.Tensor:
     return image_transform(image)
 
 
-async def predict_cardinal_images(model_name: str, images: List[UploadFile]):
+async def predict_cardinal_images(model_name: str, images: list[UploadFile]):
     sides = ["0", "90", "180", "270"]
 
     if len(images) != 4:
@@ -101,15 +106,23 @@ async def predict_cardinal_images(model_name: str, images: List[UploadFile]):
             status.HTTP_400_BAD_REQUEST,
             "Exactly 4 images named '0.{jpg, png}', '90.{jpg, png}', '180.{jpg, png}', '270.{jpg, png}' should be sent.",
         )
-    if any([image.content_type != "image/jpeg" and image.content_type != "image/png" for image in images]):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "File should be images with extension '.jpg' or '.png'")
+    if any(
+        [
+            image.content_type != "image/jpeg" and image.content_type != "image/png"
+            for image in images
+        ]
+    ):
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "File should be images with extension '.jpg' or '.png'",
+        )
 
     images = sorted(images, key=lambda image: int(str((Path(image.filename).stem))))
 
     _verify_model_name(model_name)
     model = _load_model(model_name)
 
-    response_object: List[Dict[Literal["latitude", "longitude"], float]] = []
+    response_object: list[Dict[Literal["latitude", "longitude"], float]] = []
 
     image_list = []
     for image in images:
@@ -127,15 +140,22 @@ async def predict_cardinal_images(model_name: str, images: List[UploadFile]):
     return response_object
 
 
-async def predict_images(model_name: str, images: List[UploadFile]):
+async def predict_images(model_name: str, images: list[UploadFile]):
 
-    if any([image.content_type != "image/jpeg" and image.content_type != "image/png" for image in images]):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "File has to be .jpg or .pong image")
+    if any(
+        [
+            image.content_type != "image/jpeg" and image.content_type != "image/png"
+            for image in images
+        ]
+    ):
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "File has to be .jpg or .pong image"
+        )
 
     _verify_model_name(model_name)
     model = _load_model(model_name)
 
-    response_object: List[Dict[Literal["latitude", "longitude"], float]] = []
+    response_object: list[Dict[Literal["latitude", "longitude"], float]] = []
     for image in images:
         image_io = await image.read()
         image_pil = Image.open(io.BytesIO(image_io))  # type: ignore
@@ -153,7 +173,10 @@ async def predict_images(model_name: str, images: List[UploadFile]):
 
 
 def get_models():
-    model_names = [model_filepath.stem for model_filepath in server_store.refresh_model_filepaths().values()]
+    model_names = [
+        model_filepath.stem
+        for model_filepath in server_store.refresh_model_filepaths().values()
+    ]
     return model_names
 
 
@@ -200,13 +223,17 @@ def predict_dataset(model_name: str, body: models.PostPredictDatasetRequest):
             datamodule=predict_datamodule,
         )  # type: ignore [lightning doesnt know what we return in predict]
 
-    predictions: List[
+    predictions: list[
         Dict[Literal["uuid", "latitude", "longitude"], Union[str, float]]
     ]  # keys in one dictionary: uuid longitude latitude
 
     response_list = []
 
     for pred_dict in predictions:
-        for uuid, longitude, latitude in zip(pred_dict["uuid"], pred_dict["longitude"], pred_dict["latitude"]):
-            response_list.append(dict(uuid=uuid, longitude=longitude, latitude=latitude))
+        for uuid, longitude, latitude in zip(
+            pred_dict["uuid"], pred_dict["longitude"], pred_dict["latitude"]
+        ):
+            response_list.append(
+                dict(uuid=uuid, longitude=longitude, latitude=latitude)
+            )
     return response_list

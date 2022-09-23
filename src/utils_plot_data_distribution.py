@@ -8,10 +8,21 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from tqdm import tqdm
 
-from config import DEFAULT_COUNTRY_ISO2, DEFAULT_CROATIA_CRS, DEFAULT_GLOBAL_CRS, DEFAULT_SPACING
+from config import (
+    DEFAULT_COUNTRY_ISO2,
+    DEFAULT_CROATIA_CRS,
+    DEFAULT_GLOBAL_CRS,
+    DEFAULT_SPACING,
+)
 from preprocess_sample_coords import reproject_dataframe
 from utils_functions import is_valid_dir
-from utils_geo import ClippedCentroid, get_clipped_centroids, get_country_shape, get_grid, get_intersecting_polygons
+from utils_geo import (
+    ClippedCentroid,
+    get_clipped_centroids,
+    get_country_shape,
+    get_grid,
+    get_intersecting_polygons,
+)
 from utils_paths import PATH_FIGURE, PATH_WORLD_BORDERS
 
 
@@ -47,13 +58,21 @@ def main(args, df_object=None):
 
     fig_format = "." + fig_format
 
-    df = df_object if type(df_object) is pd.DataFrame else pd.read_csv(path_csv, index_col=False)
+    df = (
+        df_object
+        if type(df_object) is pd.DataFrame
+        else pd.read_csv(path_csv, index_col=False)
+    )
     world_shape: gpd.GeoDataFrame = gpd.read_file(str(PATH_WORLD_BORDERS))
     country_shape = get_country_shape(world_shape, DEFAULT_COUNTRY_ISO2)
-    df_geo_csv = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.loc[:, "longitude"], df.loc[:, "latitude"]))
+    df_geo_csv = gpd.GeoDataFrame(
+        df, geometry=gpd.points_from_xy(df.loc[:, "longitude"], df.loc[:, "latitude"])
+    )
 
     ax = country_shape.plot(color="green")
-    df_geo_csv.plot(ax=ax, alpha=1, linewidth=0.2, markersize=1, edgecolor="white", color="red")
+    df_geo_csv.plot(
+        ax=ax, alpha=1, linewidth=0.2, markersize=1, edgecolor="white", color="red"
+    )
     file_path = Path(out_dir_fig, "croatia_data_distribution.png")
     if args.no_out:
         plt.plot()

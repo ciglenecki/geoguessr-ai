@@ -27,7 +27,7 @@ def parse_args(args):
     return parser.parse_args(args)
 
 
-def calculate_norm_std(image_dirs: List[Path]):
+def calculate_norm_std(image_dirs: list[Path]):
     """
     Caculates the mean and std of the multiple train dataset directories
     Args:
@@ -45,8 +45,12 @@ def calculate_norm_std(image_dirs: List[Path]):
 
         for uuid in tqdm(uuids):
             location_dir = Path(image_dir, uuid)
-            image_filepaths = [Path(location_dir, "{}.jpg".format(degree)) for degree in degrees]
-            images = [transform(Image.open(image_path)) for image_path in image_filepaths]
+            image_filepaths = [
+                Path(location_dir, "{}.jpg".format(degree)) for degree in degrees
+            ]
+            images = [
+                transform(Image.open(image_path)) for image_path in image_filepaths
+            ]
             for image in images:
                 channels_sum += torch.mean(image, dim=[1, 2]).detach()
                 channels_squared_sum += torch.mean(image**2, dim=[1, 2]).detach()

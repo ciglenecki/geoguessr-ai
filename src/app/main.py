@@ -13,10 +13,10 @@ from descriptions import api_description, predict_desc
 from fastapi import FastAPI, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse, RedirectResponse
-from logger import logger
 
-from app.server_config import server_config
 from app.routers import router
+from app.server_config import server_config
+from logger import logger
 
 
 def catch_exceptions_middleware(request, call_next):
@@ -26,7 +26,11 @@ def catch_exceptions_middleware(request, call_next):
         logger.error(traceback.format_exc())
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content=jsonable_encoder({"message": "Internal server error. Check console log for more information."}),
+            content=jsonable_encoder(
+                {
+                    "message": "Internal server error. Check console log for more information."
+                }
+            ),
         )
 
 

@@ -38,7 +38,9 @@ def parse_args(args):
         "--base-csv",
         metavar="file.csv",
         help="Base-line csv that contains uuid, lat and lng information for images of the external source. E.g. data/coord_sampler/coords_sample__n_1000000_modified_22-04-17-17-28-25.csv",
-        default=Path(PATH_DATA_SAMPLER, "coords_sample__n_1000000_modified_22-04-17-17-28-25.csv"),
+        default=Path(
+            PATH_DATA_SAMPLER, "coords_sample__n_1000000_modified_22-04-17-17-28-25.csv"
+        ),
     )
 
     parser.add_argument(

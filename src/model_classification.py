@@ -20,7 +20,9 @@ from utils_train import OptimizerType, SchedulerType, multi_acc
 
 
 def get_haversine_from_predictions(
-    crs_scaler: MinMaxScaler, pred_crs_coord: torch.Tensor, image_true_crs_coords: torch.Tensor
+    crs_scaler: MinMaxScaler,
+    pred_crs_coord: torch.Tensor,
+    image_true_crs_coords: torch.Tensor,
 ):
     pred_crs_coord = pred_crs_coord.cpu()
     image_true_crs_coords = image_true_crs_coords.cpu()
@@ -46,7 +48,7 @@ class LitModelClassification(pl.LightningModule):
     LightningModule can itself be used as a model object. This is because `forward` function is exposed and can be used. Then, instead of using self.backbone(x) we can write self(x). See: https://pytorch-lightning.readthedocs.io/en/latest/common/lightning_module.html#starter-example
     """
 
-    loggers: List[TensorBoardLogger]
+    loggers: list[TensorBoardLogger]
     class_to_crs_centroid_map: torch.Tensor
     class_to_crs_weighted_map: torch.Tensor
 
@@ -93,14 +95,18 @@ class LitModelClassification(pl.LightningModule):
         self.unfreeze_at_epoch = unfreeze_at_epoch
         self.epoch = 0
 
-        backbone = torch.hub.load(DEFAULT_TORCHVISION_VERSION, model_name, pretrained=pretrained)
+        backbone = torch.hub.load(
+            DEFAULT_TORCHVISION_VERSION, model_name, pretrained=pretrained
+        )
         self.backbone = model_remove_fc(backbone)
         self.fc = nn.Linear(self._get_last_fc_in_channels(), num_classes)
 
         self._set_example_input_array()
         self.save_hyperparameters()
 
-    def load_state_dict(self, state_dict: "OrderedDict[str, Tensor]", strict: bool = True):
+    def load_state_dict(
+        self, state_dict: "OrderedDict[str, Tensor]", strict: bool = True
+    ):
         if "class_to_centroid_map" in state_dict:
 
             old_key = "class_to_centroid_map"
@@ -108,7 +114,10 @@ class LitModelClassification(pl.LightningModule):
 
             state_dict[new_key] = torch.zeros(state_dict[old_key].size())
 
-            state_dict[new_key][:, 1], state_dict[new_key][:, 0] = state_dict[old_key][:, 0], state_dict[old_key][:, 1]
+            state_dict[new_key][:, 1], state_dict[new_key][:, 0] = (
+                state_dict[old_key][:, 0],
+                state_dict[old_key][:, 1],
+            )
 
             state_dict[new_key] = self.crs_scaler.transform(state_dict[new_key])
             state_dict[new_key] = torch.tensor(state_dict[new_key])
@@ -134,11 +143,15 @@ class LitModelClassification(pl.LightningModule):
         num_image_sides = 4
         with torch.no_grad():
             image_batch_list = [
-                torch.rand(self.batch_size, num_channels, self.image_size, self.image_size)
+                torch.rand(
+                    self.batch_size, num_channels, self.image_size, self.image_size
+                )
             ] * num_image_sides
             outs_backbone = [self.backbone(image) for image in image_batch_list]
             out_backbone_cat = torch.cat(outs_backbone, dim=1)
-            flattened_output = torch.flatten(out_backbone_cat, 1)  # shape (batch_size x some_number)
+            flattened_output = torch.flatten(
+                out_backbone_cat, 1
+            )  # shape (batch_size x some_number)
         return flattened_output.shape[1]
 
     def get_num_of_trainable_params(self):
@@ -172,8 +185,12 @@ class LitModelClassification(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         image_list, y_true, image_true_crs_coords = batch
         y_pred = self(image_list)
-        pred_crs_coord = crs_coords_weighed_mean(y_pred, self.class_to_crs_weighted_map, top_k=self.num_classes)
-        haver_dist = get_haversine_from_predictions(self.crs_scaler, pred_crs_coord, image_true_crs_coords)
+        pred_crs_coord = crs_coords_weighed_mean(
+            y_pred, self.class_to_crs_weighted_map, top_k=self.num_classes
+        )
+        haver_dist = get_haversine_from_predictions(
+            self.crs_scaler, pred_crs_coord, image_true_crs_coords
+        )
 
         loss = F.cross_entropy(y_pred, y_true)
         acc = multi_acc(y_pred, y_true)
@@ -194,8 +211,12 @@ class LitModelClassification(pl.LightningModule):
         image_list, y_true, image_true_crs_coords = batch
         y_pred = self(image_list)
 
-        pred_crs_coord = crs_coords_weighed_mean(y_pred, self.class_to_crs_weighted_map, top_k=self.num_classes)
-        haver_dist = get_haversine_from_predictions(self.crs_scaler, pred_crs_coord, image_true_crs_coords)
+        pred_crs_coord = crs_coords_weighed_mean(
+            y_pred, self.class_to_crs_weighted_map, top_k=self.num_classes
+        )
+        haver_dist = get_haversine_from_predictions(
+            self.crs_scaler, pred_crs_coord, image_true_crs_coords
+        )
 
         loss = F.cross_entropy(y_pred, y_true)
         acc = multi_acc(y_pred, y_true)
@@ -215,19 +236,27 @@ class LitModelClassification(pl.LightningModule):
         with torch.no_grad():
             y_pred = self(image_list)
 
-        pred_crs_coord = crs_coords_weighed_mean(y_pred, self.class_to_crs_weighted_map, top_k=self.num_classes)
+        pred_crs_coord = crs_coords_weighed_mean(
+            y_pred, self.class_to_crs_weighted_map, top_k=self.num_classes
+        )
         pred_crs_coord = pred_crs_coord.cpu()
         pred_crs_coord_transformed = self.crs_scaler.inverse_transform(pred_crs_coord)
         pred_degree_coords = crs_coords_to_degree(pred_crs_coord_transformed)
 
-        data_dict = {"uuid": uuid, "latitude": pred_degree_coords[:, 0], "longitude": pred_degree_coords[:, 1]}
+        data_dict = {
+            "uuid": uuid,
+            "latitude": pred_degree_coords[:, 0],
+            "longitude": pred_degree_coords[:, 1],
+        }
         return data_dict
 
     def configure_optimizers(self):
         print("\n", self.__class__.__name__, "Configure optimizers\n")
 
         if self.optimizer_type == OptimizerType.ADAMW.value:
-            optimizer = torch.optim.AdamW(self.parameters(), lr=float(self.learning_rate), weight_decay=5e-3)
+            optimizer = torch.optim.AdamW(
+                self.parameters(), lr=float(self.learning_rate), weight_decay=5e-3
+            )
         else:
             optimizer = torch.optim.Adam(
                 self.parameters(),
@@ -304,9 +333,13 @@ class LitSingleModel(LitModelClassification):
         """
         num_channels = 3
         with torch.no_grad():
-            image = torch.rand(self.batch_size, num_channels, self.image_size, self.image_size)
+            image = torch.rand(
+                self.batch_size, num_channels, self.image_size, self.image_size
+            )
             out_backbone = self.backbone(image)
-            flattened_output = torch.flatten(out_backbone, 1)  # shape (batch_size x some_number)
+            flattened_output = torch.flatten(
+                out_backbone, 1
+            )  # shape (batch_size x some_number)
         return flattened_output.shape[1]
 
     def forward(self, image_list, *args, **kwargs) -> Any:

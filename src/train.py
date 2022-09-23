@@ -1,20 +1,35 @@
 from __future__ import annotations, division, print_function
-import os
 
+import inspect
+import os
+import time
+from datetime import datetime
 from pathlib import Path
 from pprint import pprint
+from typing import List
 
 import pytorch_lightning as pl
+import yaml
+from omegaconf import OmegaConf
+from pydantic import (
+    BaseModel,
+    conint,
+    create_model,
+    create_model_from_namedtuple,
+    validator,
+)
+from pytorch_lightning import Trainer
 from pytorch_lightning import loggers as pl_loggers
 from pytorch_lightning.callbacks import LearningRateMonitor
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from pytorch_lightning.callbacks.model_summary import ModelSummary
 from pytorch_lightning.callbacks.progress.tqdm_progress import TQDMProgressBar
+from pytorch_lightning.utilities.argparse import get_init_arguments_and_types
 
-from calculate_norm_std import calculate_norm_std
 from callback_backbone_last_layers import BackboneFinetuningLastLayers
+from config import DEFAULT_IMAGE_MEAN, DEFAULT_IMAGE_STD, cfg
 from datamodule_geoguesser import GeoguesserDataModule
-from config import DEFAULT_IMAGE_MEAN, DEFAULT_IMAGE_STD
+from logger import log, log_add_stream_handlers
 from model_callbacks import (
     LogMetricsAsHyperparams,
     OnTrainEpochStartLogCallback,
@@ -22,68 +37,68 @@ from model_callbacks import (
 )
 from model_classification import LitModelClassification, LitSingleModel
 from model_regression import LitModelRegression
-from train_args import parse_args_train
-from utils_functions import add_prefix_to_keys, get_timestamp, random_codeword, stdout_to_file
-from utils_paths import PATH_REPORT_QUICK
+from utils_functions import add_prefix_to_keys, generate_name, stdout_to_file
 from utils_train import SchedulerType
 
-if __name__ == "__main__":
-    args, pl_args = parse_args_train()
-    image_size = args.image_size
-    num_workers = args.num_workers
-    model_name = args.model
-    unfreeze_blocks_num = args.unfreeze_blocks
-    pretrained = args.pretrained
-    learning_rate = args.lr
-    trainer_checkpoint = args.trainer_checkpoint
-    unfreeze_at_epoch = args.unfreeze_at_epoch
-    weight_decay = args.weight_decay
-    shuffle_before_splitting = args.shuffle_before_splitting
-    dataset_frac = args.dataset_frac
-    dataset_dirs = args.dataset_dirs
-    batch_size = args.batch_size
-    csv_rich_static = args.csv_rich_static
-    use_single_images = args.use_single_images
-    is_regression = args.regression
-    scheduler_type = args.scheduler
-    epochs = args.epochs
-    recaculate_norm = args.recaculate_normalization
-    optimizer_type = args.optimizer
-    is_quick = args.quick or dataset_frac < 0.1
-    output_report = args.output_report
-    lr_finetune = args.lr_finetune
 
-    timestamp = get_timestamp()
-    experiment_codeword = random_codeword()
+class Experiment:
+    def __init__(self):
+        self.current_timestamp = time.time()
+        self.codeword = generate_name(self.current_timestamp)
+        self.datetime_curr = datetime.fromtimestamp(self.current_timestamp).strftime(
+            cfg.datetime_format
+        )
+        self.experiment_id = f"{self.datetime_curr}_{self.codeword}"
+        self.report_filepath = None
 
-    os.makedirs(output_report, exist_ok=True)
-    filename_report = Path(
-        output_report,
-        "__".join(["train", experiment_codeword, timestamp]) + ".txt",
-    )
+    def build_report_file(
+        self,
+        report_dir: str | Path,
+        prefix_tags: list[str] = [],
+        suffix_tags: list[str] = [],
+        delimiter="__",
+        extension="txt",
+    ):
+        os.makedirs(report_dir, exist_ok=True)
+        filename = f"{delimiter.join([*prefix_tags, self.experiment_id, *suffix_tags])}.{extension}"
+        self.report_filepath = Path(report_dir, filename)
+        return open(self.report_filepath, "w+")
 
-    stdout_to_file(filename_report)
-    print(str(filename_report))
-    pprint([vars(args), vars(pl_args)])
+
+def main():
+
+    # TODO: add strict config validation
+
+    experiment = Experiment()
+    # report_file = experiment.build_report_file(cfg.paths.reports)
+    # log_add_stream_handlers(log, [report_file])
+    log.info("Log file: %s", experiment.report_filepath)
+    log.info("Config\n%s", yaml.dump(cfg.dict()))
 
     mean, std = DEFAULT_IMAGE_MEAN, DEFAULT_IMAGE_STD
 
     datamodule = GeoguesserDataModule(
-        csv_rich_static=csv_rich_static,
-        dataset_dirs=dataset_dirs,
-        batch_size=batch_size,
-        dataset_frac=dataset_frac,
-        image_size=image_size,
-        num_workers=num_workers,
-        shuffle_before_splitting=shuffle_before_splitting,
+        dataset_csv=cfg.datamodule.dataset_csv,
+        dataset_dirs=cfg.datamodule.dataset_dirs,
+        image_size=cfg.datamodule.image_size,
+        batch_size=cfg.datamodule.batch_size,
+        dataset_frac=cfg.datamodule.dataset_frac,
+        num_workers=cfg.datamodule.num_workers,
+        drop_last=cfg.datamodule.drop_last,
+        shuffle_before_splitting=cfg.datamodule.shuffle_before_splitting,
+        use_single_images=cfg.datamodule.use_single_images,
         train_mean_std=(mean, std),
     )
     datamodule.setup()
     num_classes = datamodule.num_classes
     experiment_directory_name = "{}__{}__{}".format(
-        experiment_codeword, "regression" if is_regression else "num_classes_" + str(num_classes), timestamp
+        experiment_codeword,
+        "regression" if is_regression else "num_classes_" + str(num_classes),
+        datetime_curr,
     )
-    datamodule.store_df_to_report(Path(output_report, experiment_directory_name, "data_runtime.csv"))
+    datamodule.store_df_to_report(
+        Path(output_report, experiment_directory_name, "data_runtime.csv")
+    )
 
     train_dataloader_size = len(datamodule.train_dataloader())
     log_dictionary = {
@@ -117,7 +132,7 @@ if __name__ == "__main__":
                 "haversine_{val/haversine_distance_epoch:.4f}",
                 "val_acc_{val/acc_epoch:.4f}",
                 "val_loss_{val/loss_epoch:.4f}",
-                timestamp,
+                datetime_curr,
             ]
         ),
         auto_insert_metric_name=False,
@@ -135,7 +150,7 @@ if __name__ == "__main__":
                 "val_acc_{val/acc_epoch:.4f}",
                 "val_loss_{val/loss_epoch:.4f}",
                 "val",
-                timestamp,
+                datetime_curr,
             ]
         ),
         auto_insert_metric_name=False,
@@ -168,7 +183,9 @@ if __name__ == "__main__":
         )
 
     model_constructor = (
-        LitSingleModel if use_single_images else (LitModelRegression if is_regression else LitModelClassification)
+        LitSingleModel
+        if use_single_images
+        else (LitModelRegression if is_regression else LitModelClassification)
     )
 
     model = model_constructor(
@@ -207,7 +224,9 @@ if __name__ == "__main__":
     )
 
     if scheduler_type == SchedulerType.AUTO_LR.value:
-        lr_finder = trainer.tuner.lr_find(model, datamodule=datamodule, num_training=100)
+        lr_finder = trainer.tuner.lr_find(
+            model, datamodule=datamodule, num_training=100
+        )
 
         # Results can be found in
         lr_finder.results
@@ -223,3 +242,7 @@ if __name__ == "__main__":
 
     trainer.fit(model, datamodule, ckpt_path=trainer_checkpoint)
     trainer.test(model, datamodule)
+
+
+if __name__ == "__main__":
+    main()

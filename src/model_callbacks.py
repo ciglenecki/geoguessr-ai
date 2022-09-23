@@ -50,7 +50,9 @@ class LogMetricsAsHyperparams(pl.Callback):
 class OnTrainEpochStartLogCallback(pl.Callback):
     """Logs metrics. pl_module has to implement get_num_of_trainable_params function"""
 
-    def on_train_epoch_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
+    def on_train_epoch_start(
+        self, trainer: pl.Trainer, pl_module: pl.LightningModule
+    ) -> None:
         data_dict = {
             "trainable_params_num/epoch": float(pl_module.get_num_of_trainable_params()),  # type: ignore
             "current_lr/epoch": trainer.optimizers[0].param_groups[0]["lr"],
@@ -63,7 +65,13 @@ class OnTrainEpochStartLogCallback(pl.Callback):
         # pl_module.log("val/haversine_distance_epoch", 100000)
 
     def on_train_batch_end(
-        self, trainer: "pl.Trainer", pl_module: "pl.LightningModule", outputs, batch, batch_idx: int, unused: int = 0
+        self,
+        trainer: "pl.Trainer",
+        pl_module: "pl.LightningModule",
+        outputs,
+        batch,
+        batch_idx: int,
+        unused: int = 0,
     ) -> None:
         data_dict = {
             "current_lr/step": trainer.optimizers[0].param_groups[0]["lr"],
@@ -105,22 +113,41 @@ class BackboneFreezing(Callback):
         self.unfreeze_at_epoch = unfreeze_at_epoch
         super().__init__()
 
-    def setup(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule", stage: Optional[str] = None) -> None:
+    def setup(
+        self,
+        trainer: "pl.Trainer",
+        pl_module: "pl.LightningModule",
+        stage: Optional[str] = None,
+    ) -> None:
         BackboneFinetuning.freeze(pl_module.backbone)
 
-    def on_fit_start(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
+    def on_fit_start(
+        self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
+    ) -> None:
         if hasattr(pl_module, "backbone") and isinstance(pl_module.backbone, Module):
             return super().on_fit_start(trainer, pl_module)
-        raise MisconfigurationException("The LightningModule should have a nn.Module `backbone` attribute")
+        raise MisconfigurationException(
+            "The LightningModule should have a nn.Module `backbone` attribute"
+        )
 
-    def on_train_epoch_start(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
+    def on_train_epoch_start(
+        self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
+    ) -> None:
         from pytorch_lightning.loops.utilities import _get_active_optimizers
 
-        for opt_idx, optimizer in _get_active_optimizers(trainer.optimizers, trainer.optimizer_frequencies):
-            self.unfreeze_if_needed(pl_module, trainer.current_epoch, optimizer, opt_idx)
+        for opt_idx, optimizer in _get_active_optimizers(
+            trainer.optimizers, trainer.optimizer_frequencies
+        ):
+            self.unfreeze_if_needed(
+                pl_module, trainer.current_epoch, optimizer, opt_idx
+            )
 
     def unfreeze_if_needed(
-        self, pl_module: "pl.LightningModule", epoch: int, optimizer: Optimizer, opt_idx: int
+        self,
+        pl_module: "pl.LightningModule",
+        epoch: int,
+        optimizer: Optimizer,
+        opt_idx: int,
     ) -> None:
         if epoch == self.unfreeze_at_epoch:
             self.unfreeze_and_add_param_group(pl_module.backbone, optimizer)  # type: ignore
@@ -133,18 +160,22 @@ class BackboneFreezing(Callback):
     ) -> None:
 
         blocks = get_model_blocks(modules)
-        trainable_blocks: List[Module] = blocks
+        trainable_blocks: list[Module] = blocks
         if type(self.unfreeze_blocks_num) is int:
             trainable_blocks = blocks[len(blocks) - self.unfreeze_blocks_num :]
         elif self.unfreeze_blocks_num != "all":
-            raise InvalidArgument("unfreeze_blocks_num argument should be [0, inf> or 'all'")
+            raise InvalidArgument(
+                "unfreeze_blocks_num argument should be [0, inf> or 'all'"
+            )
 
         last_layer = get_last_layer(modules)
         if last_layer:
             trainable_blocks.append(last_layer)
 
         BaseFinetuning.make_trainable(trainable_blocks)
-        params = BaseFinetuning.filter_params(trainable_blocks, train_bn=train_bn, requires_grad=True)
+        params = BaseFinetuning.filter_params(
+            trainable_blocks, train_bn=train_bn, requires_grad=True
+        )
         params = BaseFinetuning.filter_on_optimizer(optimizer, params)
         if params:
             optimizer.add_param_group({"params": params})

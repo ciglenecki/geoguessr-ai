@@ -4,12 +4,15 @@ import random
 import string
 import sys
 import time
+import typing
 from datetime import datetime
 from glob import glob
+from logging import Logger
 from math import floor
 from pathlib import Path
-from typing import List, Tuple, TypeVar, Union
-
+from typing import List, Optional, TextIO, Tuple, TypeVar, Union
+import os
+import tempfile
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -26,7 +29,11 @@ T = TypeVar("T")
 
 def get_dirs_only(path: Path):
     """Return only top level directories in the path"""
-    return [d for d in (os.path.join(path, d1) for d1 in os.listdir(path)) if os.path.isdir(d)]
+    return [
+        d
+        for d in (os.path.join(path, d1) for d1 in os.listdir(path))
+        if os.path.isdir(d)
+    ]
 
 
 def tensor_sum_of_elements_to_one(ten: torch.Tensor, dim):
@@ -34,7 +41,9 @@ def tensor_sum_of_elements_to_one(ten: torch.Tensor, dim):
     return ten / torch.sum(ten, dim=dim, keepdim=True)
 
 
-def split_by_ratio(array: np.ndarray, *ratios, use_whole_array=False) -> List[np.ndarray]:
+def split_by_ratio(
+    array: np.ndarray, *ratios, use_whole_array=False
+) -> list[np.ndarray]:
     """
     Splits the ndarray for given ratios
 
@@ -87,8 +96,8 @@ def get_train_test_indices(dataset: Dataset, test_size, dataset_frac=1.0, shuffl
     return
 
 
-def get_timestamp():
-    return datetime.today().strftime("%m-%d-%H-%M-%S")
+def get_timestamp(strftime: str = "%F-%H:%M:%S"):
+    return datetime.today().strftime(strftime)
 
 
 def one_hot_encode(index: int, length: int):
@@ -126,7 +135,9 @@ def imshow(img, y_true, y_pred=None):
 
 def is_valid_fractions_array(array):
     if len(array) != 3 or sum(array) != 1:
-        raise argparse.ArgumentError(array, "There has to be 3 fractions (train, val, test) that sum to 1")
+        raise argparse.ArgumentError(
+            array, "There has to be 3 fractions (train, val, test) that sum to 1"
+        )
     return array
 
 
@@ -147,7 +158,9 @@ def is_valid_image_size(x):
     except ValueError:
         raise argparse.ArgumentTypeError("%r not a int literal" % (x,))
     if x not in valid_sizes:
-        raise argparse.ArgumentTypeError("Size has to be any of: [224, 112, 56, 28, 14]")
+        raise argparse.ArgumentTypeError(
+            "Size has to be any of: [224, 112, 56, 28, 14]"
+        )
     return x
 
 
@@ -175,18 +188,18 @@ def is_valid_dir(arg):
     return arg
 
 
-class SocketConcatenator(object):
-    def __init__(self, *files):
+class SocketConcatenator(TextIO):
+    def __init__(self, *files: TextIO):
         self.files = files
 
-    def write(self, obj):
-        for f in self.files:
-            f.write(obj)
+    def write(self, s: str):
+        for file in self.files:
+            file.write(s)
         self.flush()
 
     def flush(self):
-        for f in self.files:
-            f.flush()
+        for file in self.files:
+            file.flush()
 
 
 def safely_save_df(df: pd.DataFrame, filepath: Path):
@@ -244,43 +257,78 @@ def print_df_sample(df: pd.DataFrame):
     pd.reset_option("display.max_columns")
 
 
-nato_alphabet = {
-    "A": "Alpha",
-    "B": "Bravo",
-    "C": "Charlie",
-    "D": "Delta",
-    "E": "Echo",
-    "F": "Foxtrot",
-    "G": "Golf",
-    "H": "Hotel",
-    "I": "India",
-    "J": "Juliett",
-    "K": "Kilo",
-    "L": "Lima",
-    "M": "Mike",
-    "N": "November",
-    "O": "Oscar",
-    "P": "Papa",
-    "Q": "Quebec",
-    "R": "Romeo",
-    "S": "Sierra",
-    "T": "Tango",
-    "U": "Uniform",
-    "V": "Victor",
-    "W": "Whiskey",
-    "X": "X-ray",
-    "Y": "Yankee",
-    "Z": "Zulu",
-}
+def random_line(file_object: typing.TextIO):
+    """
+    https://stackoverflow.com/questions/3540288/how-do-i-read-a-random-line-from-one-file
+
+    The num, ... in enumerate(..., 2) iterator produces the sequence 2, 3, 4...
+    The randrange will therefore be 0 with a probability of 1.0/num --
+    and that's the probability with which we must replace the currently selected line
+    (the special-case of sample size 1 of the referenced algorithm -- see Knuth's book
+    for proof of correctness == and of course we're also in the case of a small-enough
+    "reservoir" to fit in memory ;-))...
+    and exactly the probability with which we do so.
+
+    Args:
+        file_object
+
+    Returns:
+        random line: str
+    """
+
+    line = next(file_object)
+    for num, curr_line in enumerate(file_object, 2):
+        if random.randrange(num):
+            continue
+        line = curr_line
+    return line
 
 
-def random_codeword():
+def generate_name(seed: Optional[Union[str, int, float]] = time.time()) -> str:
+    """Generate random name, e.g. sexy-charlie
+
+    Args:
+        seed (Optional[Union[str, int, float]], optional):
+        Defaults to time.time().
+
+    Returns:
+        str: random name
     """
-    Return e.g.:
-        Alpha_13, Zulu_39, X-ray_95
-    """
+
+    nato_alphabet = {
+        "A": "Alpha",
+        "B": "Bravo",
+        "C": "Charlie",
+        "D": "Delta",
+        "E": "Echo",
+        "F": "Foxtrot",
+        "G": "Golf",
+        "H": "Hotel",
+        "I": "India",
+        "J": "Juliett",
+        "K": "Kilo",
+        "L": "Lima",
+        "M": "Mike",
+        "N": "November",
+        "O": "Oscar",
+        "P": "Papa",
+        "Q": "Quebec",
+        "R": "Romeo",
+        "S": "Sierra",
+        "T": "Tango",
+        "U": "Uniform",
+        "V": "Victor",
+        "W": "Whiskey",
+        "X": "X-ray",
+        "Y": "Yankee",
+        "Z": "Zulu",
+    }
+
+    random.seed(seed)
+    adjetive = random_line(open(Path("resources", "100-adjectives.txt"))).rstrip()
     random_letter = random.choice(string.ascii_uppercase)
-    return "{}_{}".format(nato_alphabet[random_letter], random.randint(10, 99))
+    nato_name = nato_alphabet[random_letter]
+    return f"{adjetive.lower().capitalize()}{nato_name.lower().capitalize()}"
 
 
 def timeit(func):
@@ -293,6 +341,18 @@ def timeit(func):
         return result
 
     return timed
+
+
+def init_message(logger: Optional[Logger] = None):
+    def wrap(func):
+        def wrapped_f(*args, **kwargs):
+            if logger:
+                logger.debug("%s", func.__qualname__)
+            func(*args, **kwargs)
+
+        return wrapped_f
+
+    return wrap
 
 
 if __name__ == "__main__":

@@ -22,10 +22,14 @@ class ServerStore:
         """
 
         if not os.path.isdir(self.model_directory):
-            raise FastAPIError("Path '{}' is not a directory".format(self.model_directory))
+            raise FastAPIError(
+                "Path '{}' is not a directory".format(self.model_directory)
+            )
         model_filepaths = {
             model_filepath.stem: model_filepath
-            for model_filepath in Path(self.model_directory).rglob("*." + self.model_extension)
+            for model_filepath in Path(self.model_directory).rglob(
+                "*." + self.model_extension
+            )
         }
         if len(model_filepaths) == 0:
             raise FastAPIError(

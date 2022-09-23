@@ -15,7 +15,9 @@ from utils_geo import crs_coords_to_degree, haversine_from_degs
 
 
 def get_haversine_from_predictions(
-    crs_scaler: MinMaxScaler, pred_crs_coord: torch.Tensor, image_true_crs_coords: torch.Tensor
+    crs_scaler: MinMaxScaler,
+    pred_crs_coord: torch.Tensor,
+    image_true_crs_coords: torch.Tensor,
 ):
     pred_crs_coord = pred_crs_coord.cpu()
     image_true_crs_coords = image_true_crs_coords.cpu()
@@ -40,7 +42,9 @@ def plot_filters_single_channel_big(t):
     npimg = npimg.T
 
     fig, ax = plt.subplots(figsize=(ncols / 10, nrows / 200))
-    imgplot = sns.heatmap(npimg, xticklabels=False, yticklabels=False, cmap="gray", ax=ax, cbar=False)
+    imgplot = sns.heatmap(
+        npimg, xticklabels=False, yticklabels=False, cmap="gray", ax=ax, cbar=False
+    )
 
     plt.tight_layout()
     plt.show()
@@ -128,7 +132,9 @@ def plot_weights(model, layer_num, single_channel=True, collated=False):
             if weight_tensor.shape[1] == 3:
                 plot_filters_multi_channel(weight_tensor)
             else:
-                print("Can only plot weights with three channels with single channel = False")
+                print(
+                    "Can only plot weights with three channels with single channel = False"
+                )
 
     else:
         print("Can only visualize layers which are convolutional")
@@ -174,11 +180,17 @@ def freeze_but_last_n_blocks(model, leave_last_n):
     for model_block in model_blocks[:-leave_last_n]:
         for param in model_block.parameters():
             param.requires_grad = False
-    print("{} freezing ({}/{}) layers".format(model_name, len(model_blocks) - leave_last_n, len(model_blocks)))
+    print(
+        "{} freezing ({}/{}) layers".format(
+            model_name, len(model_blocks) - leave_last_n, len(model_blocks)
+        )
+    )
     return model
 
 
-def crs_coords_weighed_mean(y_pred: torch.Tensor, class_map, top_k: int) -> torch.Tensor:
+def crs_coords_weighed_mean(
+    y_pred: torch.Tensor, class_map, top_k: int
+) -> torch.Tensor:
     """
     Args:
         y_pred: tensor of shape (N, C)
