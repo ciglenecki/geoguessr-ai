@@ -1,5 +1,5 @@
 ﻿
-# Lumen Geoguesser
+# GeoGuessr Computer Vision AI
 
 <p align="center">
 	<img src="docs/img/geoguesser-logo.png"></img>
