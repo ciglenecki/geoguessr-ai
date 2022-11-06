@@ -1,6 +1,7 @@
--r requirements.txt # installs non-dev requirements
+# -r requirements.txt # installs non-dev requirements
 flake8
 black
 isort
 pylint
 mypy
+pre-commit
