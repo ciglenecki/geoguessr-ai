@@ -104,9 +104,9 @@ def main():
     log_dictionary = {
         **add_prefix_to_keys(vars(args), "user_args/"),
         **add_prefix_to_keys(vars(pl_args), "lightning_args/"),
-        "train_size": len(datamodule.train_dataloader().dataset),  # type: ignore
-        "val_size": len(datamodule.val_dataloader().dataset),  # type: ignore
-        "test_size": len(datamodule.test_dataloader().dataset),  # type: ignore
+        "train_size": len(datamodule.train_dataloader().dataset),  # type ignore
+        "val_size": len(datamodule.val_dataloader().dataset),  # type ignore
+        "test_size": len(datamodule.test_dataloader().dataset),  # type ignore
         "num_classes": num_classes,
     }
 

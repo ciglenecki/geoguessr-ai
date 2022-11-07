@@ -135,8 +135,8 @@ class GeoguesserDataModule(pl.LightningDataModule):
         Args:
             cached_df: e.g. data/csv_decorated/data__spacing_0.2__num_class_231.csv
         """
-        if cached_df:
-            
+        # TODO: you were here if cached_df:
+
         # else:
         # df_paths = [
         #     str(Path(dataset_dir, "data.csv")) for dataset_dir in self.dataset_dirs
@@ -314,13 +314,13 @@ class GeoguesserDataModule(pl.LightningDataModule):
         """self.train_dataset.uuids is already cleaned of bad values"""
         dataset_train_indices = self.df.index[
             self.df["uuid"].isin(self.train_dataset.uuids)
-        ].to_numpy()  # type: ignore # [indices can be converted to list]
+        ].to_numpy()  # type ignore # [indices can be converted to list]
         dataset_val_indices = self.df.index[
             self.df["uuid"].isin(self.val_dataset.uuids)
-        ].to_numpy()  # type: ignore # [indices can be converted to list]
+        ].to_numpy()  # type ignore # [indices can be converted to list]
         dataset_test_indices = self.df.index[
             self.df["uuid"].isin(self.test_dataset.uuids)
-        ].to_numpy()  # type: ignore # [indices can be converted to list]
+        ].to_numpy()  # type ignore # [indices can be converted to list]
 
         if self.dataset_frac != 1:
             dataset_train_indices = np.random.choice(

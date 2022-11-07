@@ -74,11 +74,13 @@ class LitModelClassification(pl.LightningModule):
         print("\nLitModelClassification init\n")
         super().__init__()
         self.register_buffer(
-            "class_to_crs_centroid_map", class_to_crs_centroid_map.clone().detach()  # type: ignore
+            "class_to_crs_centroid_map",
+            class_to_crs_centroid_map.clone().detach(),  # type ignore
         )  # set self.class_to_crs_centroid_map on gpu
 
         self.register_buffer(
-            "class_to_crs_weighted_map", class_to_crs_weighted_map.clone().detach()  # type: ignore
+            "class_to_crs_weighted_map",
+            class_to_crs_weighted_map.clone().detach(),  # type ignore
         )  # set self.class_to_crs_weighted_map on gpu
 
         self.learning_rate = torch.tensor(learning_rate).float()
@@ -284,7 +286,7 @@ class LitModelClassification(pl.LightningModule):
         if self.scheduler_type == SchedulerType.ONECYCLE.value:
             best_onecycle_min_lr = 0.00025
             best_onecycle_initial_lr = 0.132
-            scheduler = torch.optim.lr_scheduler.OneCycleLR(  # type: ignore
+            scheduler = torch.optim.lr_scheduler.OneCycleLR(  # type ignore
                 optimizer,
                 max_lr=best_onecycle_initial_lr,  # TOOD:self.learning_rate,
                 final_div_factor=best_onecycle_initial_lr / best_onecycle_min_lr,
@@ -315,7 +317,7 @@ class LitModelClassification(pl.LightningModule):
         if self.current_epoch < self.unfreeze_at_epoch:
             return
         if metric is None:
-            scheduler.step()  # type: ignore
+            scheduler.step()  # type ignore
         else:
             scheduler.step(metric)
 

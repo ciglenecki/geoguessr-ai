@@ -79,7 +79,7 @@ def split_by_ratio(
 def get_train_test_indices(dataset: Dataset, test_size, dataset_frac=1.0, shuffle=True):
     dataset_size = floor(
         len(dataset) * dataset_frac
-    )  # type: ignore # - dataseta has length only __len__ is implemented
+    )  # type ignore # - dataseta has length only __len__ is implemented
     dataset_indices = np.arange(dataset_size)
 
     if shuffle:

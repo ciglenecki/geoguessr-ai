@@ -46,7 +46,7 @@ OmegaConf.resolve(_hydra_dict_config)
 OmegaConf.set_readonly(_hydra_dict_config, True)
 OmegaConf.set_struct(_hydra_dict_config, True)
 _config_dict = OmegaConf.to_container(_hydra_dict_config)
-cfg = PyanticHydraConfig(**_config_dict)  # type: ignore
+cfg = PyanticHydraConfig(**_config_dict)  # type ignore
 
 
 # """CSV"""

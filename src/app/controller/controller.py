@@ -127,7 +127,7 @@ async def predict_cardinal_images(model_name: str, images: list[UploadFile]):
     image_list = []
     for image in images:
         image_io = await image.read()
-        image_pil = Image.open(io.BytesIO(image_io))  # type: ignore
+        image_pil = Image.open(io.BytesIO(image_io))  # type ignore
         image_tensor = _process_image(image_pil, model.image_size)
         image_tensor = image_tensor.unsqueeze(dim=0)
         image_list.append(image_tensor)
@@ -158,7 +158,7 @@ async def predict_images(model_name: str, images: list[UploadFile]):
     response_object: list[Dict[Literal["latitude", "longitude"], float]] = []
     for image in images:
         image_io = await image.read()
-        image_pil = Image.open(io.BytesIO(image_io))  # type: ignore
+        image_pil = Image.open(io.BytesIO(image_io))  # type ignore
 
         image_tensor = _process_image(image_pil, model.image_size)
         image_tensor = image_tensor.unsqueeze(dim=0)
@@ -221,7 +221,7 @@ def predict_dataset(model_name: str, body: models.PostPredictDatasetRequest):
         predictions = trainer.predict(
             model=model,
             datamodule=predict_datamodule,
-        )  # type: ignore [lightning doesnt know what we return in predict]
+        )  # type ignore [lightning doesnt know what we return in predict]
 
     predictions: list[
         Dict[Literal["uuid", "latitude", "longitude"], Union[str, float]]

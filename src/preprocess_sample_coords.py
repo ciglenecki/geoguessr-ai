@@ -101,7 +101,9 @@ def main(args):
         points_geometry = gpd.points_from_xy(
             df_batch.loc[:, "longitude"], df_batch.loc[:, "latitude"]
         )
-        df_batch_csv = gpd.GeoDataFrame(df_batch, geometry=points_geometry, crs=croatia_crs)  # type: ignore #[geopandas doesnt recognize args]
+        df_batch_csv = gpd.GeoDataFrame(
+            df_batch, geometry=points_geometry, crs=croatia_crs
+        )  # type ignore #[geopandas doesnt recognize args]
         df_batch_points_in_country = gpd.sjoin(
             df_batch_csv, country_shape, predicate="within"
         ).set_crs(croatia_crs)

@@ -49,7 +49,7 @@ class LitModelRegression(pl.LightningModule):
         self.batch_size = batch_size
         self.image_size = image_size
         self.num_classes = num_classes
-        self.crs_scaler: MinMaxScaler = crs_scaler  # type: ignore
+        self.crs_scaler: MinMaxScaler = crs_scaler  # type ignore
         self.scheduler_type = scheduler_type
         self.epochs = epochs
         self.train_dataloader_size = train_dataloader_size
@@ -208,7 +208,7 @@ class LitModelRegression(pl.LightningModule):
         if self.scheduler_type == SchedulerType.ONECYCLE.value:
             best_onecycle_min_lr = 0.00025
             best_onecycle_initial_lr = 0.132
-            scheduler = torch.optim.lr_scheduler.OneCycleLR(  # type: ignore
+            scheduler = torch.optim.lr_scheduler.OneCycleLR(  # type ignore
                 optimizer,
                 max_lr=best_onecycle_initial_lr,  # TOOD:self.learning_rate,
                 final_div_factor=best_onecycle_initial_lr / best_onecycle_min_lr,
@@ -239,7 +239,7 @@ class LitModelRegression(pl.LightningModule):
         if self.current_epoch < self.unfreeze_at_epoch:
             return
         if metric is None:
-            scheduler.step()  # type: ignore
+            scheduler.step()  # type ignore
         else:
             scheduler.step(metric)
 

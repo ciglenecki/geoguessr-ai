@@ -152,8 +152,12 @@ def generate_spherical_coords(
 
 def generate_src_coords(lat: pd.Series, lng: pd.Series):
     points_geometry = gpd.points_from_xy(lng, lat)  # x is lng y is lat
-    df_tmp = gpd.GeoDataFrame(columns=["x", "y"], geometry=points_geometry, crs=cfg.geo.area.local_crs)  # type: ignore #[geopandas doesnt recognize args]
-    df_tmp: gpd.GeoDataFrame = df_tmp.to_crs(cfg.geo.area.local_crs)  # type: ignore, it cant distinguish from geo/pandas
+    df_tmp = gpd.GeoDataFrame(
+        columns=["x", "y"], geometry=points_geometry, crs=cfg.geo.area.local_crs
+    )  # type ignore #[geopandas doesnt recognize args]
+    df_tmp: gpd.GeoDataFrame = df_tmp.to_crs(
+        cfg.geo.area.local_crs
+    )  # type ignore it cant distinguish from geo/pandas
 
     def handle_dot(point: Point, x_or_y: str):
         if point.is_empty:
@@ -203,7 +207,7 @@ def main(args, df_object=None) -> Union[str, pd.DataFrame]:
         geometry=gpd.points_from_xy(
             df.loc[:, "longitude"], df.loc[:, "latitude"], crs=args.global_crs
         ),
-    )  # type: ignore
+    )  # type ignore
     df.drop(
         "geometry", axis=1, inplace=True
     )  # info: GeoDataFrame somehow adds "geometry" column onto the df
@@ -347,7 +351,9 @@ def main(args, df_object=None) -> Union[str, pd.DataFrame]:
     df_polys_with_images["coords"] = df_polys_with_images["geometry"].apply(
         lambda poly: (poly.centroid.x, poly.centroid.y)
     )
-    df_polys_with_images.loc[:, "polygon_index"] = polys_with_images.keys()  # type: ignore
+    df_polys_with_images.loc[
+        :, "polygon_index"
+    ] = polys_with_images.keys()  # type ignore
     for idx, row in df_polys_with_images.iterrows():
         ann = plt.annotate(
             text=row["polygon_index"],
@@ -358,7 +364,7 @@ def main(args, df_object=None) -> Union[str, pd.DataFrame]:
             verticalalignment="top",
             fontsize=5,
             color="white",
-        )  # type: ignore
+        )  # type ignore
         ann.set_path_effects(
             [
                 path_effects.Stroke(linewidth=0.5, foreground="black"),

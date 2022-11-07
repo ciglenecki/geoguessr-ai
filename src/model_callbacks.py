@@ -42,9 +42,11 @@ class LogMetricsAsHyperparams(pl.Callback):
     def on_fit_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
 
         if pl_module.loggers:
-            for logger in pl_module.loggers:  # type: ignore
+            for logger in pl_module.loggers:  # type ignore
                 logger: pl_loggers.TensorBoardLogger
-                logger.log_hyperparams(pl_module.hparams, self.hyperparameter_metrics_init)  # type: ignore
+                logger.log_hyperparams(
+                    pl_module.hparams, self.hyperparameter_metrics_init
+                )  # type ignore
 
 
 class OnTrainEpochStartLogCallback(pl.Callback):
@@ -54,7 +56,9 @@ class OnTrainEpochStartLogCallback(pl.Callback):
         self, trainer: pl.Trainer, pl_module: pl.LightningModule
     ) -> None:
         data_dict = {
-            "trainable_params_num/epoch": float(pl_module.get_num_of_trainable_params()),  # type: ignore
+            "trainable_params_num/epoch": float(
+                pl_module.get_num_of_trainable_params()
+            ),  # type ignore
             "current_lr/epoch": trainer.optimizers[0].param_groups[0]["lr"],
             "epoch_true": trainer.current_epoch,
             "step": trainer.current_epoch,
@@ -150,7 +154,9 @@ class BackboneFreezing(Callback):
         opt_idx: int,
     ) -> None:
         if epoch == self.unfreeze_at_epoch:
-            self.unfreeze_and_add_param_group(pl_module.backbone, optimizer)  # type: ignore
+            self.unfreeze_and_add_param_group(
+                pl_module.backbone, optimizer
+            )  # type ignore
 
     def unfreeze_and_add_param_group(
         self,

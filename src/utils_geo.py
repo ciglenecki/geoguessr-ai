@@ -162,7 +162,7 @@ def get_grid(
             """Critical line START"""
             critical_a_idx, critical_b_idx = quadrant_to_critical_hex_points[
                 (quadrant["horizontal"], quadrant["vertical"])
-            ]  # type: ignore
+            ]  # type ignore
             if hexagon.exterior is None:
                 raise ValueError("Hexagon is missing exterior?")
             xs, ys = hexagon.exterior.coords.xy
@@ -196,11 +196,11 @@ def get_country_shape(world_shape: gpd.GeoDataFrame, iso2: str) -> gpd.GeoDataFr
     country_shape = world_shape[world_shape["ISO2"].str.lower() == iso2.lower()]
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        country_shape = country_shape.explode(ignore_index=False)  # type: ignore
+        country_shape = country_shape.explode(ignore_index=False)  # type ignore
     country_shape = country_shape.droplevel(
         0
     )  # we don't need country index on level 0, we work with a single country
-    return country_shape  # type: ignore #[can't recognize type because of modifications]
+    return country_shape  # type ignore #[can't recognize type because of modifications]
 
 
 def get_intersecting_polygons(
